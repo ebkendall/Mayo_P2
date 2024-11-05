@@ -3,7 +3,7 @@ dir = 'Model_out/'
 trialNum = 2
 sampNum = 1
 itNum = 1
-index_seeds = c(1)
+index_seeds = c(1:3)
 long_chain = T
 
 data_num = 5
@@ -13,8 +13,8 @@ true_par = true_pars
 # Size of posterior sample from mcmc chains
 steps = 1001
 
-load('Data_updates/Dn_omega_names1.rda')
-load('Data_updates/hr_map_names1.rda')
+load('Data_sim/Dn_omega_names1.rda')
+load('Data_sim/hr_map_names1.rda')
 
 labels = c("beta (n_RBC_admin): hemo", "beta (n_RBC_admin): hr", 
            "beta (n_RBC_admin): map", "beta (n_RBC_admin): lact",
@@ -69,8 +69,8 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         
-        file_name = paste0(dir,'mcmc_out_interm_',toString(seed),'_', 
-                           trialNum,'it', it, '_samp', sampNum, '_sim.rda') 
+        file_name = paste0(dir,'mcmc_out_',toString(seed),'_', trialNum,'it', 
+                           it, '_samp', sampNum, '_sim.rda') 
         
         load(file_name)
         print(paste0(ind, ": ", file_name))
@@ -82,15 +82,15 @@ for(seed in index_seeds){
         par_index = mcmc_out_temp$par_index
         
         if(it == 1) {
-            chain_list[[ind]] = mcmc_out_temp$chain
-            for(a in 1:length(a_chain_list[[ind]])) {
-                a_chain_list[[ind]][[a]] = mcmc_out_temp$A_chain[[a]]
-            }
+            chain_list[[ind]] = mcmc_out_temp$chain[1000:2000,]
+            # for(a in 1:length(a_chain_list[[ind]])) {
+            #     a_chain_list[[ind]][[a]] = mcmc_out_temp$A_chain[[a]]
+            # }
         } else {
             chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out_temp$chain)
-            for(a in 1:length(a_chain_list[[ind]])) {
-                a_chain_list[[ind]][[a]] = cbind(a_chain_list[[ind]][[a]], mcmc_out_temp$A_chain[[a]])
-            }
+            # for(a in 1:length(a_chain_list[[ind]])) {
+            #     a_chain_list[[ind]][[a]] = cbind(a_chain_list[[ind]][[a]], mcmc_out_temp$A_chain[[a]])
+            # }
         }
         
         rm(mcmc_out_temp)
@@ -213,49 +213,49 @@ for(rr in 1:ncol(gamma_chain)){
     abline( v=true_gamma[rr], col='green', lwd=2, lty=2)
 }
 
-# Plotting the sampled alpha_i
-a_chain_id = c(3, 86, 163, 237, 427, 521, 632, 646, 692, 713)
-hist_a_chain_list = vector(mode = 'list', length = length(a_chain_id))
-for(i in 1:length(a_chain_id)) {
-    for(j in 1:length(index_seeds)) {
-        if(j==1) {
-            hist_a_chain_list[[i]] = a_chain_list[[j]][[i]]
-        } else {
-            hist_a_chain_list[[i]] = cbind(hist_a_chain_list[[i]], a_chain_list[[j]][[i]])
-        }
-    }
-}
+# # Plotting the sampled alpha_i
+# a_chain_id = c(3, 86, 163, 237, 427, 521, 632, 646, 692, 713)
+# hist_a_chain_list = vector(mode = 'list', length = length(a_chain_id))
+# for(i in 1:length(a_chain_id)) {
+#     for(j in 1:length(index_seeds)) {
+#         if(j==1) {
+#             hist_a_chain_list[[i]] = a_chain_list[[j]][[i]]
+#         } else {
+#             hist_a_chain_list[[i]] = cbind(hist_a_chain_list[[i]], a_chain_list[[j]][[i]])
+#         }
+#     }
+# }
 
-hist_names = c("alpha_i baseline for hemo", "alpha_i slopes for hemo",
-               "alpha_i baseline for hr", "alpha_i slopes for hr",
-               "alpha_i baseline for map", "alpha_i slopes for map",
-               "alpha_i baseline for lactate", "alpha_i slopes for lactate")
+# hist_names = c("alpha_i baseline for hemo", "alpha_i slopes for hemo",
+#                "alpha_i baseline for hr", "alpha_i slopes for hr",
+#                "alpha_i baseline for map", "alpha_i slopes for map",
+#                "alpha_i baseline for lactate", "alpha_i slopes for lactate")
 
-for (s in 1:length(a_chain_id)) {
+# for (s in 1:length(a_chain_id)) {
     
-    patient_a = hist_a_chain_list[[s]]
+#     patient_a = hist_a_chain_list[[s]]
     
-    for(k in 1:4) {
-        base_ind = 5*k - 4
-        b_ind = 5*k - 3
-        r_ind = 5*k - 2
-        s4_ind = 5*k - 1
-        s5_ind = 5*k
+#     for(k in 1:4) {
+#         base_ind = 5*k - 4
+#         b_ind = 5*k - 3
+#         r_ind = 5*k - 2
+#         s4_ind = 5*k - 1
+#         s5_ind = 5*k
         
-        temp_df = data.frame("bleed" = patient_a[b_ind,],
-                             "recovery" = patient_a[r_ind,],
-                             "NBE" = patient_a[s4_ind, ],
-                             "recov_NBE" = patient_a[s5_ind, ])
+#         temp_df = data.frame("bleed" = patient_a[b_ind,],
+#                              "recovery" = patient_a[r_ind,],
+#                              "NBE" = patient_a[s4_ind, ],
+#                              "recov_NBE" = patient_a[s5_ind, ])
         
-        hist(patient_a[base_ind,], main = paste0(a_chain_id[s], ": ", hist_names[2*k-1]), 
-             col = "darkolivegreen4", breaks = floor(sqrt(ncol(patient_a))),
-             xlab = "baseline")
+#         hist(patient_a[base_ind,], main = paste0(a_chain_id[s], ": ", hist_names[2*k-1]), 
+#              col = "darkolivegreen4", breaks = floor(sqrt(ncol(patient_a))),
+#              xlab = "baseline")
         
-        boxplot(temp_df, col = c('firebrick1', 'yellow2', 'green', 'darkgray'),
-                main = hist_names[2*k], outline=FALSE)
-        abline(h = 0, col = 'blue')
-    }
+#         boxplot(temp_df, col = c('firebrick1', 'yellow2', 'green', 'darkgray'),
+#                 main = hist_names[2*k], outline=FALSE)
+#         abline(h = 0, col = 'blue')
+#     }
     
-}
+# }
 
 dev.off()

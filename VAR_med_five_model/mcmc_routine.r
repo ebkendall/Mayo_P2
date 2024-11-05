@@ -31,23 +31,25 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(# c(par_index$vec_init),
-               c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
-               c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
-               c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
-               c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
-               c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0 
-               c(par_index$vec_A[c(1,5,9,13,17)]),
-               c(par_index$vec_A[c(2,6,10,14,18)]),
-               c(par_index$vec_A[c(3,7,11,15,19)]),
-               c(par_index$vec_A[c(4,8,12,16,20)]),
+                c(par_index$vec_zeta),
+                c(par_index$vec_A),
+            #    c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
+            #    c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
+            #    c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
+            #    c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
+            #    c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0 
+            #    c(par_index$vec_A[c(1,5,9,13,17)]),
+            #    c(par_index$vec_A[c(2,6,10,14,18)]),
+            #    c(par_index$vec_A[c(3,7,11,15,19)]),
+            #    c(par_index$vec_A[c(4,8,12,16,20)]),
                # c(par_index$vec_upsilon_omega[c(1:16, 36:57)]),
                # c(par_index$vec_upsilon_omega[c(17:35, 58:88)]),
                c(par_index$vec_R))
 
     n_group = length(mpi)
 
-    pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))*.001
-    pscale = rep( 1, n_group)
+    pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
+    pscale = rep( 0.0001, n_group)
 
     # if(!simulation) {
     # } 
@@ -91,25 +93,11 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                             'RBC_rule', 'clinic_rule')
         }
 
-        # Gibbs: alpha_i -------------------------------------------------------
-        A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-                                Dn_omega, W, B, n_cores)
-        names(A) = EIDs
-
-        for(aaa in 1:length(a_chain_id)) {
-            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
-        }
-
-        # Gibbs: omega_i -------------------------------------------------------
-        # W = update_omega_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-        #                         Dn_omega, A, B, n_cores)
-        # names(W) = EIDs
-        
         # Metropolis-within-Gibbs: B (states) ----------------------------------
         if(sampling_num <= 3) {
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                t_pt_length, sampling_num)
+                                 Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                 t_pt_length, sampling_num)
         } else {
             B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
@@ -118,8 +106,22 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         B = B_Dn[[1]]; names(B) = EIDs
         Dn = B_Dn[[2]]; names(Dn) = EIDs
         
+        # Gibbs: alpha_i -------------------------------------------------------
+        # A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
+        #                         Dn_omega, W, B, n_cores)
+        # names(A) = EIDs
+
+        # for(aaa in 1:length(a_chain_id)) {
+        #     A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
+        # }
+
+        # Gibbs: omega_i -------------------------------------------------------
+        # W = update_omega_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
+        #                         Dn_omega, A, B, n_cores)
+        # names(W) = EIDs
+        
         # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
-        par = update_alpha_tilde_cpp( as.numeric(EIDs), par, par_index, A, Y)
+        # par = update_alpha_tilde_cpp( as.numeric(EIDs), par, par_index, A, Y)
         # par = update_omega_tilde_cpp( as.numeric(EIDs), par, par_index, W, Y)
         # par = update_beta_Upsilon_R_cpp( as.numeric(EIDs), par, par_index, A, Y,
         #                                  Dn, Xn, Dn_omega, W, B, n_cores)
@@ -227,8 +229,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 psi_nu_star_t = proposal_R_cpp_new(nu_R, psi_R, curr_R, Y, Dn, Xn,
                                                    A, par, par_index, as.numeric(EIDs),
                                                    B, Dn_omega, W)
-                q_s_star_t = psi_nu_star_t[[1]] / pscale[j]
-                q_nu_star_t = floor(psi_nu_star_t[[2]] / pscale[j])
+                q_s_star_t = psi_nu_star_t[[1]]
+                q_nu_star_t = floor(psi_nu_star_t[[2]])
         
                 # Proposal R 
                 proposal[ind_j] = c(rinvwishart(nu = q_nu_star_t, S = q_s_star_t))
@@ -238,8 +240,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 psi_nu_t_star = proposal_R_cpp_new(nu_R, psi_R, prop_R, Y, Dn, Xn,
                                                    A, par, par_index, as.numeric(EIDs),
                                                    B, Dn_omega, W)
-                q_s_t_star = psi_nu_t_star[[1]] / pscale[j]
-                q_nu_t_star = floor(psi_nu_t_star[[2]] / pscale[j])
+                q_s_t_star = psi_nu_t_star[[1]] 
+                q_nu_t_star = floor(psi_nu_t_star[[2]])
         
                 # Evaluate log-density and log-likelihood
                 log_prop      = dinvwishart(Sigma = prop_R,
@@ -288,6 +290,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         # ----------------------------------------------------------------------
 
         if(ttt%%1==0)  cat('--->',ttt,'\n')
+        if(ttt%%100==0) print(accept)
+        
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
             index_keep = seq(1, chain_length_MASTER, by = 5)

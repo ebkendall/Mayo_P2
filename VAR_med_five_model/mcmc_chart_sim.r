@@ -3,10 +3,10 @@ library(plotrix)
 
 simulation = T
 
-data_num = 4
+data_num = 5
 
-trialNum = 1
-sampNum = 4
+trialNum = 2
+sampNum = 1
 itNum = 1
 all_seeds = F
 long_chain = F
@@ -14,7 +14,7 @@ long_chain = F
 if(all_seeds) {
     seed_list = 1:3
 } else {
-    seed_list = 1
+    seed_list = 3
 }
 
 # Load the model output -------------------------------------------------------
@@ -34,16 +34,17 @@ for(seed_num in 1:length(seed_list)) {
     }
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_interm_', seed_num,'_', trialNum,'it', it, '_samp', sampNum, '_sim.rda')
+        file_name = paste0('Model_out/mcmc_out_', seed_list[seed_num],'_', 
+                           trialNum,'it', it, '_samp', sampNum, '_sim.rda')
         load(file_name)
         print(file_name)
         
         if(it == 1) {
-            B_chain   = mcmc_out_temp$B_chain[500:1000, ]
-            Hr_chain  = mcmc_out_temp$hr_chain[500:1000, ]
-            Map_chain = mcmc_out_temp$bp_chain[500:1000, ]
-            Hc_chain  = mcmc_out_temp$hc_chain[500:1000, ]
-            La_chain  = mcmc_out_temp$la_chain[500:1000, ]
+            B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
+            Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
+            Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
+            Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
+            La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
         } else {
             B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
             Hr_chain  = mcmc_out_temp$hr_chain
@@ -72,7 +73,7 @@ rm(Dn_omega_sim)
 EIDs = unique(use_data[,'EID'])
 
 ss_truth = use_data[,"b_true"]
-load('Data_updates/hr_map_names1.rda')
+load('Data_sim/hr_map_names1.rda')
 
 # ------------------------------------------------------------------------------
 # Function to change transparency of colors # ----------------------------------

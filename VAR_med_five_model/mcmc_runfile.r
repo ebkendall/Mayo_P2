@@ -1,17 +1,15 @@
 source('mcmc_routine.r')
 
 args = commandArgs(TRUE)
-sampling_num = as.numeric(args[1])
-seed_num = NULL
-if(sampling_num <= 4) {
-    seed_num = 1
-} else if(sampling_num > 4 & sampling_num <= 8) {
-    seed_num = 2
-    sampling_num = sampling_num - 4
-} else {
-    seed_num = 3
-    sampling_num = sampling_num - 8
-} 
+seed_num = as.numeric(args[1])
+sampling_num = NULL
+
+if(seed_num <= 3) {
+    sampling_num = 1
+} else if(seed_num > 3 & seed_num <= 6) {
+    seed_num = seed_num - 3
+    sampling_num = 2
+}
 
 set.seed(seed_num)
 ind = seed_num
@@ -23,7 +21,7 @@ if(simulation) {
     steps  = 20000
     burnin =  5000
 
-    trialNum = 1
+    trialNum = 2
     max_ind = 5
     sim_dat_num = 5
     
@@ -238,16 +236,16 @@ print(zed)
 vec_A1 = par[par_index$vec_A]
 scale_A1 = (exp(vec_A1) - 1) / (1 + exp(vec_A1)) 
 
-diag_gamma = c(R_t[1,1] / (scale_A1[1]^2), R_t[2,2] / (scale_A1[2]^2),
-               R_t[3,3] / (scale_A1[3]^2), R_t[4,4] / (scale_A1[4]^2),
-               R_t[1,1] / (scale_A1[5]^2), R_t[2,2] / (scale_A1[6]^2),
-               R_t[3,3] / (scale_A1[7]^2), R_t[4,4] / (scale_A1[8]^2),
-               R_t[1,1] / (scale_A1[9]^2), R_t[2,2] / (scale_A1[10]^2),
-               R_t[3,3] / (scale_A1[11]^2), R_t[4,4] / (scale_A1[12]^2),
-               R_t[1,1] / (scale_A1[13]^2), R_t[2,2] / (scale_A1[14]^2),
-               R_t[3,3] / (scale_A1[15]^2), R_t[4,4] / (scale_A1[16]^2),
-               R_t[1,1] / (scale_A1[17]^2), R_t[2,2] / (scale_A1[18]^2),
-               R_t[3,3] / (scale_A1[19]^2), R_t[4,4] / (scale_A1[20]^2))
+diag_gamma = c(R_t[1,1] / (1 - scale_A1[1]^2), R_t[2,2] / (1 - scale_A1[2]^2),
+               R_t[3,3] / (1 - scale_A1[3]^2), R_t[4,4] / (1 - scale_A1[4]^2),
+               R_t[1,1] / (1 - scale_A1[5]^2), R_t[2,2] / (1 - scale_A1[6]^2),
+               R_t[3,3] / (1 - scale_A1[7]^2), R_t[4,4] / (1 - scale_A1[8]^2),
+               R_t[1,1] / (1 - scale_A1[9]^2), R_t[2,2] / (1 - scale_A1[10]^2),
+               R_t[3,3] / (1 - scale_A1[11]^2), R_t[4,4] / (1 - scale_A1[12]^2),
+               R_t[1,1] / (1 - scale_A1[13]^2), R_t[2,2] / (1 - scale_A1[14]^2),
+               R_t[3,3] / (1 - scale_A1[15]^2), R_t[4,4] / (1 - scale_A1[16]^2),
+               R_t[1,1] / (1 - scale_A1[17]^2), R_t[2,2] / (1 - scale_A1[18]^2),
+               R_t[3,3] / (1 - scale_A1[19]^2), R_t[4,4] / (1 - scale_A1[20]^2))
 print(round(sqrt(diag_gamma), 3))
 
 s_time = Sys.time()
