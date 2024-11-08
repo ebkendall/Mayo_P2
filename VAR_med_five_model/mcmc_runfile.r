@@ -9,6 +9,12 @@ if(seed_num <= 3) {
 } else if(seed_num > 3 & seed_num <= 6) {
     seed_num = seed_num - 3
     sampling_num = 2
+} else if(seed_num > 6 & seed_num <= 9) {
+    seed_num = seed_num - 6
+    sampling_num = 3
+} else {
+    seed_num = seed_num - 9
+    sampling_num = 4
 }
 
 set.seed(seed_num)
@@ -21,7 +27,7 @@ if(simulation) {
     steps  = 20000
     burnin =  5000
 
-    trialNum = 2
+    trialNum = 4
     max_ind = 5
     sim_dat_num = 5
     

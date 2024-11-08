@@ -22,7 +22,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     
     # Number of states sampled at a time ---------------------------------------
     # *********** DONT FORGET TO CHANGE THIS NUMBER IN THE .cpp FILE ***********
-    t_pt_length = 3 
+    t_pt_length = 3
 
     # Index of observed versus missing data ------------------------------------
     # 1 = observed, 0 = missing
@@ -57,7 +57,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Initialize data storage --------------------------------------------------
     chain_length_MASTER = 10000
     chain = matrix( 0, chain_length_MASTER, length(par)) 
-    B_chain = hc_chain = hr_chain = bp_chain = la_chain = matrix( 0, chain_length_MASTER, nrow(Y)) 
+    B_chain = matrix( 0, chain_length_MASTER, nrow(Y)) 
+    hc_chain = hr_chain = bp_chain = la_chain = NULL
     accept = rep( 0, n_group)
 
     # Initialize design matrices -----------------------------------------------
@@ -94,17 +95,29 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
 
         # Metropolis-within-Gibbs: B (states) ----------------------------------
-        if(sampling_num <= 3) {
+        bbb_start_t = Sys.time()
+        if(sampling_num <= 2) {
+            for(bbb in 1:5) {
+                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                     t_pt_length, sampling_num)
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
+            }
+        } else if(sampling_num == 3) {
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
                                  Xn, Dn_omega, W, bleed_indicator, n_cores, 
                                  t_pt_length, sampling_num)
+            B = B_Dn[[1]]; names(B) = EIDs
+            Dn = B_Dn[[2]]; names(Dn) = EIDs
         } else {
             B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
                                     t_pt_length)
+            B = B_Dn[[1]]; names(B) = EIDs
+            Dn = B_Dn[[2]]; names(Dn) = EIDs
         }
-        B = B_Dn[[1]]; names(B) = EIDs
-        Dn = B_Dn[[2]]; names(Dn) = EIDs
+        bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
         # Gibbs: alpha_i -------------------------------------------------------
         # A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
@@ -125,7 +138,6 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         # par = update_omega_tilde_cpp( as.numeric(EIDs), par, par_index, W, Y)
         # par = update_beta_Upsilon_R_cpp( as.numeric(EIDs), par, par_index, A, Y,
         #                                  Dn, Xn, Dn_omega, W, B, n_cores)
-
 
         # Store current parameter updates --------------------------------------
         chain[chain_ind,] = par
@@ -283,13 +295,14 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt == burnin) accept = rep( 0, n_group)
         
         B_chain[ chain_ind, ] = do.call( 'c', B)
-        hc_chain[chain_ind, ] = Y[,'hemo']
-        hr_chain[chain_ind, ] = Y[,'hr']
-        bp_chain[chain_ind, ] = Y[,'map']
-        la_chain[chain_ind, ] = Y[,'lactate']
+        # hc_chain[chain_ind, ] = Y[,'hemo']
+        # hr_chain[chain_ind, ] = Y[,'hr']
+        # bp_chain[chain_ind, ] = Y[,'map']
+        # la_chain[chain_ind, ] = Y[,'lactate']
         # ----------------------------------------------------------------------
 
         if(ttt%%1==0)  cat('--->',ttt,'\n')
+        if(ttt%%1==0) print(log_target_prev)
         if(ttt%%100==0) print(accept)
         
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
@@ -297,10 +310,10 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             index_keep = seq(1, chain_length_MASTER, by = 5)
             mcmc_out_temp = list(chain    = chain[index_keep,], 
                                  B_chain  = B_chain[index_keep,], 
-                                 hc_chain = hc_chain[index_keep,], 
-                                 hr_chain = hr_chain[index_keep,],
-                                 bp_chain = bp_chain[index_keep,], 
-                                 la_chain = la_chain[index_keep,],
+                                 hc_chain = Y[,'hemo'],#hc_chain[index_keep,], 
+                                 hr_chain = Y[,'hr'], #hr_chain[index_keep,],
+                                 bp_chain = Y[,'map'], #bp_chain[index_keep,], 
+                                 la_chain = Y[,'lactate'], #la_chain[index_keep,],
                                  # A_chain  = A_chain,
                                  otype=otype, accept=accept/length(burnin:ttt), 
                                  pscale=pscale, pcov = pcov, par_index=par_index)
