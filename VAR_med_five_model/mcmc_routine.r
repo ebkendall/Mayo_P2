@@ -96,27 +96,35 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
         # Metropolis-within-Gibbs: B (states) ----------------------------------
         bbb_start_t = Sys.time()
-        if(sampling_num <= 2) {
-            for(bbb in 1:5) {
+        if(sampling_num == 1) {
+            for(bbb in 1:10) {
                 B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
                                      Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                     t_pt_length, sampling_num)
+                                     t_pt_length, 1)
                 B = B_Dn[[1]]; names(B) = EIDs
                 Dn = B_Dn[[2]]; names(Dn) = EIDs
             }
-        } else if(sampling_num == 3) {
+        } else if(sampling_num == 2) {
+            for(bbb in 1:5) {
+                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                     t_pt_length, 1)
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
+            }
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
                                  Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                 t_pt_length, sampling_num)
+                                 t_pt_length, 3)
             B = B_Dn[[1]]; names(B) = EIDs
             Dn = B_Dn[[2]]; names(Dn) = EIDs
-        } else {
-            B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                    Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                    t_pt_length)
-            B = B_Dn[[1]]; names(B) = EIDs
-            Dn = B_Dn[[2]]; names(Dn) = EIDs
-        }
+        } 
+        # else {
+        #     B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+        #                             Xn, Dn_omega, W, bleed_indicator, n_cores, 
+        #                             t_pt_length)
+        #     B = B_Dn[[1]]; names(B) = EIDs
+        #     Dn = B_Dn[[2]]; names(Dn) = EIDs
+        # }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
         # Gibbs: alpha_i -------------------------------------------------------
