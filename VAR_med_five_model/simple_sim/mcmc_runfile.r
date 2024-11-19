@@ -56,6 +56,5 @@ steps = 20000
 burnin = 5000
 
 s_time = Sys.time()
-mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, ind, trialNum, 
-                        sampling_num)
+mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, ind, sampling_num)
 e_time = Sys.time() - s_time; print(e_time)

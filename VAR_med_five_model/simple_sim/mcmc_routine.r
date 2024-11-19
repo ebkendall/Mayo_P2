@@ -5,8 +5,7 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, trialNum, 
-                        sampling_num){
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_num){
     
     n_cores = strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
@@ -48,8 +47,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, trialNum,
             # for(bbb in 1:10) {
                 B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
                                      t_pt_length, 1)
-                B = B_Dn[[1]]; names(B) = EIDs
-                Dn = B_Dn[[2]]; names(Dn) = EIDs
+                B = B_Dn
             # }
         } else if(sampling_num == 2) {
             # for(bbb in 1:5) {
@@ -61,8 +59,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, trialNum,
             # }
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
                                  t_pt_length, 3)
-            B = B_Dn[[1]]; names(B) = EIDs
-            Dn = B_Dn[[2]]; names(Dn) = EIDs
+            B = B_Dn
         } 
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
@@ -153,8 +150,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, trialNum,
         B_chain[ chain_ind, ] = do.call( 'c', B)
         # ----------------------------------------------------------------------
         
-        if(ttt%%1==0)  cat('--->',ttt,'\n')
-        if(ttt%%1==0) print(log_target_prev)
+        if(ttt%%1==0)  print(paste0('--->',ttt, ' | ', log_target_prev))
         if(ttt%%100==0) print(accept)
         
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
@@ -165,9 +161,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, trialNum,
                              accept=accept/length(burnin:ttt), 
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
-            save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',ind,'_', 
-                                              trialNum, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
-                                              '_samp', sampling_num, '_sim.rda'))
+            save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind,'_', 'it', 
+                                         ttt/chain_length_MASTER, '_samp', sampling_num, '_sim.rda'))
             # Reset the chains
             chain = matrix( NA, chain_length_MASTER, length(par)) 
             B_chain = matrix( NA, chain_length_MASTER, length(y))
