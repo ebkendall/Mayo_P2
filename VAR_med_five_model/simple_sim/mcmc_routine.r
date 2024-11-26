@@ -7,7 +7,7 @@ sourceCpp("mcmc_fnc.cpp")
 
 mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_num){
     
-    n_cores = strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 15#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     EIDs = unique(ids)
@@ -19,6 +19,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$mu), 
                c(par_index$t_p))
+    
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
     pscale = rep( 0.0001, n_group)
@@ -44,7 +45,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
         # Metropolis-within-Gibbs: B (states) ----------------------------------
         bbb_start_t = Sys.time()
         if(sampling_num == 1) {
-            # for(bbb in 1:10) {
+            # for(bbb in 1:5) {
                 B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
                                      t_pt_length, 1)
                 B = B_Dn

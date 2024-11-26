@@ -4,7 +4,7 @@ library(plotrix)
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 sampling_num = as.numeric(args[2])
-it_num = 2
+it_num = 1
 
 # Load the model output -------------------------------------------------------
 B_chain = NULL

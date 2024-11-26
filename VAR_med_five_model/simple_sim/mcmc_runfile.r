@@ -1,7 +1,8 @@
 source('mcmc_routine.r')
 
-args = commandArgs(TRUE)
-seed_num = as.numeric(args[1])
+# args = commandArgs(TRUE)
+# seed_num = as.numeric(args[1])
+seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 sampling_num = NULL
 
 if(seed_num <= 3) {
@@ -27,7 +28,7 @@ EIDs = unique(data_format[,"id"])
 
 
 # Parameter initialization -----------------------------------------------------
-par = c(2, -2, 0.4054651, 0.4054651)
+par = c(1, 0, 0.4054651, -0.4054651)
 par_index = list()
 par_index$mu = 1:2
 par_index$t_p = 3:4

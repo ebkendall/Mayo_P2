@@ -3,7 +3,7 @@ sampling_num = as.numeric(args[1])
 index_seeds = 1:3
 it_num = 2
 
-true_par = c(2, -2, 0.4054651, 0.4054651)
+true_par = c(1, 0, 0.4054651, -0.4054651)
 par_index = list()
 par_index$mu = 1:2
 par_index$t_p = 3:4
@@ -44,6 +44,9 @@ for(seed in index_seeds){
         rm(mcmc_out)
     }
 }
+
+# Compute the Gelman-Rubin Statistic for testing convergence -------------------
+
 
 stacked_chains = do.call( rbind, chain_list)
 
