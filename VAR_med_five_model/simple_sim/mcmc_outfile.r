@@ -3,12 +3,22 @@ sampling_num = as.numeric(args[1])
 index_seeds = 1:3
 it_num = 2
 
-true_par = c(1, 0, 0.4054651, -0.4054651)
+#          1->2,    1->4,    2->3,    2->4,    3->1,    3->2,    3->4,    4->2,
+#          4->5,    5->1,    5->2,    5->4
+true_par = c(0, 1, -1, 2, -2,
+               -4.7405, -5.2152, -3.6473, -3.1475, -6.4459, -3.9404, -4.2151, -4.1778,
+               -3.0523, -6.4459, -4.2404, -4.2151)
 par_index = list()
-par_index$mu = 1:2
-par_index$t_p = 3:4
+par_index$mu = 1:5
+par_index$t_p = 6:17
 
-labels = c("mu1", "mu2", "logit baseline 1 -> 2", "logit baseline 2 -> 1") 
+labels = c("mu1", "mu2", "mu3", "mu4", "mu5",
+           "logit baseline 1 -> 2", "logit baseline 1 -> 4",
+           "logit baseline 2 -> 3", "logit baseline 2 -> 4",
+           "logit baseline 3 -> 1", "logit baseline 3 -> 2",
+           "logit baseline 3 -> 4", "logit baseline 4 -> 2",
+           "logit baseline 4 -> 5", "logit baseline 5 -> 1",
+           "logit baseline 5 -> 2", "logit baseline 5 -> 4") 
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms
@@ -46,6 +56,17 @@ for(seed in index_seeds){
 }
 
 # Compute the Gelman-Rubin Statistic for testing convergence -------------------
+# gr_stat = rep(0, length(true_par))
+# for(p in 1:length(true_par)) {
+#     chain_means = rep(0, length(index_seeds))
+#     for(j in 1:length(index_seeds)) {
+#         chain_means[j] = mean(chain_list[[j]][,p])
+#     }
+# 
+#     grand_mean = mean(chain_means)
+#     
+#     B = 
+# }
 
 
 stacked_chains = do.call( rbind, chain_list)
@@ -59,10 +80,10 @@ for(s in names(par_index)){
     for(r in temp_par){
         # lab_ind = lab_ind + 1
         lab_ind = r
-        parMean = round( mean(stacked_chains[,r]), 4)
-        parMedian = round( median(stacked_chains[,r]), 4)
-        upper = quantile( stacked_chains[,r], prob=.975)
-        lower = quantile( stacked_chains[,r], prob=.025)
+        parMean = round( mean(stacked_chains[,r], na.rm = T), 4)
+        parMedian = round( median(stacked_chains[,r], na.rm = T), 4)
+        upper = quantile( stacked_chains[,r], prob=.975, na.rm = T)
+        lower = quantile( stacked_chains[,r], prob=.025, na.rm = T)
         
         title_color = "black"
         

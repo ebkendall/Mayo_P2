@@ -1,27 +1,38 @@
 set.seed(2024)
 N = 100
+n_state = 5
 
-# par = c(1, 0, 0.4054651, -0.4054651)
-par = c(1, 0, 2.197225, -2.197225)
+#          1->2,    1->4,    2->3,    2->4,    3->1,    3->2,    3->4,    4->2,
+#          4->5,    5->1,    5->2,    5->4
+par = c(0, 1, -1, 2, -2,
+        -4.7405, -5.2152, -3.6473, -3.1475, -6.4459, -3.9404, -4.2151, -4.1778,
+        -3.0523, -6.4459, -4.2404, -4.2151)
 par_index = list()
-par_index$mu = 1:2
-par_index$t_p = 3:4
+par_index$mu = 1:5
+par_index$t_p = 6:17
 
-P = matrix(c(                         1, exp(par[par_index$t_p][1]),
-             exp(par[par_index$t_p][2]),                         1),
-             ncol = 2, byrow = T)
+zeta = par[par_index$t_p]
+zeta = exp(zeta)
 
-P = P / rowSums(P)
+Q = matrix(c(      1,  zeta[1],       0,  zeta[2],       0,
+                   0,        1, zeta[3],  zeta[4],       0,
+             zeta[5],  zeta[6],       1,  zeta[7],       0,
+                   0,  zeta[8],       0,        1, zeta[9],
+            zeta[10], zeta[11],       0, zeta[12],       1), ncol=5, byrow=T)
+
+P = Q / rowSums(Q)
+
+init_prob = c(0.245, 0.090, 0.245, 0.149, 0.271)
 
 data_format = NULL
 for(i in 1:N) {
-    n_i = rpois(n = 1, lambda = 1000)
+    n_i = rpois(n = 1, lambda = 500)
     
     # Initial probabilities are 50/50
-    b_i = sample(1:2, size = 1, prob = c(0.5, 0.5))
+    b_i = sample(1:n_state, size = 1, prob = init_prob)
     
     for(k in 2:n_i) {
-        b_i = c(b_i, sample(1:2, size=1, prob=P[tail(b_i,1),]))
+        b_i = c(b_i, sample(1:n_state, size=1, prob=P[tail(b_i,1),]))
     }
     
     mean_i = par[par_index$mu[b_i]]
@@ -33,27 +44,3 @@ for(i in 1:N) {
 
 colnames(data_format) = c("id", "y", "state")
 save(data_format, file = 'Data/data_format.rda')
-
-# #          1->2,    1->4,    2->3,    2->4,    3->1,    3->2,    3->4,    4->2,
-# #          4->5,    5->1,    5->2,    5->4
-# par = c(0.4054651, 0.4054651,
-#         -4.7405, -5.2152, -3.6473, -3.1475, -6.4459, -3.9404, -4.2151, -4.1778, 
-#         -3.0523, -6.4459, -4.2404, -4.2151)
-# par_index = list()
-# par_index$mu = 1:2
-# par_index$t_p = 3:14
-# 
-# zeta = par[par_index$t_p]
-# 
-# Q = matrix(c(   1,   q1,  0,  q2,  0,
-#                 0,    1, q3,  q4,  0,
-#                 q5,   q6,  1,  q7,  0,
-#                 0,   q8,  0,   1, q9,
-#                 q10,  q11,  0, q12,  1), ncol=5, byrow=T)
-# 
-# P_i = Q / rowSums(Q)
-# P = matrix(c(                         1, exp(par[par_index$t_p][1]),
-#                                       exp(par[par_index$t_p][1]),                         1),
-#            ncol = 2, byrow = T)
-# 
-# P = P / rowSums(P)

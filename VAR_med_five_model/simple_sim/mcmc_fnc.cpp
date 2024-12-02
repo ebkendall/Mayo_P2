@@ -9,8 +9,11 @@
 using namespace Rcpp;
 
 // Defining the Omega_List as a global variable when pre-compiling -------------
-const arma::imat adj_mat = {{1, 1},
-                            {1, 1}};
+const arma::imat adj_mat = {{1, 1, 0, 1, 0},
+                            {0, 1, 1, 1, 0},
+                            {1, 1, 1, 1, 0},
+                            {0, 1, 0, 1, 1},
+                            {1, 1, 0, 1, 1}};
 
 // [[Rcpp::export]]
 NumericVector csample_num( NumericVector x, int size, bool replace,
@@ -289,7 +292,7 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5, 0.5}; 
+    arma::vec P_init = {0.245, 0.090, 0.245, 0.149, 0.271}; 
     
     arma::vec t_pts;
     if (k == 1) {
@@ -330,9 +333,22 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
                 // State space component
                 double q1 = exp(zeta(0));
                 double q2 = exp(zeta(1));
+                double q3 = exp(zeta(2));
+                double q4 = exp(zeta(3));
+                double q5 = exp(zeta(4));
+                double q6 = exp(zeta(5));
+                double q7 = exp(zeta(6));
+                double q8 = exp(zeta(7));
+                double q9 = exp(zeta(8));
+                double q10 = exp(zeta(9));
+                double q11 = exp(zeta(10));
+                double q12 = exp(zeta(11));
                 
-                arma::mat Q = { { 1,   q1},
-                                {q2,    1}}; 
+                arma::mat Q = { {   1,   q1,  0,  q2,  0},
+                                {   0,    1, q3,  q4,  0},
+                                {  q5,   q6,  1,  q7,  0},
+                                {   0,   q8,  0,   1, q9},
+                                { q10,  q11,  0, q12,  1}};
                 
                 arma::vec q_row_sums = arma::sum(Q, 1);
                 arma::mat P_i = Q.each_col() / q_row_sums;
@@ -378,7 +394,7 @@ arma::vec sub_like_MH(const int k, const int n_i, int t_pt_length, const arma::v
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5, 0.5}; 
+    arma::vec P_init = {0.245, 0.090, 0.245, 0.149, 0.271}; 
     
     arma::vec t_pts;
     if (k == 1) {
@@ -440,7 +456,7 @@ arma::mat state_prob_MH(const int k, const int n_i, int t_pt_length,
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5, 0.5}; 
+    arma::vec P_init = {0.245, 0.090, 0.245, 0.149, 0.271}; 
     
     arma::vec curr_b_i_k;
     if(k == 1) {
@@ -504,9 +520,22 @@ arma::mat state_prob_MH(const int k, const int n_i, int t_pt_length,
                 // State space component
                 double q1 = exp(zeta(0));
                 double q2 = exp(zeta(1));
+                double q3 = exp(zeta(2));
+                double q4 = exp(zeta(3));
+                double q5 = exp(zeta(4));
+                double q6 = exp(zeta(5));
+                double q7 = exp(zeta(6));
+                double q8 = exp(zeta(7));
+                double q9 = exp(zeta(8));
+                double q10 = exp(zeta(9));
+                double q11 = exp(zeta(10));
+                double q12 = exp(zeta(11));
                 
-                arma::mat Q = {{ 1,   q1},
-                               {q2,    1}}; 
+                arma::mat Q = { {   1,   q1,  0,  q2,  0},
+                                {   0,    1, q3,  q4,  0},
+                                {  q5,   q6,  1,  q7,  0},
+                                {   0,   q8,  0,   1, q9},
+                                { q10,  q11,  0, q12,  1}};
                 
                 arma::vec q_row_sums = arma::sum(Q, 1);
                 arma::mat P_i = Q.each_col() / q_row_sums;
@@ -615,7 +644,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5, 0.5}; 
+    arma::vec P_init = {0.245, 0.090, 0.245, 0.149, 0.271}; 
 
     omp_set_num_threads(n_cores);
     # pragma omp parallel for
@@ -642,9 +671,22 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                 // State space component
                 double q1 = exp(zeta(0));
                 double q2 = exp(zeta(1));
+                double q3 = exp(zeta(2));
+                double q4 = exp(zeta(3));
+                double q5 = exp(zeta(4));
+                double q6 = exp(zeta(5));
+                double q7 = exp(zeta(6));
+                double q8 = exp(zeta(7));
+                double q9 = exp(zeta(8));
+                double q10 = exp(zeta(9));
+                double q11 = exp(zeta(10));
+                double q12 = exp(zeta(11));
                 
-                arma::mat Q = { { 1,   q1},
-                                {q2,    1}}; 
+                arma::mat Q = { {   1,   q1,  0,  q2,  0},
+                                {   0,    1, q3,  q4,  0},
+                                {  q5,   q6,  1,  q7,  0},
+                                {   0,   q8,  0,   1, q9},
+                                { q10,  q11,  0, q12,  1}};
                 
                 arma::vec q_row_sums = arma::sum(Q, 1);
                 arma::mat P_i = Q.each_col() / q_row_sums;
@@ -694,7 +736,92 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
   return value;
 }
 
-
+// [[Rcpp::export]]
+double log_post_cpp_no_b(const arma::vec &EIDs, const arma::vec &par, 
+                         const arma::field<arma::uvec> &par_index,
+                         const arma::vec &y, const arma::vec &eids, int n_cores) {
+    // Compute the likelihood while integrating out the states
+    arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
+    
+    arma::vec mu = par.elem(par_index(0) - 1);
+    arma::vec zeta = par.elem(par_index(1) - 1);
+    arma::rowvec P_init = {0.245, 0.090, 0.245, 0.149, 0.271}; 
+    
+    double q1 = exp(zeta(0));
+    double q2 = exp(zeta(1));
+    double q3 = exp(zeta(2));
+    double q4 = exp(zeta(3));
+    double q5 = exp(zeta(4));
+    double q6 = exp(zeta(5));
+    double q7 = exp(zeta(6));
+    double q8 = exp(zeta(7));
+    double q9 = exp(zeta(8));
+    double q10 = exp(zeta(9));
+    double q11 = exp(zeta(10));
+    double q12 = exp(zeta(11));
+    
+    arma::mat Q = { {   1,   q1,  0,  q2,  0},
+                    {   0,    1, q3,  q4,  0},
+                    {  q5,   q6,  1,  q7,  0},
+                    {   0,   q8,  0,   1, q9},
+                    { q10,  q11,  0, q12,  1}};
+                    
+    arma::vec q_row_sums = arma::sum(Q, 1);
+    arma::mat P_i = Q.each_col() / q_row_sums;
+    
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
+    for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        
+        arma::rowvec like_comp;
+        
+        int i = EIDs(ii);
+        arma::uvec sub_ind = arma::find(eids == i);
+        int n_i = sub_ind.n_elem;
+        
+        arma::vec y_i = y.rows(sub_ind);
+        
+        for(int jj = 0; jj < n_i; jj++) {
+            
+            if(jj == 0) {
+                arma::vec resp_like(P_init.n_elem, arma::fill::zeros);
+                for(int ll = 0; ll < P_init.n_elem; ll++) {
+                    resp_like(ll) = R::dnorm(y_i(jj), mu(ll), 1, false);
+                }
+                arma::mat D = arma::diagmat(resp_like);
+                like_comp = P_init * D;
+            } else{ 
+                
+                arma::vec resp_like(P_init.n_elem, arma::fill::zeros);
+                for(int ll = 0; ll < P_init.n_elem; ll++) {
+                    resp_like(ll) = R::dnorm(y_i(jj), mu(ll), 1, false);
+                }
+                arma::mat D = arma::diagmat(resp_like);
+                
+                like_comp = like_comp * P_i * D;
+            } 
+        } 
+        
+        in_vals(ii) = log(arma::accu(like_comp));
+    } 
+    
+    double in_value = arma::accu(in_vals);
+    
+    
+    // Prior densities
+    arma::vec prior_mean(par.n_elem, arma::fill::zeros);
+    
+    arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
+    prior_var_diag = 20 * prior_var_diag;
+    arma::mat prior_sd = arma::diagmat(prior_var_diag);
+    
+    arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_sd, true);
+    double prior_dens_val = arma::as_scalar(prior_dens);
+    
+    in_value = in_value + prior_dens_val;
+    
+    return in_value;
+}
 
 
 

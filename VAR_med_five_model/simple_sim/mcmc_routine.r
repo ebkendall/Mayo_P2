@@ -17,7 +17,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
     t_pt_length = 3
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$mu), 
+    mpi = list(#c(par_index$mu), 
                c(par_index$t_p))
     
     n_group = length(mpi)
@@ -51,13 +51,6 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
                 B = B_Dn
             # }
         } else if(sampling_num == 2) {
-            # for(bbb in 1:5) {
-            #     B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-            #                          Xn, Dn_omega, W, bleed_indicator, n_cores, 
-            #                          t_pt_length, 1)
-            #     B = B_Dn[[1]]; names(B) = EIDs
-            #     Dn = B_Dn[[2]]; names(Dn) = EIDs
-            # }
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
                                  t_pt_length, 3)
             B = B_Dn
@@ -65,7 +58,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
         # Evaluate log-likelihood before MH step -------------------------------
-        log_target_prev = log_post_cpp( as.numeric(EIDs), par, par_index, B, y, ids, n_cores)
+        if(sampling_num != 3) {
+            log_target_prev = log_post_cpp( as.numeric(EIDs), par, par_index, B, y, ids, n_cores)    
+        } else {
+            log_target_prev = log_post_cpp_no_b( as.numeric(EIDs), par, par_index, y, ids, n_cores)
+        }
         
         if(!is.finite(log_target_prev)){
             print("Infinite log-posterior; Gibbs update went wrong")
@@ -83,7 +80,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
                                        sigma=pscale[[j]]*pcov[[j]])
             
             # Evaluate proposed log-likelihood -----------------------------
-            log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+            if(sampling_num != 3) {
+                log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
+            } else {
+                log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
+            }
             
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -92,7 +93,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
                     proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                                sigma=pcov[[j]]*pscale[j])
                     
-                    log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+                    if(sampling_num != 3) {
+                        log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
+                    } else {
+                        log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
+                    }
                 }
             }
             
