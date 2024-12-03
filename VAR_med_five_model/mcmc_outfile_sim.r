@@ -1,7 +1,7 @@
 dir = 'Model_out/'
 
 trialNum = 4
-sampNum = 1
+sampNum = 2
 itNum = 1
 index_seeds = c(1:3)
 long_chain = T

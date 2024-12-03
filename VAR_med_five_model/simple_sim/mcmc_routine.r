@@ -17,7 +17,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
     t_pt_length = 3
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(#c(par_index$mu), 
+    mpi = list(c(par_index$mu), 
                c(par_index$t_p))
     
     n_group = length(mpi)
@@ -45,27 +45,33 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
         # Metropolis-within-Gibbs: B (states) ----------------------------------
         bbb_start_t = Sys.time()
         if(sampling_num == 1) {
-            # for(bbb in 1:5) {
-                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
-                                     t_pt_length, 1)
-                B = B_Dn
-            # }
+            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
+                                 t_pt_length, 1)
+            B = B_Dn
         } else if(sampling_num == 2) {
             B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
+                                 t_pt_length, 2)
+            B = B_Dn
+        } else if(sampling_num == 3) {
+            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
                                  t_pt_length, 3)
+            B = B_Dn
+        } else if(sampling_num == 4) {
+            B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, B, y, ids, n_cores,
+                                    t_pt_length)
             B = B_Dn
         } 
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
         # Evaluate log-likelihood before MH step -------------------------------
-        if(sampling_num != 3) {
+        if(sampling_num <= 4) {
             log_target_prev = log_post_cpp( as.numeric(EIDs), par, par_index, B, y, ids, n_cores)    
         } else {
             log_target_prev = log_post_cpp_no_b( as.numeric(EIDs), par, par_index, y, ids, n_cores)
         }
         
         if(!is.finite(log_target_prev)){
-            print("Infinite log-posterior; Gibbs update went wrong")
+            print("Infinite log-posterior")
             print(paste0("value: ", log_target_prev))
             break
         }
@@ -79,8 +85,16 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
             proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                        sigma=pscale[[j]]*pcov[[j]])
             
+            # Enforce mu1 > mu2
+            if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
+                while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
+                    proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                               sigma=pscale[[j]]*pcov[[j]])
+                }
+            }
+            
             # Evaluate proposed log-likelihood -----------------------------
-            if(sampling_num != 3) {
+            if(sampling_num <= 4) {
                 log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
             } else {
                 log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
@@ -93,7 +107,15 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
                     proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                                sigma=pcov[[j]]*pscale[j])
                     
-                    if(sampling_num != 3) {
+                    # Enforce mu1 > mu2
+                    if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
+                        while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
+                            proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                                       sigma=pscale[[j]]*pcov[[j]])
+                        }
+                    }
+                    
+                    if(sampling_num <= 4) {
                         log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
                     } else {
                         log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
