@@ -291,6 +291,12 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::vec P_init = {0.5,0.5}; 
     
+    arma::vec qz = exp(zeta);
+    arma::mat Q = { {    1,   qz(0)},
+                    {qz(1),       1}};
+    arma::vec q_row_sums = arma::sum(Q, 1);
+    arma::mat P_i = Q.each_col() / q_row_sums;
+    
     arma::vec t_pts;
     if (k == 1) {
         // () -> () -> 1-5
@@ -327,15 +333,6 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
                 like_comp_prop_transition = like_comp_prop_transition + log(P_init(pr_b_i(t_j) - 1));
                 
             } else{ 
-                // State space component
-                arma::vec qz = exp(zeta);
-                
-                arma::mat Q = { {    1,   qz(0)},
-                                {qz(1),       1}};
-                
-                arma::vec q_row_sums = arma::sum(Q, 1);
-                arma::mat P_i = Q.each_col() / q_row_sums;
-                
                 // Current -----------
                 int curr_b_k_1 = curr_b_i(t_j-1);
                 int curr_b_k   = curr_b_i(t_j);
@@ -355,13 +352,9 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
         // (2) Likelihood component ------------------------------------
         // Current ---------
         like_comp_curr = like_comp_curr + R::dnorm(y_i(t_j), mu(curr_b_i(t_j) - 1), 1, true);
-        // arma::vec like_y_curr = arma::log_normpdf(y_i(t_j), mu(curr_b_i(t_j) - 1), 1);
-        // like_comp_curr = like_comp_curr + arma::as_scalar(like_y_curr);
         
         // Proposal  ---------
         like_comp_prop = like_comp_prop + R::dnorm(y_i(t_j), mu(pr_b_i(t_j) - 1), 1, true);
-        // arma::vec like_y_prop = arma::log_normpdf(y_i(t_j), mu(pr_b_i(t_j) - 1), 1);
-        // like_comp_prop = like_comp_prop + arma::as_scalar(like_y_prop);
     } 
     
     arma::vec mh_like = {like_comp_prop + like_comp_prop_transition, 
@@ -425,7 +418,6 @@ arma::vec sub_like_MH(const int k, const int n_i, int t_pt_length, const arma::v
     
 }
 
-// [[Rcpp::export]]
 arma::mat state_prob_MH(const int k, const int n_i, int t_pt_length, 
                         const arma::vec &par, const arma::field<arma::uvec> &par_index, 
                         const arma::vec &y_i, const arma::vec &b_i,
@@ -529,6 +521,104 @@ arma::mat state_prob_MH(const int k, const int n_i, int t_pt_length,
     
     return prob_dist;
 }
+arma::mat state_prob_only(const int k, const int n_i, int t_pt_length, 
+                          const arma::vec &par, const arma::field<arma::uvec> &par_index, 
+                          const arma::vec &y_i, const arma::vec &b_i,
+                          arma::mat omega_set) {
+    
+    // Parameter initialization ------------------------------------------------
+    arma::vec mu = par.elem(par_index(0) - 1);
+    arma::vec zeta = par.elem(par_index(1) - 1);
+    arma::vec P_init = {0.5,0.5}; 
+    
+    arma::vec curr_b_i_k;
+    if(k == 1) {
+        curr_b_i_k = b_i.rows(0, omega_set.n_cols - 1);
+    } else if (k <= n_i - t_pt_length) {
+        curr_b_i_k = b_i.rows(k - 1, k + t_pt_length - 2);
+    } else if (k == n_i - t_pt_length + 1) {
+        curr_b_i_k = b_i.rows(k - 1, k + t_pt_length - 2);
+    }
+    // ------------------------------------------------------------------------
+    
+    // Columns: proposal distribution, remaining likelihood, indicator
+    arma::mat prob_dist(omega_set.n_rows, 3, arma::fill::zeros);
+    
+    for(int j = 0; j < omega_set.n_rows; j++) {
+        
+        // Initialize the new state sequence and the points to evaluate likelihood
+        arma::vec t_pts;
+        arma::vec ss_j = b_i;
+        if (k == 1) {
+            // () -> () -> 1-5
+            ss_j.rows(0, omega_set.n_cols - 1) = omega_set.row(j).t();
+            t_pts = arma::linspace(0, n_i - 1, n_i);
+            
+        } else if (k <= n_i - t_pt_length) {
+            // 1-5 -> () -> () -> 1-5
+            ss_j.rows(k - 1, k + t_pt_length - 2) = omega_set.row(j).t();
+            t_pts = arma::linspace(k - 1, n_i - 1, n_i - k + 1);
+            
+        } else if (k == n_i - t_pt_length + 1) {  
+            // 1-5 -> () -> ()
+            ss_j.rows(k - 1, k + t_pt_length - 2) = omega_set.row(j).t();
+            t_pts = arma::linspace(k - 1, n_i - 1, n_i - k + 1);
+        }  
+        
+        // Check if the new state sequence is the same as b_i -----------------
+        arma::vec state_diff = curr_b_i_k - omega_set.row(j).t();
+        if(arma::any(state_diff != 0)) {
+            prob_dist(j,2) = 0;
+        } else { 
+            prob_dist(j,2) = 1;
+        } 
+        
+        // State transition probability ---------------------------------------
+        double like_comp_prob = 0;
+        
+        int loop_max = t_pt_length + 1;
+        if(k == n_i - t_pt_length + 1) {
+            loop_max = t_pt_length;
+        } 
+        
+        for(int jj = 0; jj < loop_max; jj++) {
+            
+            int t_j = t_pts(jj);
+            
+            // (1) Transition probabilities ------------------------------------
+            if(t_j == 0) {
+                like_comp_prob = like_comp_prob + log(P_init(ss_j(t_j) - 1));
+            } else{ 
+                
+                arma::vec qz = exp(zeta);
+                arma::mat Q = { {    1,   qz(0)},
+                                {qz(1),       1}};
+                
+                arma::vec q_row_sums = arma::sum(Q, 1);
+                arma::mat P_i = Q.each_col() / q_row_sums;
+                int b_k_1 = ss_j(t_j-1);
+                int b_k = ss_j(t_j);
+                
+                like_comp_prob = like_comp_prob + log(P_i(b_k_1 - 1, b_k - 1));
+            } 
+        } 
+        
+        prob_dist(j,0) = like_comp_prob;
+    } 
+    
+    // For numerical stability, we will scale on the log-scale
+    double prob_log_max = prob_dist.col(0).max();
+    
+    prob_dist.col(0) = prob_dist.col(0) - prob_log_max;
+    prob_dist.col(0) = exp(prob_dist.col(0));
+    prob_dist.col(0)= (1/arma::accu(prob_dist.col(0))) * prob_dist.col(0);
+    arma::uvec num_non_zero = arma::find(prob_dist.col(2) == 1);
+    if(num_non_zero.n_elem > 1) {
+        Rcpp::Rcout << "bad indicator" << std::endl;
+    }
+    
+    return prob_dist;
+}
 
 // [[Rcpp::export]]
 arma::field<arma::vec> update_b_i_MH(const arma::vec EIDs, const arma::vec &par, 
@@ -566,8 +656,14 @@ arma::field<arma::vec> update_b_i_MH(const arma::vec EIDs, const arma::vec &par,
             if(option_num == 1) {
                 row_ind = arma::randi(arma::distr_param(1, Omega_set.n_rows));
             } else { 
-                arma::mat ss_prob = state_prob_MH(k+1, n_i, t_pt_length, par,
-                                        par_index, y_i, B_temp, Omega_set);
+                arma::mat ss_prob;
+                if(option_num == 2) {
+                    ss_prob = state_prob_only(k+1, n_i, t_pt_length, par,
+                                            par_index, y_i, B_temp, Omega_set);
+                } else if(option_num == 3) {
+                    ss_prob = state_prob_MH(k+1, n_i, t_pt_length, par,
+                                            par_index, y_i, B_temp, Omega_set);
+                }
                 
                 arma::vec x_sample = arma::linspace(1, Omega_set.n_rows, Omega_set.n_rows);
                 arma::vec row_ind_vec = RcppArmadillo::sample(x_sample, 1, false, ss_prob.col(0));
@@ -879,5 +975,190 @@ double log_post_cpp_no_b(const arma::vec &EIDs, const arma::vec &par,
     return in_value;
 }
 
+// [[Rcpp::export]]
+double pseudo_like(const arma::vec &EIDs, const arma::vec &par, 
+                      const arma::field<arma::uvec> &par_index,
+                      const arma::vec &y, const arma::vec &eids, int n_cores) {
+    
+    arma::field<arma::vec> B_mle(EIDs.n_elem);
+    arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
+    
+    arma::vec mu = par.elem(par_index(0) - 1);
+    arma::vec zeta = par.elem(par_index(1) - 1);
+    arma::vec P_init = {0.5,0.5}; 
+    
+    arma::vec qz = exp(zeta);
+    arma::mat Q = { {    1,   qz(0)},
+                    {qz(1),       1}};
+    
+    arma::vec q_row_sums = arma::sum(Q, 1);
+    arma::mat P_i = Q.each_col() / q_row_sums;
+    
+    // Find the MLE state sequence given the current parameters ----------------
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
+    for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        
+        // Subject-specific information ----------------------------------------
+        int i = EIDs(ii);
+        arma::uvec sub_ind = arma::find(eids == i);
+        int n_i = sub_ind.n_elem;
+        arma::vec y_i = y.rows(sub_ind);
+        
+        arma::vec b_i(n_i, arma::fill::zeros);
+        double log_like_i = 0;
+        
+        // Looping through subject state space ---------------------------------
+        for (int k = 0; k < n_i; k++) {
+            arma::vec like_vals(adj_mat.n_cols, arma::fill::zeros);
+            if(k == 0) {
+                // Initial state
+                for(int jj = 0; jj < like_vals.n_elem; jj++) {
+                    like_vals(jj) = log(P_init(jj)) + R::dnorm(y_i(k), mu(jj), 1, true);
+                }
+                
+                b_i(k) = arma::index_max(like_vals) + 1;
+                log_like_i = log_like_i + arma::max(like_vals);
+            } else {
+                // All others
+                for(int jj = 0; jj < like_vals.n_elem; jj++) {
+                    like_vals(jj) = log(P_i(b_i(k-1) - 1, jj)) + R::dnorm(y_i(k), mu(jj), 1, true);
+                }
+                
+                b_i(k) = arma::index_max(like_vals) + 1;
+                log_like_i = log_like_i + arma::max(like_vals);
+            }
+        }
+        
+        B_mle(ii) = b_i;
+        in_vals(ii) = log_like_i;
+    } 
+    
+    double in_value = arma::accu(in_vals);
+    
+    // Prior densities
+    arma::vec prior_mean(par.n_elem, arma::fill::zeros);
+    
+    arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
+    prior_var_diag = 20 * prior_var_diag;
+    arma::mat prior_sd = arma::diagmat(prior_var_diag);
+    
+    arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_sd, true);
+    double prior_dens_val = arma::as_scalar(prior_dens);
+    
+    in_value = in_value + prior_dens_val;
+    
+    return in_value;
+}
+
+// [[Rcpp::export]]
+double pseudo_like2(const arma::vec &EIDs, const arma::vec &par, 
+                    const arma::field<arma::uvec> &par_index,
+                    const arma::vec &y, const arma::vec &eids, int n_cores) {
+    
+    arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
+    
+    arma::vec mu = par.elem(par_index(0) - 1);
+    arma::vec zeta = par.elem(par_index(1) - 1);
+    arma::vec P_init = {0.5,0.5}; 
+    
+    arma::vec qz = exp(zeta);
+    arma::mat Q = { {    1,   qz(0)},
+                    {qz(1),       1}};
+    
+    arma::vec q_row_sums = arma::sum(Q, 1);
+    arma::mat P_i = Q.each_col() / q_row_sums;
+    
+    arma::vec state_samp = arma::linspace(1, adj_mat.n_cols, adj_mat.n_cols);
+    
+    // Find the MLE state sequence given the current parameters ----------------
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
+    for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        
+        // Subject-specific information ----------------------------------------
+        int i = EIDs(ii);
+        arma::uvec sub_ind = arma::find(eids == i);
+        int n_i = sub_ind.n_elem;
+        arma::vec y_i = y.rows(sub_ind);
+        
+        int M = 20;
+        arma::vec emp_mean_vec(M, arma::fill::zeros);
+        
+        // Empirical mean estimate ---------------------------------------------
+        for(int m = 0; m < M; m++) {
+            
+            arma::vec b_i(n_i, arma::fill::zeros);
+            double log_like_i = 0;
+            double log_q_b_i = 0;
+            
+            // Looping through subject state space -----------------------------
+            for (int k = 0; k < n_i; k++) {
+                arma::vec like_vals(adj_mat.n_cols, arma::fill::zeros);
+                if(k == 0) {
+                    // Initial state
+                    for(int jj = 0; jj < like_vals.n_elem; jj++) {
+                        like_vals(jj) = P_init(jj) * R::dnorm(y_i(k), mu(jj), 1, false);
+                    }
+
+                    arma::vec sample_prob(adj_mat.n_cols, arma::fill::ones);
+                    sample_prob = like_vals / arma::accu(like_vals);
+                    // arma::vec sample_prob(adj_mat.n_cols, arma::fill::zeros);
+                    // sample_prob.elem(arma::find(P_init > 0)) += 1;
+                    // sample_prob = sample_prob / arma::accu(sample_prob);
+                    
+                    arma::vec row_ind_vec = RcppArmadillo::sample(state_samp, 1, false, sample_prob);
+                    b_i(k) = row_ind_vec(0);
+                    
+                    log_like_i = log_like_i + log(P_init(b_i(k) - 1)) + 
+                        R::dnorm(y_i(k), mu(b_i(k) - 1), 1, true);
+                    log_q_b_i = log_q_b_i + log(sample_prob(b_i(k) - 1));
+                } else {
+                    // All others
+                    for(int jj = 0; jj < like_vals.n_elem; jj++) {
+                        like_vals(jj) = P_i(b_i(k-1) - 1, jj) * R::dnorm(y_i(k), mu(jj), 1, false);
+                    }
+
+                    arma::vec sample_prob(adj_mat.n_cols, arma::fill::ones);
+                    sample_prob = like_vals / arma::accu(like_vals);
+                    // arma::ivec possible_states = adj_mat.row(b_i(k-1) - 1).t();
+                    // arma::vec sample_prob(adj_mat.n_cols, arma::fill::zeros);
+                    // sample_prob.elem(arma::find(possible_states > 0)) += 1;
+                    // sample_prob = sample_prob / arma::accu(sample_prob);
+                    
+                    arma::vec row_ind_vec = RcppArmadillo::sample(state_samp, 1, false, sample_prob);
+                    b_i(k) = row_ind_vec(0);
+                    
+                    log_like_i = log_like_i + log(P_i(b_i(k-1) - 1, b_i(k) - 1)) +
+                        R::dnorm(y_i(k), mu(b_i(k) - 1), 1, true);
+                    log_q_b_i = log_q_b_i + log(sample_prob(b_i(k) - 1));
+                }
+            }
+            emp_mean_vec(m) = log_like_i - log_q_b_i;
+        }
+        
+        double max_log_emp = emp_mean_vec.max();
+        emp_mean_vec = emp_mean_vec - max_log_emp;
+        arma::vec exp_emp_mean_vec = exp(emp_mean_vec);
+        
+        in_vals(ii) = log(arma::mean(exp_emp_mean_vec)) + max_log_emp;
+    }
+    
+    double in_value = arma::accu(in_vals);
+    
+    // Prior densities
+    arma::vec prior_mean(par.n_elem, arma::fill::zeros);
+    
+    arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
+    prior_var_diag = 20 * prior_var_diag;
+    arma::mat prior_sd = arma::diagmat(prior_var_diag);
+    
+    arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_sd, true);
+    double prior_dens_val = arma::as_scalar(prior_dens);
+    
+    in_value = in_value + prior_dens_val;
+    
+    return in_value;
+} 
 
 

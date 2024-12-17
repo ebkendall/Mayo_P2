@@ -27,7 +27,7 @@ if(simulation) {
     steps  = 20000
     burnin =  5000
 
-    trialNum = 4
+    trialNum = 5
     max_ind = 5
     sim_dat_num = 5
     

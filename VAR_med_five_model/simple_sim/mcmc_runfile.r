@@ -1,9 +1,14 @@
-source('mcmc_routine.r')
-
 # args = commandArgs(TRUE)
 # seed_num = as.numeric(args[1])
 seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 sampling_num = NULL
+pseudo = T
+
+if(pseudo) {
+    source('mcmc_routine_pseudo.r')
+} else {
+    source('mcmc_routine.r')    
+}
 
 if(seed_num <= 3) {
     sampling_num = 1
@@ -30,7 +35,7 @@ ids = data_format[,"id"]
 EIDs = unique(data_format[,"id"])
 
 
-# Parameter initialization -----------------------------------------------------
+# Parameter initialization ----------------------------------------------------
 par = c(0.5, 0,
         0.405, -0.405)
 par_index = list()
@@ -68,5 +73,9 @@ steps = 40000
 burnin = 5000
 
 s_time = Sys.time()
-mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, ind, sampling_num)
+if(pseudo) {
+    mcmc_out = mcmc_routine_pseudo(par, par_index, y, ids, steps, burnin, ind, sampling_num)
+} else {
+    mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, ind, sampling_num)    
+}
 e_time = Sys.time() - s_time; print(e_time)
