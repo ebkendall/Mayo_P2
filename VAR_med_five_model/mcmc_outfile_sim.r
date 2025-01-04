@@ -1,8 +1,8 @@
 dir = 'Model_out/'
 
-trialNum = 4
-sampNum = 2
-itNum = 1
+trialNum = 5
+sampNum = 1
+itNum = 2
 index_seeds = c(1:3)
 long_chain = T
 

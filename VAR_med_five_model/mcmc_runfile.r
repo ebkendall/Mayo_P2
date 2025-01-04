@@ -24,10 +24,10 @@ simulation = T
 data_format = NULL
 
 if(simulation) {
-    steps  = 20000
+    steps  = 30000
     burnin =  5000
 
-    trialNum = 5
+    trialNum = 6
     max_ind = 5
     sim_dat_num = 5
     
@@ -36,6 +36,7 @@ if(simulation) {
 
     print(paste0('SIM: seed ', seed_num, ' samp ', 
                  sampling_num, ' trial ', trialNum))
+    print(length(unique(data_format[,"RBC_ordered"])))
 } else {
     steps  = 50000
     burnin = 5000

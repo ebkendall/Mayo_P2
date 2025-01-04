@@ -5,16 +5,16 @@ simulation = T
 
 data_num = 5
 
-trialNum = 2
+trialNum = 6
 sampNum = 1
-itNum = 1
+itNum = 2
 all_seeds = F
-long_chain = F
+long_chain = T
 
 if(all_seeds) {
     seed_list = 1:3
 } else {
-    seed_list = 3
+    seed_list = 1
 }
 
 # Load the model output -------------------------------------------------------
@@ -41,16 +41,16 @@ for(seed_num in 1:length(seed_list)) {
         
         if(it == 1) {
             B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
-            Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
-            Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
-            Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
-            La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
+            # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
+            # Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
+            # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
+            # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
         } else {
             B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
-            Hr_chain  = mcmc_out_temp$hr_chain
-            Map_chain = mcmc_out_temp$bp_chain
-            Hc_chain  = mcmc_out_temp$hc_chain
-            La_chain  = mcmc_out_temp$la_chain
+            # Hr_chain  = mcmc_out_temp$hr_chain
+            # Map_chain = mcmc_out_temp$bp_chain
+            # Hc_chain  = mcmc_out_temp$hc_chain
+            # La_chain  = mcmc_out_temp$la_chain
         }
         rm(mcmc_out_temp)
     }
@@ -135,6 +135,7 @@ print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
 predict_not_S2 = state_seq_mode[ss_truth != 2]
 print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
 
+return(0)
 # ------------------------------------------------------------------------------ 
 # Model evaluation plots -------------------------------------------------------
 # ------------------------------------------------------------------------------

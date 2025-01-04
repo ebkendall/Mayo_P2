@@ -50,6 +50,11 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
     pscale = rep( 0.0001, n_group)
+    
+    # Initialize B using "MLE" -------------------------------------------------
+    Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
+    Xn = Dn_Xn[[2]]
+    B = initialize_b_i(as.numeric(EIDs), par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
   
     # Initialize data storage --------------------------------------------------
     chain_length_MASTER = 10000
@@ -73,6 +78,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
+    B_chain[1, ] = do.call( 'c', B)
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
 

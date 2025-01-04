@@ -1,7 +1,10 @@
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
+
 index_seeds = c(1:3)
 it_num = 4
+states_per_step = 1
+steps_per_it = 1
 
 true_par = c(0.5, 0,
              0.405, -0.405)
@@ -24,9 +27,9 @@ for(seed in index_seeds){
     ind = ind + 1
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',toString(seed),'_', 'it', 
-                           it, '_samp', sampling_num, '_sim.rda') 
-        
+        file_name = paste0('Model_out/mcmc_out_',ind,'_', 'it',
+                           ttt/chain_length_MASTER, '_samp', sampling_num,
+                           '_', states_per_step, '_', steps_per_it,'.rda')
         load(file_name)
         print(paste0(ind, ": ", file_name))
         print("accept")
@@ -107,7 +110,8 @@ GR_mult = c(R_hat, R_hat_stable$mpsrf)
 
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('trace_plot_samp', sampling_num, '.pdf')
+pdf_title = paste0('trace_plot_samp', sampling_num, '_', states_per_step, 
+                   '_', steps_per_it,'.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0

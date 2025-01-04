@@ -5,16 +5,19 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_num){
-    
-    n_cores = 15#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
-    print(paste0("Number of cores: ", n_cores))
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, 
+                        sampling_num, states_per_step, steps_per_it){
     
     EIDs = unique(ids)
     
-    # Number of states sampled at a time ---------------------------------------
-    # *********** DONT FORGET TO CHANGE THIS NUMBER IN THE .cpp FILE ***********
-    t_pt_length = 3
+    # Number of cores over which to parallelize --------------------------------
+    n_cores = 7#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    print(paste0("Number of cores: ", n_cores))
+    
+    # Transition information ---------------------------------------------------
+    adjacency_mat = matrix(c(1,1,
+                             1,1), ncol = 2, byrow = T)
+    initialize_cpp(adjacency_mat, states_per_step)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$mu), 
@@ -42,32 +45,29 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
             chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
         }
         
-        # Metropolis-within-Gibbs: B (states) ----------------------------------
-        bbb_start_t = Sys.time()
-        if(sampling_num == 1) {
-            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
-                                 t_pt_length, 1)
-            B = B_Dn
-        } else if(sampling_num == 2) {
-            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
-                                 t_pt_length, 2)
-            B = B_Dn
-        } else if(sampling_num == 3) {
-            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, 
-                                 t_pt_length, 3)
-            B = B_Dn
-        } else if(sampling_num == 4) {
-            B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, B, y, ids, n_cores,
-                                    t_pt_length)
-            B = B_Dn
-        } 
-        bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
+        for(s in 1:steps_per_it) {
+            # Random sample update -----------------------------------------
+            if(sampling_num == 1) {
+                B_Dn = mh_up(as.numeric(EIDs), par, par_index, B, y, ids,
+                             n_cores, states_per_step)
+                B = B_Dn
+            }
+            
+            # Gibbs update -------------------------------------------------
+            if(sampling_num == 2) {
+                B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, B, y, ids,
+                                n_cores, states_per_step)
+                B = B_Dn
+            }
+        }
         
         # Evaluate log-likelihood before MH step -------------------------------
         if(sampling_num <= 4) {
-            log_target_prev = log_post_cpp( as.numeric(EIDs), par, par_index, B, y, ids, n_cores)    
+            log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
+                                            y, ids, n_cores)    
         } else {
-            log_target_prev = log_post_cpp_no_b( as.numeric(EIDs), par, par_index, y, ids, n_cores)
+            log_target_prev = log_post_cpp_no_b(as.numeric(EIDs), par,par_index, 
+                                                y, ids, n_cores)
         }
         
         if(!is.finite(log_target_prev)){
@@ -190,7 +190,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, sampling_
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
             save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind,'_', 'it', 
-                                         ttt/chain_length_MASTER, '_samp', sampling_num, '_sim.rda'))
+                                         ttt/chain_length_MASTER, '_samp', sampling_num, 
+                                         '_', states_per_step, '_', steps_per_it,'.rda'))
             # Reset the chains
             chain = matrix( NA, chain_length_MASTER, length(par)) 
             B_chain = matrix( NA, chain_length_MASTER, length(y))
