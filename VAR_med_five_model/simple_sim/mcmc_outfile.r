@@ -2,8 +2,8 @@ args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 
 index_seeds = c(1:3)
-it_num = 4
-states_per_step = 1
+it_num = 3
+states_per_step = 2
 steps_per_it = 1
 
 true_par = c(0.5, 0,
@@ -28,7 +28,7 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         file_name = paste0('Model_out/mcmc_out_',ind,'_', 'it',
-                           ttt/chain_length_MASTER, '_samp', sampling_num,
+                           it, '_samp', sampling_num,
                            '_', states_per_step, '_', steps_per_it,'.rda')
         load(file_name)
         print(paste0(ind, ": ", file_name))

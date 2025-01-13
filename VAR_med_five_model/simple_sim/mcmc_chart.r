@@ -2,35 +2,14 @@ library(matrixStats)
 library(plotrix)
 
 args = commandArgs(TRUE)
-seed_num = as.numeric(args[1])
-sampling_num = as.numeric(args[2])
-it_num = 1
+sampling_num = as.numeric(args[1])
+it_num = 3
+states_per_step = 2
+steps_per_it = 1
+S = 2
 
-# Load the model output -------------------------------------------------------
-B_chain = NULL
-print(seed_num)
-it_seq = 1:it_num
 
-for(it in it_seq) {
-    file_name = paste0('Model_out/mcmc_out_',seed_num,'_', 'it', 
-                      it, '_samp', sampling_num, '_sim.rda') 
-    load(file_name)
-    print(file_name)
-    
-    if(it == 1) {
-        B_chain   = mcmc_out$B_chain[1000:2000, ]
-    } else {
-        B_chain   = rbind(B_chain, mcmc_out$B_chain)
-    }
-    rm(mcmc_out)
-}
-
-load('Data/data_format.rda')
-y = data_format[,"y"]
-ids = data_format[,"id"]
-EIDs = unique(data_format[,"id"])
-ss_truth = data_format[,"state"]
-#  ----------------------------------------------------------------------------
+seed_list = c(1:3)
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -38,8 +17,55 @@ Mode <- function(x) {
     return(ux[which.max(tabulate(match(x, ux)))])
 }
 
-state_seq_mode = apply(B_chain, 2, Mode)
+# Load the model output -------------------------------------------------------
+B_chain = NULL
+it_seq = 1:it_num
 
+state_results = vector(mode = 'list', length = length(seed_list))
+
+for(s in 1:length(seed_list)) {
+    seed_num = seed_list[s]
+    for(it in it_seq) {
+        file_name = paste0('Model_out/mcmc_out_',seed_num,'_', 'it',
+                           it, '_samp', sampling_num,
+                           '_', states_per_step, '_', steps_per_it,'.rda')
+        load(file_name)
+        print(file_name)
+        
+        if(it == 1) {
+            B_chain   = mcmc_out$B_chain[1000:2000, ]
+        } else {
+            B_chain   = rbind(B_chain, mcmc_out$B_chain)
+        }
+        rm(mcmc_out)
+    }    
+    
+    state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
+    for(jj in 1:S) {
+        state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+    }
+    state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
+    rm(B_chain)
+}
+
+combo_counts = state_results[[1]]
+for(i in 2:length(state_results)) {
+    combo_counts = combo_counts + state_results[[i]]
+}
+
+all_seeds_state_mode = matrix(nrow = length(seed_list)+1, ncol = ncol(combo_counts))
+for(i in 1:length(seed_list)) {
+    all_seeds_state_mode[i, ] = state_results[[i]][S+1,]
+}
+all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
+
+load('Data/data_format1.rda')
+y = data_format[,"y"]
+ids = data_format[,"id"]
+EIDs = unique(data_format[,"id"])
+ss_truth = data_format[,"state"]
+#  ----------------------------------------------------------------------------
+# state_seq_mode = apply(B_chain, 2, Mode)
 # ------------------------------------------------------------------------------
 # Function to change transparency of colors # ----------------------------------
 # ------------------------------------------------------------------------------
@@ -60,32 +86,64 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
-eid_poor = NULL
 
 print("Summary of identifying correct states with mode")
-if(length(ss_truth) != length(state_seq_mode)) {
-    print("ERROR")
-} else {
-    print(sum(ss_truth == state_seq_mode) / length(state_seq_mode))   
+for(s in 1:(length(seed_list)+1)) {
+    if(s <= length(seed_list)) {
+        print(paste0("Seed ", s))
+    } else {
+        print("Combo")
+    }
+    
+    if(length(ss_truth) != length(all_seeds_state_mode[s, ])) {
+        print("ERROR")
+    } else {
+        print(sum(ss_truth == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
+    }
 }
 
 print("Average (across subject) of proportion of correct states with mode")
+mode_correctness = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
+for(s in 1:(length(seed_list)+1)) {
+    prop_sub = rep(0, length(EIDs))
+    for(j in 1:length(EIDs)) {
+        sub_ind_j = which(data_format[,"id"] == EIDs[j])
+        ss_truth_j = ss_truth[sub_ind_j]
+        state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
+        
+        prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
+    }
 
-prop_sub = rep(0, length(EIDs))
-for(j in 1:length(EIDs)) {
-    sub_ind_j = which(data_format[,"id"] == EIDs[j])
-    ss_truth_j = ss_truth[sub_ind_j]
-    state_seq_mode_j = state_seq_mode[sub_ind_j]
+    if(s <= length(seed_list)) {
+        print(paste0("Seed ", s))
+    } else {
+        print("Combo")
+    }
     
-    prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
+    print(summary(prop_sub))
+    mode_correctness[,s] = prop_sub
+    
+    eid_poor = NULL
+    eid_poor = EIDs[prop_sub < 0.9]
+    print("EIDs with < 90% of correct state identification")
+    print(eid_poor)    
 }
 
-print(summary(prop_sub))
-print(sort(prop_sub))
-
-eid_poor = EIDs[prop_sub < 0.9]
-print("EIDs with < 90% of correct state identification")
-print(eid_poor)
+pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '.pdf')
+pdf(pdf_title)
+par(mfrow=c(2,2))
+for(i in 1:(length(seed_list)+1)) {
+    plot_title = NULL
+    if(i <= length(seed_list)) {
+        plot_title = paste0("Seed ", i)
+    } else {
+        plot_title = "Combo" 
+    }
+    
+    boxplot(mode_correctness[,i], main = plot_title, ylab = "percent accurate")
+    abline(h = sum(ss_truth == all_seeds_state_mode[i, ]) / length(all_seeds_state_mode[i, ]), col = 'green')
+}
+dev.off()
 
 # # ------------------------------------------------------------------------------ 
 # # Model evaluation plots -------------------------------------------------------
