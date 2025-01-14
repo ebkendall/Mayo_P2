@@ -8,6 +8,7 @@ sourceCpp("mcmc_fnc.cpp")
 mcmc_routine_EM = function(par, par_index, B, y, ids, steps, burnin, ind){
     
     EIDs = unique(ids)
+    burnin = 1000
     interm_steps = 2000
     chain_interm = matrix( 0, interm_steps, length(par)) 
     chain_length_MASTER = 20
@@ -163,7 +164,7 @@ mcmc_routine_EM = function(par, par_index, B, y, ids, steps, burnin, ind){
             
             par_meds = apply(chain_interm, 2, median)
             par = par_meds
-            B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores)
+            B = viterbi_alg(as.numeric(EIDs), par, par_index, y, ids, n_cores)
             
             chain[ttt/interm_steps + 1, ] = par_meds
             B_chain[ttt/interm_steps + 1, ] = do.call( 'c', B)

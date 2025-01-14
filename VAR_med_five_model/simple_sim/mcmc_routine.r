@@ -63,116 +63,116 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
             }
         }
         
-        # # Evaluate log-likelihood before MH step -------------------------------
-        # if(sampling_num <= 4) {
-        #     log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-        #                                     y, ids, n_cores)    
-        # } else {
-        #     log_target_prev = log_post_cpp_no_b(as.numeric(EIDs), par,par_index, 
-        #                                         y, ids, n_cores)
-        # }
-        # 
-        # if(!is.finite(log_target_prev)){
-        #     print("Infinite log-posterior")
-        #     print(paste0("value: ", log_target_prev))
-        #     break
-        # }
-        # 
-        # # Metropolis-Hastings updates ------------------------------------------
-        # for(j in 1:n_group) {
-        #     
-        #     ind_j = mpi[[j]]
-        #     proposal = par
-        #     
-        #     proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                sigma=pscale[[j]]*pcov[[j]])
-        #     
-        #     # Enforce mu1 > mu2
-        #     if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
-        #         while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
-        #             proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                        sigma=pscale[[j]]*pcov[[j]])
-        #         }
-        #     }
-        #     
-        #     # Evaluate proposed log-likelihood -----------------------------
-        #     if(sampling_num <= 4) {
-        #         log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
-        #     } else {
-        #         log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
-        #     }
-        #     
-        #     if(ttt < burnin){
-        #         while(!is.finite(log_target)){
-        #             print('bad proposal')
-        #             proposal = par
-        #             proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                        sigma=pcov[[j]]*pscale[j])
-        #             
-        #             # Enforce mu1 > mu2
-        #             if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
-        #                 while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
-        #                     proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                                sigma=pscale[[j]]*pcov[[j]])
-        #                 }
-        #             }
-        #             
-        #             if(sampling_num <= 4) {
-        #                 log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)    
-        #             } else {
-        #                 log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
-        #             }
-        #         }
-        #     }
-        #     
-        #     if(!is.finite(log_target) | is.nan(log_target)) {
-        #         # Ensuring that we do not have problems from C++
-        #         print(paste0("bad proposal post burnin: ", log_target))
-        #         log_target = -Inf
-        #     }
-        #     
-        #     # Compute Metropolis ratio -------------------------------------
-        #     if( log_target - log_target_prev > log(runif(1,0,1)) ){
-        #         log_target_prev = log_target
-        #         par[ind_j] = proposal[ind_j]
-        #         accept[j] = accept[j] +1
-        #     }
-        #     
-        #     chain[chain_ind,ind_j] = par[ind_j]
-        #     
-        #     # Proposal tuning scheme ---------------------------------------
-        #     # During the burnin period, update the proposal covariance in each step
-        #     # to capture the relationships within the parameters vectors for each
-        #     # transition.  This helps with mixing.
-        #     if(ttt < burnin){
-        #         if(ttt == 100)  pscale[j] = 1
-        #         
-        #         if(100 <= ttt & ttt <= 2000){
-        #             temp_chain = chain[1:ttt,ind_j]
-        #             pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-        #             
-        #         } else if(2000 < ttt){
-        #             temp_chain = chain[(ttt-2000):ttt,ind_j]
-        #             pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-        #         }
-        #         if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
-        #         
-        #         # Tune the proposal covariance for each transition to achieve
-        #         # reasonable acceptance ratios.
-        #         if(ttt %% 30 == 0){
-        #             if(ttt %% 480 == 0){
-        #                 accept[j] = 0
-        #                 
-        #             } else if( accept[j] / (ttt %% 480) < .4 ){ 
-        #                 pscale[j] = (.75^2)*pscale[j]
-        #                 
-        #             } else if( accept[j] / (ttt %% 480) > .5 ){ 
-        #                 pscale[j] = (1.25^2)*pscale[j]
-        #             }
-        #         }
-        #     }
-        #     # --------------------------------------------------------------
-        # }
+        # Evaluate log-likelihood before MH step -------------------------------
+        if(sampling_num <= 4) {
+            log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
+                                            y, ids, n_cores)
+        } else {
+            log_target_prev = log_post_cpp_no_b(as.numeric(EIDs), par,par_index,
+                                                y, ids, n_cores)
+        }
+
+        if(!is.finite(log_target_prev)){
+            print("Infinite log-posterior")
+            print(paste0("value: ", log_target_prev))
+            break
+        }
+
+        # Metropolis-Hastings updates ------------------------------------------
+        for(j in 1:n_group) {
+
+            ind_j = mpi[[j]]
+            proposal = par
+
+            proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                       sigma=pscale[[j]]*pcov[[j]])
+
+            # Enforce mu1 > mu2
+            if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
+                while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
+                    proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                               sigma=pscale[[j]]*pcov[[j]])
+                }
+            }
+
+            # Evaluate proposed log-likelihood -----------------------------
+            if(sampling_num <= 4) {
+                log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+            } else {
+                log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
+            }
+
+            if(ttt < burnin){
+                while(!is.finite(log_target)){
+                    print('bad proposal')
+                    proposal = par
+                    proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                               sigma=pcov[[j]]*pscale[j])
+
+                    # Enforce mu1 > mu2
+                    if(sum(ind_j %in% par_index$mu) == length(ind_j)) {
+                        while(proposal[ind_j[1]] < proposal[ind_j[2]]) {
+                            proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                                       sigma=pscale[[j]]*pcov[[j]])
+                        }
+                    }
+
+                    if(sampling_num <= 4) {
+                        log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+                    } else {
+                        log_target = log_post_cpp_no_b( as.numeric(EIDs), proposal, par_index, y, ids, n_cores)
+                    }
+                }
+            }
+
+            if(!is.finite(log_target) | is.nan(log_target)) {
+                # Ensuring that we do not have problems from C++
+                print(paste0("bad proposal post burnin: ", log_target))
+                log_target = -Inf
+            }
+
+            # Compute Metropolis ratio -------------------------------------
+            if( log_target - log_target_prev > log(runif(1,0,1)) ){
+                log_target_prev = log_target
+                par[ind_j] = proposal[ind_j]
+                accept[j] = accept[j] +1
+            }
+
+            chain[chain_ind,ind_j] = par[ind_j]
+
+            # Proposal tuning scheme ---------------------------------------
+            # During the burnin period, update the proposal covariance in each step
+            # to capture the relationships within the parameters vectors for each
+            # transition.  This helps with mixing.
+            if(ttt < burnin){
+                if(ttt == 100)  pscale[j] = 1
+
+                if(100 <= ttt & ttt <= 2000){
+                    temp_chain = chain[1:ttt,ind_j]
+                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+
+                } else if(2000 < ttt){
+                    temp_chain = chain[(ttt-2000):ttt,ind_j]
+                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                }
+                if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
+
+                # Tune the proposal covariance for each transition to achieve
+                # reasonable acceptance ratios.
+                if(ttt %% 30 == 0){
+                    if(ttt %% 480 == 0){
+                        accept[j] = 0
+
+                    } else if( accept[j] / (ttt %% 480) < .4 ){
+                        pscale[j] = (.75^2)*pscale[j]
+
+                    } else if( accept[j] / (ttt %% 480) > .5 ){
+                        pscale[j] = (1.25^2)*pscale[j]
+                    }
+                }
+            }
+            # --------------------------------------------------------------
+        }
         
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)

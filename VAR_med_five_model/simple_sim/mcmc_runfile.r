@@ -1,7 +1,7 @@
 seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 sampling_num = NULL
 pseudo = F
-EM = F
+EM = T
 
 if(pseudo) {
     source('mcmc_routine_pseudo.r')
@@ -28,8 +28,8 @@ if(pseudo) {
 }
 
 # Num. states sampled per step, Num. steps per MCMC it -------------------------
-states_per_step = 2
 steps_per_it = 1
+states_per_step = 2
 
 set.seed(seed_num)
 ind = seed_num
@@ -45,7 +45,7 @@ EIDs = unique(data_format[,"id"])
 
 # Parameter initialization ----------------------------------------------------
 par = c(0.5, 0,
-        0.405, -0.405)
+        -1, -4)
 par_index = list()
 par_index$mu = 1:2
 par_index$t_p = 3:4
@@ -79,7 +79,7 @@ max_log_posterior = log_post_cpp(as.numeric(EIDs), par, par_index, B, y, ids, 10
 print("Maximum log posterior: "); print(max_log_posterior)
 # -----------------------------------------------------------------------------
 
-steps = 30000
+steps  = 30000
 burnin =  5000
 
 s_time = Sys.time()
