@@ -3,10 +3,10 @@ sampling_num = as.numeric(args[1])
 
 index_seeds = c(1:3)
 it_num = 3
-states_per_step = 3
-steps_per_it = 3
+states_per_step = 2
+steps_per_it = 1
 
-true_par = c(0.5, 0,
+true_par = c(1, -1,
              -1, -4)
 par_index = list()
 par_index$mu = 1:2

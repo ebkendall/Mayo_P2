@@ -33,6 +33,9 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     B_chain = matrix( 0, chain_length_MASTER, length(y)) 
     accept = rep( 0, n_group)
     
+    # Initialize states to MLE state sequences ---------------------------------
+    B = viterbi_alg(as.numeric(EIDs), par, par_index, y, ids, n_cores)
+    
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
     B_chain[1, ] = do.call( 'c', B)
@@ -180,7 +183,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
         B_chain[ chain_ind, ] = do.call( 'c', B)
         # ----------------------------------------------------------------------
         
-        if(ttt%%1==0)  print(paste0('--->',ttt))#, ' | ', log_target_prev))
+        if(ttt%%1==0)  print(paste0('--->',ttt))
         if(ttt%%100==0) print(accept)
         
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {

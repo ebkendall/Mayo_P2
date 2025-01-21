@@ -8,7 +8,7 @@ set.seed(2025)
 N = 100
 n_state = 2
 
-par = c(0.5, 0,
+par = c(1, -1,
         -1, -4)
 par_index = list()
 par_index$mu = 1:2

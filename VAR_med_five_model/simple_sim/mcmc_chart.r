@@ -129,7 +129,8 @@ for(s in 1:(length(seed_list)+1)) {
     print(eid_poor)    
 }
 
-pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '.pdf')
+pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '_', states_per_step, 
+                   '_', steps_per_it,'.pdf')
 pdf(pdf_title)
 par(mfrow=c(2,2))
 for(i in 1:(length(seed_list)+1)) {
