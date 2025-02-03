@@ -255,12 +255,16 @@ arma::field<arma::field<arma::mat>> get_Omega_list(const arma::imat &a_mat, int 
 arma::imat adj_mat_GLOBAL;
 int states_per_step_GLOBAL;
 arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi;
+arma::vec P_init;
 
 // [[Rcpp::export]]
 void initialize_cpp(arma::imat a_mat, int s_per_s) {
     adj_mat_GLOBAL = a_mat;
     states_per_step_GLOBAL = s_per_s;
     Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, states_per_step_GLOBAL);
+
+    arma::vec init_global_temp(a_mat.n_rows, arma::fill::ones);
+    P_init = init_global_temp / arma::accu(init_global_temp);
 }
 
 arma::mat get_omega_list(const int k, const int n_i, const arma::vec &b_i, int states_per_step) {
@@ -313,7 +317,6 @@ arma::vec full_like_MH(const int k, const int n_i, int t_pt_length, const arma::
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -394,7 +397,6 @@ arma::vec sub_like_MH(const int k, const int n_i, int t_pt_length, const arma::v
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec t_pts;
     if (k == 1) {
@@ -450,7 +452,6 @@ arma::mat state_prob_MH(const int k, const int n_i, int t_pt_length,
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec curr_b_i_k;
     if(k == 1) {
@@ -553,7 +554,6 @@ arma::mat state_prob_only(const int k, const int n_i, int t_pt_length,
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec curr_b_i_k;
     if(k == 1) {
@@ -725,7 +725,6 @@ arma::vec state_prob_gibbs(const int k, const int n_i, int t_pt_length,
     // Parameter initialization ------------------------------------------------
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     // ------------------------------------------------------------------------
     
     arma::vec prob_dist(omega_set.n_rows, arma::fill::ones);
@@ -847,7 +846,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
+    
 
     omp_set_num_threads(n_cores);
     # pragma omp parallel for
@@ -930,7 +929,6 @@ double log_post_cpp_no_b(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::rowvec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1009,7 +1007,6 @@ double pseudo_like(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1084,7 +1081,6 @@ double pseudo_like2(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1206,7 +1202,6 @@ arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
 
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5};
 
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1287,7 +1282,6 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5};
 
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1369,7 +1363,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},
@@ -1437,7 +1430,6 @@ arma::field<arma::vec> viterbi_alg(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::vec P_init = {0.5,0.5}; 
     
     arma::vec qz = exp(zeta);
     arma::mat Q = { {    1,   qz(0)},

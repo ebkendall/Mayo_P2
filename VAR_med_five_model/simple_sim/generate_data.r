@@ -5,7 +5,7 @@ for(seed_num in 1:100) {
     N = 100
     n_state = 2
     
-    par = c(1, -1,
+    par = c(0.5, 0,
             -1, -4)
     par_index = list()
     par_index$mu = 1:2
@@ -19,7 +19,8 @@ for(seed_num in 1:100) {
     
     P = Q / rowSums(Q)
     
-    init_prob = c(0.5, 0.5)
+    init_prob = rep(1, n_state);
+    init_prob = init_prob / sum(init_prob)
     
     data_format = NULL
     for(i in 1:N) {
