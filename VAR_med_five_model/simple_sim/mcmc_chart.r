@@ -4,7 +4,7 @@ library(plotrix)
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 it_num = 3
-states_per_step = 2
+states_per_step = 1
 steps_per_it = 1
 S = 2
 

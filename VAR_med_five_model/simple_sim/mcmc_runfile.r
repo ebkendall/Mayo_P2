@@ -10,25 +10,13 @@ if(pseudo) {
 } else {
     source('mcmc_routine.r')
     
-    if(seed_num <= 3) {
-        sampling_num = 1
-    } else if(seed_num > 3 & seed_num <= 6) {
-        seed_num = seed_num - 3
-        sampling_num = 2
-    } else if(seed_num > 6 & seed_num <= 9) {
-        seed_num = seed_num - 6
-        sampling_num = 3
-    } else if(seed_num > 9 & seed_num <= 12) {
-        seed_num = seed_num - 9
-        sampling_num = 4
-    } else {
-        seed_num = seed_num - 12
-        sampling_num = 5
-    }
+    sampling_num = floor((seed_num - 1) / 3) + 1
+    seed_num = seed_num - 3 * floor((seed_num - 1)/3)
 }
 
 # Num. states sampled per step, Num. steps per MCMC it -------------------------
-for(states_per_step in 1:4) {
+for(states_per_step in 1:3) {
+    # states_per_step = 1
     steps_per_it = 1
     
     set.seed(seed_num)
@@ -44,7 +32,8 @@ for(states_per_step in 1:4) {
     EIDs = unique(data_format[,"id"])
     
     # Parameter initialization ----------------------------------------------------
-    par = c(1, -1,
+
+    par = c(0.5, 0,
             -1, -4)
     par_index = list()
     par_index$mu = 1:2
@@ -55,27 +44,18 @@ for(states_per_step in 1:4) {
     n_state = 2
     zeta = par[par_index$t_p]
     zeta = exp(zeta)
-    Q = matrix(c(       1,  zeta[1],
-                        zeta[2],        1), ncol=2, byrow=T)
+    Q = matrix(c(      1,  zeta[1],
+                 zeta[2],        1), ncol=2, byrow=T)
     
     P = Q / rowSums(Q)
     
-    init_prob = c(0.5,0.5)
+    init_prob = rep(1, n_state);
+    init_prob = init_prob / sum(init_prob)
     
     B = list()
     for(i in EIDs){
-        # n_i = sum(data_format[,"id"] == i)
-        # b_temp = sample(1:n_state, size = 1, prob = init_prob)
-        # 
-        # for(k in 2:n_i) {
-        #     b_temp = c(b_temp, sample(1:n_state, size=1, prob=P[tail(b_temp,1),]))
-        # }
-        # 
-        # B[[i]] = matrix(b_temp, ncol = 1)
         B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
     }
-    max_log_posterior = log_post_cpp(as.numeric(EIDs), par, par_index, B, y, ids, 10)
-    print("Maximum log posterior: "); print(max_log_posterior)
     # -----------------------------------------------------------------------------
     
     steps  = 30000

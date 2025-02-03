@@ -26,7 +26,7 @@ for(seed_num in 1:100) {
     for(i in 1:N) {
         n_i = rpois(n = 1, lambda = 500)
         
-        # Initial probabilities are 50/50
+        # Initial probabilities are equal
         b_i = sample(1:n_state, size = 1, prob = init_prob)
         
         for(k in 2:n_i) {
