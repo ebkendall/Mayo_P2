@@ -15,8 +15,8 @@ if(pseudo) {
 }
 
 # Num. states sampled per step, Num. steps per MCMC it -------------------------
-for(states_per_step in 1:3) {
-    # states_per_step = 1
+# for(states_per_step in 1:3) {
+    states_per_step = 1
     steps_per_it = 1
     
     set.seed(seed_num)
@@ -72,4 +72,4 @@ for(states_per_step in 1:3) {
                                 sampling_num, states_per_step, steps_per_it)
     }
     e_time = Sys.time() - s_time; print(e_time)     
-}
+# }

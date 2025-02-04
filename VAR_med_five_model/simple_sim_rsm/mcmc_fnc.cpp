@@ -310,6 +310,8 @@ arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b
     
 } 
 
+// -----------------------------------------------------------------------------
+
 double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par, 
                          const arma::field<arma::uvec> &par_index, 
                          const arma::field <arma::vec> &B, const arma::vec &y, 
@@ -339,7 +341,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         twos.elem(arma::find(b_i == 2)) += 1;
         
         arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos));
-        arma::vec mean_b = D_b %*% mu;
+        arma::vec mean_b = D_b * mu;
         
         for(int jj = 0; jj < n_i; jj++) {
             
@@ -449,9 +451,8 @@ arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
                     arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
                     twos_s.elem(arma::find(ss_jj == 2)) += 1;
                     arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
-                    arma::vec mean_s = D_s %*% mu;
+                    arma::vec mean_s = D_s * mu;
                     
-                    // for(int kk = k; kk < k + states_per_step + 1; kk++) {
                     for(int kk = k; kk < n_i; kk++) {
                         if(kk == 0) {
                             log_like_val = log_like_val + 
@@ -536,7 +537,7 @@ arma::field<arma::vec> almost_gibbs_up(const arma::vec EIDs, const arma::vec &pa
                     arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
                     twos_s.elem(arma::find(ss_jj == 2)) += 1;
                     arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
-                    arma::vec mean_s = D_s %*% mu;
+                    arma::vec mean_s = D_s * mu;
                     
                     for(int kk = k; kk < k + states_per_step + 1; kk++) {
                         if(kk == 0) {
@@ -580,8 +581,8 @@ arma::field<arma::vec> almost_gibbs_up(const arma::vec EIDs, const arma::vec &pa
                     arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos_b));
                     arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
                     
-                    arma::vec mean_b = D_b %*% mu;
-                    arma::vec mean_s = D_s %*% mu;
+                    arma::vec mean_b = D_b * mu;
+                    arma::vec mean_s = D_s * mu;
                     
                     for(int kk = k; kk < n_i; kk++) {
                         if(kk == 0) {
@@ -666,42 +667,46 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
                 arma::vec s_i = b_i;
                 s_i.rows(k, k+states_per_step-1) = Omega_set.row(row_ind(0)).t();
                 
-                arma::vec ones(b_i.n_elem, arma::fill::ones);
-                arma::vec twos_b(b_i.n_elem, arma::fill::zeros);
-                arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
-                
-                twos_b.elem(arma::find(b_i == 2)) += 1;
-                twos_s.elem(arma::find(s_i == 2)) += 1;
-                
-                arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos_b));
-                arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
-                
-                arma::vec mean_b = D_b %*% mu;
-                arma::vec mean_s = D_s %*% mu;
+                if(arma::approx_equal(s_i, b_i, "absdiff", 0.001)) {
+                    b_i = s_i;
+                } else {
+                    arma::vec ones(b_i.n_elem, arma::fill::ones);
+                    arma::vec twos_b(b_i.n_elem, arma::fill::zeros);
+                    arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
                     
-                for(int kk = k; kk < n_i; kk++) {
-                    if(kk == 0) {
-                        log_like_b = log_like_b + 
-                            log(P_init(b_i(kk) - 1)) + 
-                            R::dnorm(y_i(kk), mean_b(kk), 1, true);
+                    twos_b.elem(arma::find(b_i == 2)) += 1;
+                    twos_s.elem(arma::find(s_i == 2)) += 1;
+                    
+                    arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos_b));
+                    arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
+                    
+                    arma::vec mean_b = D_b * mu;
+                    arma::vec mean_s = D_s * mu;
                         
-                        log_like_s = log_like_s + 
-                            log(P_init(s_i(kk) - 1)) + 
-                            R::dnorm(y_i(kk), mean_s(kk), 1, true);
-                        
-                    } else if(kk <= n_i - states_per_step) {
-                        log_like_b = log_like_b + 
-                            log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
-                            R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        
-                        log_like_s = log_like_s + 
-                            log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) + 
-                            R::dnorm(y_i(kk), mean_s(kk), 1, true);
+                    for(int kk = k; kk < n_i; kk++) {
+                        if(kk == 0) {
+                            log_like_b = log_like_b + 
+                                log(P_init(b_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_b(kk), 1, true);
+                            
+                            log_like_s = log_like_s + 
+                                log(P_init(s_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_s(kk), 1, true);
+                            
+                        } else if(kk <= n_i - states_per_step) {
+                            log_like_b = log_like_b + 
+                                log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_b(kk), 1, true);
+                            
+                            log_like_s = log_like_s + 
+                                log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_s(kk), 1, true);
+                        }
                     }
+                    double diff_check = log_like_s - log_like_b;
+                    double min_log = log(arma::randu(arma::distr_param(0,1)));
+                    if(diff_check > min_log){b_i = s_i;} 
                 }
-                double diff_check = log_like_s - log_like_b;
-                double min_log = log(arma::randu(arma::distr_param(0,1)));
-                if(diff_check > min_log){b_i = s_i;} 
             }
         }
         
@@ -749,7 +754,19 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
                 // Initial state
                 arma::vec init_vals(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
                 for(int jj = 0; jj < init_vals.n_elem; jj++) {
-                    init_vals(jj) = log(P_init(jj)) + R::dnorm(y_i(k), mu(jj), 1, true);
+                    b_i(k) = jj + 1;
+                    
+                    arma::vec b_sub = b_i.subvec(0,k);
+                    
+                    arma::vec ones(b_sub.n_elem, arma::fill::ones);
+                    arma::vec twos(b_sub.n_elem, arma::fill::zeros);
+                    twos.elem(arma::find(b_sub == 2)) += 1;
+                    
+                    arma::vec D = {1, arma::accu(twos)};
+                    
+                    double mean_b = arma::as_scalar(D.t() * mu);
+                    
+                    init_vals(jj) = log(P_init(jj)) + R::dnorm(y_i(k), mean_b, 1, true);
                 } 
                 
                 b_i(k) = arma::index_max(init_vals) + 1;
@@ -763,7 +780,19 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
                 for(int jj = 0; jj < adj_mat_GLOBAL.n_cols; jj++) {
                     if(adj_mat_GLOBAL(prev_state-1, jj) != 0) {
                         poss_next_state(w_ind) = jj + 1;
-                        poss_state_like(w_ind) = log(P_i(prev_state-1, jj)) + R::dnorm(y_i(k), mu(jj), 1, true);
+                        
+                        b_i(k) = jj + 1;
+                        
+                        arma::vec b_sub = b_i.subvec(0,k);
+                        
+                        arma::vec twos(b_sub.n_elem, arma::fill::zeros);
+                        twos.elem(arma::find(b_sub == 2)) += 1;
+                        
+                        arma::vec D = {1, arma::accu(twos)};
+                        
+                        double mean_b = arma::as_scalar(D.t() * mu);
+                        
+                        poss_state_like(w_ind) = log(P_i(prev_state-1, jj)) + R::dnorm(y_i(k), mean_b, 1, true);
                         
                         w_ind += 1;
                     }

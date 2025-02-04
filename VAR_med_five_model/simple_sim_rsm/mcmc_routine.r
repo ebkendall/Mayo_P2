@@ -33,8 +33,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     B_chain = matrix( 0, chain_length_MASTER, length(y)) 
     accept = rep( 0, n_group)
     
-    # Initialize states to MLE state sequences ---------------------------------
-    B = viterbi_alg(as.numeric(EIDs), par, par_index, y, ids, n_cores)
+    # # Initialize states to MLE state sequences ---------------------------------
+    # B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -50,22 +50,29 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
             chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
         }
         
-        for(s in 1:steps_per_it) {
-            # Random sample update -----------------------------------------
-            if(sampling_num == 1) {
-                B_Dn = mh_up(as.numeric(EIDs), par, par_index, B, y, ids,
-                             n_cores, states_per_step)
-                B = B_Dn
-            }
+        # for(s in 1:steps_per_it) {
+        #     # Random sample update ---------------------------------------------
+        #     if(sampling_num == 1) {
+        #         B_Dn = mh_up(as.numeric(EIDs), par, par_index, B, y, ids,
+        #                      n_cores, states_per_step)
+        #         B = B_Dn
+        #     }
+        # 
+        #     # Almost-Gibbs update ----------------------------------------------
+        #     if(sampling_num == 2) {
+        #         B_Dn = almost_gibbs_up(as.numeric(EIDs), par, par_index, B, y,
+        #                                ids, n_cores, states_per_step)
+        #         B = B_Dn
+        #     }
+        # 
+        #     # Gibbs update -----------------------------------------------------
+        #     if(sampling_num == 3) {
+        #         B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, B, y, ids,
+        #                         n_cores, states_per_step)
+        #         B = B_Dn
+        #     }
+        # }
 
-            # Gibbs update -------------------------------------------------
-            if(sampling_num == 2) {
-                B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, B, y, ids,
-                                n_cores, states_per_step)
-                B = B_Dn
-            }
-        }
-        
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
                                        y, ids, n_cores)
