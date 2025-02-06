@@ -18,12 +18,12 @@ Mode <- function(x) {
 }
 
 # Load the model output -------------------------------------------------------
-B_chain = NULL
 it_seq = 1:it_num
 
 state_results = vector(mode = 'list', length = length(seed_list))
 
 for(s in 1:length(seed_list)) {
+    B_chain = NULL
     seed_num = seed_list[s]
     for(it in it_seq) {
         file_name = paste0('Model_out/mcmc_out_',seed_num,'_', 'it',
@@ -51,6 +51,13 @@ for(s in 1:length(seed_list)) {
 combo_counts = state_results[[1]]
 for(i in 2:length(state_results)) {
     combo_counts = combo_counts + state_results[[i]]
+}
+combo_counts[S+1, ] = apply(combo_counts[1:S,], 2, which.max)
+
+combo_counts_col_sum = colSums(combo_counts[1:S,])
+combo_counts_props = matrix(nrow = S, ncol = ncol(combo_counts))
+for(s in 1:S) {
+    combo_counts_props[s,] = combo_counts[s, ] / combo_counts_col_sum
 }
 
 all_seeds_state_mode = matrix(nrow = length(seed_list)+1, ncol = ncol(combo_counts))
@@ -125,179 +132,143 @@ for(s in 1:(length(seed_list)+1)) {
     
     eid_poor = NULL
     eid_poor = EIDs[prop_sub < 0.9]
-    print("EIDs with < 90% of correct state identification")
-    print(eid_poor)    
+    # print("EIDs with < 90% of correct state identification")
+    # print(eid_poor)    
 }
 
-pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '_', states_per_step, 
-                   '_', steps_per_it,'.pdf')
+# ------------------------------------------------------------------------------
+# Model evaluation plots -------------------------------------------------------
+# ------------------------------------------------------------------------------
+pdf_title = paste0('Plots/chart_samp',  sampling_num, '_', states_per_step, 
+                   '_', steps_per_it, '.pdf')
 pdf(pdf_title)
+panel_dim = c(4,1)
+inset_dim = c(0,-.18)
+par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
+for(i in EIDs){
+    print(which(EIDs == i))
+    indices_i = (data_format[,'id']==i)
+    n_i = sum(indices_i)
+
+    t_grid = t_grid_bar = 1:n_i
+
+    # Put this on the correct scale as the t_grid
+    b_i = data_format[ indices_i,'state']
+    to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
+    to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
+
+    if(b_i[1] == 1) {
+        to_s1 = c(to_s1, 1)
+    } else if(b_i[1] == 2) {
+        to_s2 = c(to_s2, 1)
+    }
+
+    if(length(unique(b_i)) > 1) {
+        if(length(to_s1) > 0) {
+            rect_coords = data.frame(s = 1, t = to_s1)
+        }
+
+        if(length(to_s2) > 0) {
+            s2_coords = data.frame(s = 2, t = to_s2)
+            if(length(to_s1) > 0) {
+                rect_coords = rbind(rect_coords, s2_coords)
+            } else {
+                rect_coords = s2_coords
+            }
+        }
+
+        # if(length(to_s3) > 0) {
+        #     s3_coords = data.frame(s = 3, t = to_s3)
+        #     if(length(to_s1) > 0 || length(to_s2) > 0) {
+        #         rect_coords = rbind(rect_coords, s3_coords)
+        #     } else {
+        #         rect_coords = s3_coords
+        #     }
+        # }
+        # 
+        # if(length(to_s4) > 0) {
+        #     s4_coords = data.frame(s = 4, t = to_s4)
+        #     if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
+        #         rect_coords = rbind(rect_coords, s4_coords)
+        #     } else {
+        #         rect_coords = s4_coords
+        #     }
+        # }
+        # 
+        # if(length(to_s5) > 0) {
+        #     s5_coords = data.frame(s = 5, t = to_s5)
+        #     if(length(to_s1) > 0 || length(to_s2) > 0 ||
+        #        length(to_s3) > 0 || length(to_s4) > 0) {
+        #         rect_coords = rbind(rect_coords, s5_coords)
+        #     } else {
+        #         rect_coords = s5_coords
+        #     }
+        # }
+
+        if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
+        # Add one row for visuals
+        rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
+        rect_coords$t = rect_coords$t - 1
+        rect_coords = rect_coords[order(rect_coords$t), ]
+        col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
+        col_vec = makeTransparent(col_vec, alpha = 0.35)
+    } else {
+        rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
+        rect_coords$t = rect_coords$t - 1
+        rect_coords = rect_coords[order(rect_coords$t), ]
+        col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
+        col_vec = makeTransparent(col_vec, alpha = 0.35)
+    }
+    
+    
+    pb = barplot(combo_counts_props[,indices_i], col=c( 'dodgerblue', 'firebrick1'),
+                 xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F)
+
+    # TRUE STATE SEQ -----------------------------------------------------------
+    plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=c(min(data_format[indices_i,"y"]),
+                                                    max(data_format[indices_i,"y"])), 
+         main=paste0("EID = ", i, " truth"), xlab='time', ylab=NA, xaxt='n', 
+         col.main='green', col.axis='green')
+    
+    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+         ybottom = min(data_format[indices_i,"y"]), 
+         xright = rect_coords$t[-1], 
+         ytop = max(data_format[indices_i,"y"]),
+         col = col_vec[-nrow(rect_coords)],
+         border = NA)
+    points(t_grid, data_format[indices_i,"y"])
+    
+    # BAR PLOTS --------------------------------------------------------------
+    barplot(combo_counts_props[,indices_i], col=c( 'dodgerblue', 'firebrick1'),
+            xlab='time', space=0, col.main='green', border=NA,
+            xlim=range(pb) + c(-0.5,0.5), main = paste0("EID = ", i, " fit"))
+    grid( nx=20, NULL, col='white')
+    legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
+            legend=c( 'Baseline', 'State 2'),
+            pch=15, pt.cex=1.5,
+            col=c( 'dodgerblue', 'firebrick1'))
+    axis( side=1, at=t_grid_bar-0.5, col.axis='green', labels = t_grid)
+    axis( side=2, at=0:1, col.axis='green')
+}
+# dev.off()
+
+
+# pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '_', states_per_step, 
+#                    '_', steps_per_it,'.pdf')
+# pdf(pdf_title)
 par(mfrow=c(2,2))
 for(i in 1:(length(seed_list)+1)) {
     plot_title = NULL
     if(i <= length(seed_list)) {
         plot_title = paste0("Seed ", i)
     } else {
-        plot_title = "Combo" 
+        plot_title = "Combo"
     }
-    
-    boxplot(mode_correctness[,i], main = plot_title, ylab = "percent accurate")
-    abline(h = sum(ss_truth == all_seeds_state_mode[i, ]) / length(all_seeds_state_mode[i, ]), col = 'green')
+
+    boxplot(mode_correctness[,i], main = plot_title, ylab = "percent accurate",
+            col.main='green')
+    abline(h = sum(ss_truth == all_seeds_state_mode[i, ]) / length(all_seeds_state_mode[i, ]), col = 'red')
+    axis( side=1, col.axis='green')
+    axis( side=2, col.axis='green')
 }
 dev.off()
-
-# # ------------------------------------------------------------------------------ 
-# # Model evaluation plots -------------------------------------------------------
-# # ------------------------------------------------------------------------------
-# pdf_title = paste0('Plots/chart_', seed_num, "_samp",  sampling_num, '_sim.pdf') 
-# pdf(pdf_title)
-# panel_dim = c(4,1)
-# inset_dim = c(0,-.18)
-# par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
-# for(i in EIDs){
-#     print(which(EIDs == i))
-#     indices_i = (data_format[,'EID']==i)
-#     n_i = sum(indices_i)
-#     
-#     t_grid = round(data_format[indices_i, 'time'] / 60, digits = 3)
-#     t_grid_bar = 1:length(t_grid)
-#     rbc_times_bar = which(data_format[data_format[,'EID']==i, 'RBC_ordered'] != 0)
-#     if(simulation) {
-#         rbc_admin = c(head(data_format[data_format[,'EID']==i, "n_RBC_admin"], 1),
-#                       diff(data_format[data_format[,'EID']==i, "n_RBC_admin"]))
-#         rbc_admin_times_bar = which(rbc_admin != 0)
-#     } else {
-#         rbc_admin_times_bar = which(data_format[data_format[,'EID']==i, 'RBC_admin'] != 0)   
-#     }
-#     rbc_times = t_grid[rbc_times_bar]
-#     rbc_admin_times = t_grid[rbc_admin_times_bar]
-#     
-#     # Put this on the correct scale as the t_grid
-#     b_i = data_format[ indices_i,'b_true']
-#     to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
-#     to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
-#     
-#     if(b_i[1] == 1) {
-#         to_s1 = c(to_s1, 1)
-#     } else if(b_i[1] == 2) {
-#         to_s2 = c(to_s2, 1)
-#     } 
-#     
-#     if(length(unique(b_i)) > 1) {
-#         if(length(to_s1) > 0) {
-#             rect_coords = data.frame(s = 1, t = to_s1)
-#         }
-#         
-#         if(length(to_s2) > 0) {
-#             s2_coords = data.frame(s = 2, t = to_s2)
-#             if(length(to_s1) > 0) {
-#                 rect_coords = rbind(rect_coords, s2_coords)
-#             } else {
-#                 rect_coords = s2_coords
-#             }
-#         }
-#         
-#         if(length(to_s3) > 0) {
-#             s3_coords = data.frame(s = 3, t = to_s3)
-#             if(length(to_s1) > 0 || length(to_s2) > 0) {
-#                 rect_coords = rbind(rect_coords, s3_coords)
-#             } else {
-#                 rect_coords = s3_coords
-#             }
-#         }
-#         
-#         if(length(to_s4) > 0) {
-#             s4_coords = data.frame(s = 4, t = to_s4)
-#             if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
-#                 rect_coords = rbind(rect_coords, s4_coords)
-#             } else {
-#                 rect_coords = s4_coords
-#             }
-#         }
-#         
-#         if(length(to_s5) > 0) {
-#             s5_coords = data.frame(s = 5, t = to_s5)
-#             if(length(to_s1) > 0 || length(to_s2) > 0 || 
-#                length(to_s3) > 0 || length(to_s4) > 0) {
-#                 rect_coords = rbind(rect_coords, s5_coords)
-#             } else {
-#                 rect_coords = s5_coords
-#             }
-#         }
-#         
-#         if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
-#         # Add one row for visuals
-#         rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
-#         rect_coords$t = rect_coords$t - 1
-#         rect_coords = rect_coords[order(rect_coords$t), ]
-#         col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
-#         col_vec = makeTransparent(col_vec, alpha = 0.35)   
-#     } else {
-#         rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
-#         rect_coords$t = rect_coords$t - 1
-#         rect_coords = rect_coords[order(rect_coords$t), ]
-#         col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
-#         col_vec = makeTransparent(col_vec, alpha = 0.35)  
-#     }
-#     
-#     pb = barplot(rbind(colMeans(B_chain[, indices_i] == 1),
-#                        colMeans(B_chain[, indices_i] == 2)), 
-#                  col=c( 'dodgerblue', 'firebrick1'), 
-#                  xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F) 
-#     
-#     # Make a new plot to add the background color
-#     plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main=title_name,
-#          xlab='time', ylab=NA, xaxt='n', col.main='green',
-#          col.axis='green')
-#     
-#     rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-#          ybottom = hr_map_ylim[1], 
-#          xright = rect_coords$t[-1], 
-#          ytop = hr_map_ylim[2],
-#          col = col_vec[-nrow(rect_coords)],
-#          border = NA)
-#     
-#     plotCI( x = pb, y=colMeans(Hr_chain[, indices_i, drop=F]), ui=hr_upper, li=hr_lower,
-#             main=title_name,
-#             xlab='time', ylab=NA, xaxt='n', col.main='green',
-#             col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
-#             xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-#     plotCI( x = pb, y=colMeans(Map_chain[, indices_i, drop=F]), ui=bp_upper, li=bp_lower,
-#             main=title_name,
-#             xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
-#             col = 'orange',
-#             xlim = range(pb) + c(-0.5,0.5), add = T) 
-#     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-#             legend=c( 'HR', 'MAP'), pch=15, pt.cex=1.5, 
-#             col=c( 'aquamarine', 'orange'))
-#     grid( nx=20, NULL, col='white')
-#     axis( side=1, at=pb, col.axis='green', labels=t_grid)
-#     
-#     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
-#     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
-#     
-#     # BAR PLOTS --------------------------------------------------------------
-#     barplot(rbind(colMeans(B_chain[, indices_i] == 1),
-#                   colMeans(B_chain[, indices_i] == 2),
-#                   colMeans(B_chain[, indices_i] == 3),
-#                   colMeans(B_chain[, indices_i] == 4),
-#                   colMeans(B_chain[, indices_i] == 5)), 
-#             col=c( 'dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray'), 
-#             xlab='time', space=0, col.main='green', border=NA,
-#             xlim=range(pb) + c(-0.5,0.5)) 
-#     grid( nx=20, NULL, col='white')
-#     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-#             legend=c( 'Baseline', 'State 2', 'State 3', 'State 4', 'State 5'), 
-#             pch=15, pt.cex=1.5, 
-#             col=c( 'dodgerblue', 'firebrick1', 'yellow2','green', 'darkgray'))
-#     legend( 'topleft', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-#             legend=c( 'RBC order', 'RBC admin'), pch=15, pt.cex=1.5, 
-#             col=c( 'darkorchid1', 'aquamarine'))				
-#     axis( side=1, at=t_grid_bar-0.5, col.axis='green', labels = t_grid)
-#     axis( side=2, at=0:1, col.axis='green')
-#     
-#     
-#     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
-#     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
-# }
-# dev.off()

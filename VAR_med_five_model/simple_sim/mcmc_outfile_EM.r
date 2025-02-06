@@ -1,7 +1,7 @@
 N_samp = 100
 
 true_par = c(0.5, 0,
-             -1, -4)
+            -1, -4)
 par_index = list()
 par_index$mu = 1:2
 par_index$t_p = 3:4
@@ -23,6 +23,7 @@ for(i in 1:N_samp) {
                          sum(data_format[,"state"] == 1), sum(data_format[,"state"] == 2))
 }
 
+pdf("trace_plot_EM.pdf")
 par(mfrow=c(2,2))
 for(i in 1:4) {
     boxplot(par_chain[,i], main = labels[i], xlab = paste0('true = ', true_par[i]))
@@ -30,3 +31,4 @@ for(i in 1:4) {
 }
 print(summary(state_accuracy))
 print(state_counts)
+dev.off()

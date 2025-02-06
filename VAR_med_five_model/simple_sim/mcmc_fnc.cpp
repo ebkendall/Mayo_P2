@@ -1182,15 +1182,6 @@ double pseudo_like2(const arma::vec &EIDs, const arma::vec &par,
 } 
 
 // [[Rcpp::export]]
-void test_fnc() {
-    Rcpp::Rcout << Omega_List_GLOBAL_multi << std::endl;
-    Rcpp::Rcout << adj_mat_GLOBAL << std::endl;
-    
-    Rcpp::Rcout << Omega_List_GLOBAL_multi(1) << std::endl;
-    Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(0, 1) << std::endl;
-}
-
-// [[Rcpp::export]]
 arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
                                 const arma::field<arma::uvec> &par_index,
                                 arma::field <arma::vec> &B,
@@ -1354,6 +1345,85 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
 }
 
 // [[Rcpp::export]]
+arma::field<arma::vec> mh_up_all(const arma::vec EIDs, const arma::vec &par,
+                                 const arma::field<arma::uvec> &par_index,
+                                 arma::field <arma::vec> &B,
+                                 const arma::vec &y, const arma::vec &eids,
+                                 int n_cores) {
+    
+    // par_index KEY: (0) mu, (1) zeta;
+    // "i" is the numeric EID number; "ii" is the index of the EID
+    arma::field<arma::vec> B_return(EIDs.n_elem);
+    
+    arma::vec mu = par.elem(par_index(0) - 1);
+    arma::vec zeta = par.elem(par_index(1) - 1);
+
+    arma::vec qz = exp(zeta);
+    arma::mat Q = { {    1,   qz(0)},
+                    {qz(1),       1}};
+    
+    arma::vec q_row_sums = arma::sum(Q, 1);
+    arma::mat P_i = Q.each_col() / q_row_sums;
+
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
+    for(int ii = 0; ii < EIDs.n_elem; ii++) {
+        // Subject-specific information ----------------------------------------
+        int i = EIDs(ii);
+        arma::uvec sub_ind = arma::find(eids == i);
+        int n_i = sub_ind.n_elem;
+        
+        arma::vec b_i = B(ii);
+        arma::vec s_i(n_i, arma::fill::zeros);
+        arma::vec y_i = y.rows(sub_ind);
+        
+        arma::vec all_like_vals_b(n_i, arma::fill::zeros);
+        arma::vec all_like_vals_s(n_i, arma::fill::zeros);
+     
+        // Propose a full state sequence ---------------------------------------
+        for(int k = 0; k < n_i; k++) {
+            
+            arma::vec like_vals_s(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
+            arma::vec like_vals_b(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
+            
+            for(int m = 0; m < adj_mat_GLOBAL.n_cols; m++) {
+                if(k == 0) {
+                    like_vals_s(m) = P_init(m) * R::dnorm(y_i(k), mu(m), 1, false);
+                    like_vals_b(m) = like_vals_s(m);
+                } else {
+                    like_vals_s(m) = P_i(s_i(k-1) - 1, m) * R::dnorm(y_i(k), mu(m), 1, false);
+                    like_vals_b(m) = P_i(b_i(k-1) - 1, m) * R::dnorm(y_i(k), mu(m), 1, false);
+                }
+            }
+            
+            all_like_vals_s(k) = arma::accu(like_vals_s);
+            all_like_vals_b(k) = arma::accu(like_vals_b);
+            
+            // Determine sampling distribution for s_i -------------------------
+            arma::vec ss_ind = arma::linspace(0, adj_mat_GLOBAL.n_cols-1, 
+                                              adj_mat_GLOBAL.n_cols);
+            
+            double prob_max = like_vals_s.max();
+            like_vals_s = like_vals_s / prob_max;
+            arma::vec ss_prob = (1/arma::accu(like_vals_s)) * like_vals_s;
+            
+            arma::vec row_ind = RcppArmadillo::sample(ss_ind, 1, false, ss_prob);
+            s_i(k) = row_ind(0) + 1;
+        }
+        
+        double diff_check = arma::accu(log(all_like_vals_s)) - arma::accu(log(all_like_vals_b));
+        double min_log = log(arma::randu(arma::distr_param(0,1)));
+        if(diff_check > min_log){b_i = s_i;} 
+        
+        B_return(ii) = b_i;
+    }
+
+    return B_return;
+}
+
+
+
+// [[Rcpp::export]]
 arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par, 
                                      const arma::field<arma::uvec> &par_index,
                                      const arma::vec &y, const arma::vec &eids, 
@@ -1498,6 +1568,14 @@ arma::field<arma::vec> viterbi_alg(const arma::vec &EIDs, const arma::vec &par,
     
 }
 
+// [[Rcpp::export]]
+void test_fnc() {
+    Rcpp::Rcout << Omega_List_GLOBAL_multi << std::endl;
+    Rcpp::Rcout << adj_mat_GLOBAL << std::endl;
+    
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(1) << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(0, 1) << std::endl;
+}
 
 
 

@@ -51,17 +51,24 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
         }
         
         for(s in 1:steps_per_it) {
-            # Random sample update -----------------------------------------
+            # Random sample update ---------------------------------------------
             if(sampling_num == 1) {
                 B_Dn = mh_up(as.numeric(EIDs), par, par_index, B, y, ids,
                              n_cores, states_per_step)
                 B = B_Dn
             }
 
-            # Gibbs update -------------------------------------------------
+            # Gibbs update -----------------------------------------------------
             if(sampling_num == 2) {
                 B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, B, y, ids,
                                 n_cores, states_per_step)
+                B = B_Dn
+            }
+            
+            # Full seq MH update -----------------------------------------------
+            if(sampling_num == 3) {
+                B_Dn = mh_up_all(as.numeric(EIDs), par, par_index, B, y, ids,
+                                 n_cores)    
                 B = B_Dn
             }
         }
