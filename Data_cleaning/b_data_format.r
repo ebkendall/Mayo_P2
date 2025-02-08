@@ -1,16 +1,22 @@
-load("Data_updates/long_data_agg.rda") # long_data_agg
-load('Data_updates/all_keys.rda')      # all_keys
-load('Data_updates/cov_info.rda')      # cov_info
-load('Data_updates/timing_issues.rda') # timing_issues
+load('Data/long_data_agg.rda') # long_data_agg
+load('Data/all_keys.rda')      # all_keys
+load('Data/cov_info.rda')      # cov_info
+load('Data/timing_issues.rda') # timing_issues
 
 times = rep(NA, length(long_data_agg))
 for(i in 1:length(long_data_agg)) {
     times[i] = nrow(long_data_agg[[i]]$covariates) / 4
 }
 
-clinical_lab = c(109125, 111375, 133750, 156325, 165725, 195475, 198975, 208100, 327375, 360525,
-                 431400, 467200, 494300, 531650, 533825, 543625, 588100, 622450, 633100, 697600,
-                 727675, 750900, 758025, 781875, 785950, 801300, 820775, 827350, 841925, 843000)
+clinic_review = read.csv('../selected_encounters_update.csv')
+clinical_id = as.numeric(clinic_review$key)
+clinical_id_yes = clinical_id[clinic_review$Bleeding.event. %in% c("Yes", "Y")]
+clinical_id_no = clinical_id[clinic_review$Bleeding.event. %in% c("No", "N")]
+
+clinical_lab = clinical_id
+# clinical_lab = c(109125, 111375, 133750, 156325, 165725, 195475, 198975, 208100, 327375, 360525,
+#                  431400, 467200, 494300, 531650, 533825, 543625, 588100, 622450, 633100, 697600,
+#                  727675, 750900, 758025, 781875, 785950, 801300, 820775, 827350, 841925, 843000)
 
 # ------------------------------------------------------------------------------
 # (1) Filtering people based on undesirable characteristics --------------------
@@ -23,25 +29,21 @@ all_keys_temp = all_keys[!(all_keys %in% timing_issues)]
 deaths = cov_info[cov_info[,"icu_death"] == 1, "key"]
 all_keys_temp = all_keys_temp[!(all_keys_temp %in% deaths)]
 
-# Isolating focus to patients who have had a long enough stay
-max_times = matrix(nrow = length(all_keys_temp), ncol = 2)
+# Isolating focus to patients who have had a long enough stay ------------------
+max_times = matrix(data = 0, nrow = length(all_keys_temp), ncol = 2)
 max_times[,1] = all_keys_temp
 
 for(i in 1:length(long_data_agg)) {
     if(long_data_agg[[i]]$key %in% all_keys_temp) {
         if(nrow(long_data_agg[[i]]$covariates) > 1) {
             max_times[max_times[,1] == long_data_agg[[i]]$key, 2] = 
-                max(long_data_agg[[i]]$covariates[, "time"], na.rm = T)
-        } else {
-            max_times[max_times[,1] == long_data_agg[[i]]$key, 2] = 0
+                nrow(long_data_agg[[i]]$covariates)
         }
     }
 }
 
-# Convert to hours and only take patients with >= 10 length of stay
-max_times[,2] = max_times[,2] / 60
-max_times = max_times[max_times[,2] >= 10, ]
-all_keys_temp = c(max_times[,1])
+# Only take patients with >= 6hr length of stay (>= 24 rows)
+all_keys_temp = max_times[max_times[,2] >= 24,1]
 
 # Temporarily sub-setting long_data_agg ----------------------------------------
 long_data_agg_sub = vector(mode = 'list', length = length(all_keys_temp))
@@ -49,6 +51,11 @@ ldas = 1
 for(i in 1:length(long_data_agg)) {
     if(long_data_agg[[i]]$key %in% all_keys_temp) {
         long_data_agg_sub[[ldas]] = long_data_agg[[i]]
+        
+        # Only take the first 48 hours (192 rows) of a patient encounter -------
+        if(nrow(long_data_agg_sub[[ldas]]$covariates) > 192) {
+            long_data_agg_sub[[ldas]]$covariates = long_data_agg_sub[[ldas]]$covariates[1:192, ,drop=F]
+        }
         ldas = ldas + 1
     }
 }
@@ -62,8 +69,11 @@ rm(cov_info)
 # -----------------------------------------------------------------------------
 # Go through and look at the missingness of the data and see if it is because of 
 # level of care
-level_of_care = read.csv('Data/_raw_data_new/jw_patient_level_of_care.csv')
+level_of_care = read.csv('raw_data/jw_patient_level_of_care.csv')
 care_props = rep(0, length(long_data_agg_sub))
+total_time_icu = rep(0, length(long_data_agg_sub))
+min_max_icu_time = matrix(-1, nrow = length(long_data_agg_sub), ncol = 2)
+
 check_patients_ind = c(5966, 7321, 12557, 21995)
 
 print("Going through level of care to find ICU times")
@@ -119,21 +129,21 @@ for(i in 1:length(long_data_agg_sub)) {
     
     care_props[i] = sum(sub_care[,3] == "Intensive Care") / nrow(sub_care)
     
-    # Only keep data from the first Intensive Care time to the last
     long_data_agg_sub[[i]]$covariates = cbind(long_data_agg_sub[[i]]$covariates, 
                                               sub_care[,3])
     
     if(care_props[i] > 0) {
         min_icu = min(which(sub_care[,3] == "Intensive Care"))
         max_icu = max(which(sub_care[,3] == "Intensive Care"))
-        
-        long_data_agg_sub[[i]]$covariates = long_data_agg_sub[[i]]$covariates[min_icu:max_icu, ,drop=F]   
+        total_time_icu[i] = sum(sub_care[,3] == "Intensive Care")
+        min_max_icu_time[i,] = c(min_icu, max_icu)
+        # long_data_agg_sub[[i]]$covariates = long_data_agg_sub[[i]]$covariates[min_icu:max_icu, ,drop=F]   
     }
 }
 print("Done")
 
-# Remove the patients with 0 Intensive care time
-all_keys_temp2 = all_keys_temp[care_props != 0]
+# Remove subjects with 0 time in intensive level of care -----------------------
+all_keys_temp2 = all_keys_temp[total_time_icu > 0]
 long_data_agg_sub2 = vector(mode = 'list', length = length(all_keys_temp2))
 ldas = 1
 for(i in 1:length(long_data_agg_sub)) {
@@ -148,17 +158,11 @@ for(i in 1:length(long_data_agg_sub2)) {
 
 all_keys_temp = all_keys_temp2
 long_data_agg_sub = long_data_agg_sub2
-
-print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% all_keys_temp)))
-
 rm(all_keys_temp2)
 rm(long_data_agg_sub2)
-# -----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Choose patients with enough observations of hr and map 
+# Choose subjects with >= 50% HR and MAP measurements --------------------------
 enough_dat = rep(0, length(all_keys_temp))
-icu_stay_prop = rep(0, length(all_keys_temp))
 for(i in 1:length(enough_dat)) {
     temp = long_data_agg_sub[[i]]$covariates
     hr_ratio = sum(!is.na(temp[,"hr"])) / nrow(temp)
@@ -167,15 +171,22 @@ for(i in 1:length(enough_dat)) {
     if(hr_ratio > 0.5 & map_ratio > 0.5) {
         enough_dat[i] = 1
     }
-    
-    icu_stay_prop[i] = sum(temp[,11] == "Intensive Care") / nrow(temp)
 }
 
 all_keys_temp = all_keys_temp[enough_dat == 1]
-print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% all_keys_temp)))
 
-# Formatting the existing data into one data set
+print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% all_keys_temp),
+             " of the initial ", length(clinical_id)))
+
+# # Adding back all clinically annotated patients --------------------------------
+# all_keys_temp = unique(c(all_keys_temp, clinical_id))
+# print(paste0("Adding back clinical patients: ", sum(clinical_lab %in% all_keys_temp),
+#              " of the initial ", length(clinical_id)))
+
+# Formatting the existing data into one data set -------------------------------
 print("Compiling all information into data_format")
+print(paste0("Number of subjects: ", length(all_keys_temp)))
+
 data_format = NULL
 for(i in 1:length(long_data_agg_sub)) {
     if(long_data_agg_sub[[i]]$key %in% all_keys_temp) {
@@ -184,28 +195,13 @@ for(i in 1:length(long_data_agg_sub)) {
 }
 print("Done")
 
-# Add a column to the df
 data_format = cbind(data_format, rep(0, nrow(data_format)), rep(0, nrow(data_format)))
 colnames(data_format) = c('EID', 'time', 'temperature', 'hemo', 'map', 'hr', 'lactate', 'RBC',
                           'n_labs', 'n_RBC', 'levelCare', 'RBC_rule', 'clinic_rule')
-
-# Adjust for how much data we have
-print("Counting how many observations each patient has")
-unique_id = unique(data_format[,"EID"])
-total_obs = rep(0, length(unique_id))
-for(i in 1:length(total_obs)) {
-    total_obs[i] = sum(data_format[,'EID'] == unique_id[i])
-}
-print("Done")
-
-id_keep = unique_id[total_obs >= 40]
-print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% id_keep)))
-data_format = data_format[data_format[,"EID"] %in% id_keep, ]
-
 # ------------------------------------------------------------------------------
 # (2) Add the new RBC transfusions ---------------------------------------------
 # ------------------------------------------------------------------------------
-transfusions = read.csv('Data/_raw_data_new/jw_transfusions.csv')
+transfusions = read.csv('raw_data/jw_transfusions.csv')
 transfusions = transfusions[transfusions$OrderedProduct == "RBC", ]
 
 times = transfusions[,c("key",
@@ -262,6 +258,7 @@ print("Done")
 # (2) Adding new variables such as RBC rule ------------------------------------
 # ------------------------------------------------------------------------------
 
+level_of_care_vec = data_format[,11]
 data_format = data_format[,-11]
 data_format = apply(data_format, 2, as.numeric)
 
@@ -305,8 +302,6 @@ for(i in 1:length(bleed_pat)) {
         
         if(RBC_diff_12 >=3 | RBC_diff_24 >= 6) {
             data_format[data_format[,"EID"] == bleed_pat[i], "RBC_rule"] = 1
-            # print(paste0("Bleeding: ", i))
-            # print(unique(sub_dat[,"n_RBC_admin"]))
             break
         }
         
@@ -315,13 +310,8 @@ for(i in 1:length(bleed_pat)) {
 }
 
 # Adding the clinical rule
-data_format[data_format[,"EID"] %in% c(111375, 133750, 327375, 431400, 
-                                       531650, 633100, 697600, 727675,
-                                       758025, 820775, 827350, 841925, 843000), "clinic_rule"] = 1 # bleed
-data_format[data_format[,"EID"] %in% c(109125, 156325, 165725, 195475, 198975,
-                                       208100, 360525, 467200, 494300, 533825,
-                                       543625, 588100, 622450, 750900, 781875,
-                                       785950, 801300), "clinic_rule"] = -1 # no bleed
+data_format[data_format[,"EID"] %in% clinical_id_yes, "clinic_rule"] = 1 # bleed
+data_format[data_format[,"EID"] %in% clinical_id_no, "clinic_rule"] = -1 # no bleed
 
 # ------------------------------------------------------------------------------
 # Removing pacing patients based on own heuristic ------------------------------
@@ -336,6 +326,7 @@ for(i in unique(data_format[,"EID"])) {
     }
 }
 
+level_of_care_vec = level_of_care_vec[!(data_format[,"EID"] %in% pace_ids)]
 data_format = data_format[!(data_format[,"EID"] %in% pace_ids), ]
 
 # ------------------------------------------------------------------------------
@@ -363,8 +354,51 @@ for(i in 1:nrow(data_format)) {
     
 }
 
-print(paste0("Of the ", length(clinical_lab), " clinically reviewed patients, ", 
-             sum(clinical_lab %in% data_format[,"EID"]), " remain"))
+print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% data_format[,"EID"]),
+             " of the initial ", length(clinical_id)))
 
-save(data_format, file = "Data_updates/data_format.rda")
+if(length(level_of_care_vec) != nrow(data_format)) {print("level of care vec wrong")}
+
+save(data_format, file = "Data/data_format.rda")
+save(level_of_care_vec, file = "Data/level_of_care.rda")
+
+
+
+# Want subjects with at least 6 hours of intensive care attention --------------
+# # all_keys_temp2 = all_keys_temp[care_props != 0]
+# all_keys_temp2 = all_keys_temp[total_time_icu >= 24]
+# 
+# long_data_agg_sub2 = vector(mode = 'list', length = length(all_keys_temp2))
+# ldas = 1
+# for(i in 1:length(long_data_agg_sub)) {
+#     if(long_data_agg_sub[[i]]$key %in% all_keys_temp2) {
+#         long_data_agg_sub2[[ldas]] = long_data_agg_sub[[i]]
+#         ldas = ldas + 1
+#     }
+# }
+# for(i in 1:length(long_data_agg_sub2)) {
+#     if(long_data_agg_sub2[[i]]$key != all_keys_temp2[i]) print("wrong order")
+# }
+# 
+# all_keys_temp = all_keys_temp2
+# long_data_agg_sub = long_data_agg_sub2
+# 
+# print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% all_keys_temp),
+#              " of the initial ", length(clinical_id)))
+# 
+# rm(all_keys_temp2)
+# rm(long_data_agg_sub2)
+# # -----------------------------------------------------------------------------
+
+# # Restricting the amount of information we have on each patient to 
+# print("Counting how many observations each patient has")
+# unique_id = unique(data_format[,"EID"])
+# total_obs = table(as.numeric(data_format[,"EID"]))
+# total_obs_names = names(total_obs)
+# 
+# if(sum(unique_id != total_obs_names) != 0) {print("mismatch with table")}
+# 
+# id_keep = unique_id[total_obs >= 40]
+# print(paste0("Remaining clinical patients: ", sum(clinical_lab %in% id_keep)))
+# data_format = data_format[data_format[,"EID"] %in% id_keep, ]
 
