@@ -191,8 +191,9 @@ instance_num = rep(0, nrow(med_select_id_sub))
 med_select_update = cbind(med_select_id_sub, med_name_admin, status_med, instance_num)
 med_select_FINAL = matrix(nrow = 1, ncol = ncol(med_select_update))
 colnames(med_select_FINAL) = colnames(med_select_update)
-for(i in unique(med_select_update$key)){
-    print(i)
+total_keys = unique(med_select_update$key)
+for(i in total_keys){
+    print(paste0(i, " in ", tail(total_keys, 1)))
     max_time = max(data_format[data_format[,"EID"] == i, "time"])
     sub_group = med_select_update[med_select_update$key == i, ,drop = F]
     ind_grab = which(sub_group$administered_dtm <= max_time)
@@ -200,8 +201,8 @@ for(i in unique(med_select_update$key)){
         med_select_FINAL = rbind(med_select_FINAL, sub_group[ind_grab, ,drop = F])   
     }
 }
-# save(med_select_FINAL, file = 'Data/med_select_final_first.rda') # save because this takes so long
-load('Data/med_select_final_first.rda')
+save(med_select_FINAL, file = 'Data/med_select_final_first.rda') # save because this takes so long
+# load('Data/med_select_final_first.rda')
 med_select_FINAL = med_select_FINAL[-1, ,drop=F]; rownames(med_select_FINAL) = NULL
 flagged_patients = NULL
 flagged_med = NULL
@@ -600,30 +601,10 @@ nic_ind = which(med_select_FINAL$Dose_Units %in% c("") &
 med_select_FINAL = med_select_FINAL[-nic_ind,]
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " NICARDIPINE 1"] = 1
 
-# ==============================================================================
-m_id = 52
-print(med_names_alphabet[m_id])
-if(med_names_alphabet[m_id] %in% flagged_med) print("NA flag")
-specific_med = med_select_FINAL[med_select_FINAL$med_name_admin == med_names_alphabet[m_id], ]
-apply(specific_med[,c("Dose", "Dose_Units", "Strength")], 2, table)
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == med_names_alphabet[m_id])
-na_med = med_select_FINAL[sort(c(na_dose, na_dose+1, na_dose-1)), ,drop=F]
-# ==============================================================================
-
 # 52. " NIFEDIPINE0" -----------------------------------------------------------
-app_nif = which(med_select_FINAL$med_name_admin == " NIFEDIPINE0" & 
-                    med_select_FINAL$Dose_Units == "application")
-med_select_FINAL = med_select_FINAL[-app_nif, ]
-app_nif = which(med_select_FINAL$med_name_admin == " NIFEDIPINE0" & 
-                    med_select_FINAL$Strength == "0.1 %")
-med_select_FINAL = med_select_FINAL[-app_nif, ]
-
 na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " NIFEDIPINE0")
 na_med = med_select_FINAL[na_dose, ]
-dose_nums = rep(0, length(na_dose))
-for(d in 1:length(dose_nums)) {
-    dose_nums[d] = as.numeric(strsplit(med_select_FINAL$Strength[na_dose[d]], '[ ]+')[[1]][1])
-}
+dose_nums = rep(1, length(na_dose))
 med_select_FINAL$Dose[na_dose] = dose_nums
 
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " NIFEDIPINE0"] = 1
@@ -640,13 +621,10 @@ for(d in 1:length(dose_nums)) {
 }
 med_select_FINAL$Dose[na_dose] = dose_nums
 
-nitro_inch = which(med_select_FINAL$med_name_admin == " NITROGLYCERIN 0" & 
-                       med_select_FINAL$Dose_Units == "inch")
-med_select_FINAL = med_select_FINAL[-nitro_inch, ]
+mcg_ind = which(med_select_FINAL$med_name_admin == " NITROGLYCERIN 0" & 
+                    med_select_FINAL$Dose_Units == "mcg")
 
-med_select_FINAL$Dose[med_select_FINAL$med_name_admin == " NITROGLYCERIN 0" & 
-                          med_select_FINAL$Dose_Units == "mcg"] = med_select_FINAL$Dose[med_select_FINAL$med_name_admin == " NITROGLYCERIN 0" & 
-                                                                                            med_select_FINAL$Dose_Units == "mcg"] / 1000
+med_select_FINAL$Dose[mcg_ind] = med_select_FINAL$Dose[mcg_ind] / 1000
 
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " NITROGLYCERIN 0"] = 1
 
@@ -678,111 +656,100 @@ for(d in 1:length(dose_nums)) {
 }
 med_select_FINAL$Dose[na_dose] = dose_nums
 
-new_bag_nor = which(med_select_FINAL$med_name_admin == " NOREPINEPHRINE1" & med_select_FINAL$Dose >= 16)
+new_bag_nor = which(med_select_FINAL$med_name_admin == " NOREPINEPHRINE1" & 
+                        med_select_FINAL$Dose >= 16)
+flagged_patients = c(flagged_patients, unique(med_select_FINAL$key[new_bag_nor]))
+flagged_med_again = c(flagged_med_again, " NOREPINEPHRINE1")
 med_select_FINAL = med_select_FINAL[-new_bag_nor, ]
 
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " NOREPINEPHRINE1"] = 1
 
 # 58. " OLMESARTAN 0"  ---------------------------------------------------------
+# (remove)
 med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " OLMESARTAN 0", ]
 
 # 59. " PHENYLEPHRINE0" --------------------------------------------------------
 na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " PHENYLEPHRINE0")
-na_med = med_select_FINAL[na_dose, ]
-dose_nums = rep(0, length(na_dose))
-for(d in 1:length(dose_nums)) {
-    dose_nums[d] = as.numeric(strsplit(med_select_FINAL$Strength[na_dose[d]], '[ ]+')[[1]][1])
-}
-med_select_FINAL$Dose[na_dose] = dose_nums
+med_select_FINAL = med_select_FINAL[-na_dose, ]
 
-p_ind = which(med_select_FINAL$med_name_admin == " PHENYLEPHRINE0" &  med_select_FINAL$Dose_Units == "mcg")
+p_ind = which(med_select_FINAL$med_name_admin == " PHENYLEPHRINE0" &  
+                  med_select_FINAL$Dose_Units == "mcg")
 med_select_FINAL$Dose[p_ind] = med_select_FINAL$Dose[p_ind] / 1000
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " PHENYLEPHRINE0"] = 1
 
 # 60. " PHENYLEPHRINE1"---------------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " PHENYLEPHRINE1")
+na_dose = which(is.na(med_select_FINAL$Dose) & 
+                    med_select_FINAL$med_name_admin == " PHENYLEPHRINE1")
+flagged_patients = c(flagged_patients, unique(med_select_FINAL$key[na_dose]))
+flagged_med_again = c(flagged_med_again, " PHENYLEPHRINE1")
 med_select_FINAL = med_select_FINAL[-na_dose, ]
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " PHENYLEPHRINE1"] = 1
 
 # 61. " PROPOFOL 0"    ---------------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " PROPOFOL 0")
-na_med = med_select_FINAL[na_dose, ]
-dose_nums = rep(0, length(na_dose))
-for(d in 1:length(dose_nums)) {
-    dose_nums[d] = as.numeric(strsplit(med_select_FINAL$Strength[na_dose[d]], '[ ]+')[[1]][1])
-}
-med_select_FINAL$Dose[na_dose] = dose_nums
-
-prop_mcg = which(med_select_FINAL$med_name_admin == " PROPOFOL 0" &  med_select_FINAL$Dose_Units == "mcg/kg/min")
-med_select_FINAL$Dose[prop_mcg] = med_select_FINAL$Dose[prop_mcg] / 1000
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " PROPOFOL 0"] = 1
 
 # 62. " PROPOFOL 1"  -----------------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " PROPOFOL 1")
-na_med = med_select_FINAL[na_dose, ]
-dose_nums = rep(0, length(na_dose))
-for(d in 1:length(dose_nums)) {
-    dose_nums[d] = as.numeric(strsplit(med_select_FINAL$Strength[na_dose[d]], '[ ]+')[[1]][1])
-}
-med_select_FINAL$Dose[na_dose] = dose_nums
-
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " PROPOFOL 1"] = 1
 
 # 63. " SILDENAFIL 0"   --------------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " SILDENAFIL 0")
-med_select_FINAL = med_select_FINAL[-na_dose, ]
-
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " SILDENAFIL 0"] = 1
 
 # 64. " SODIUM BICARBONATE 0" --------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " SODIUM BICARBONATE 0")
-med_select_FINAL = med_select_FINAL[-na_dose, ]
-
-med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " SODIUM BICARBONATE 0"] = 1
+# (remove)
+med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " SODIUM BICARBONATE 0", ]
 
 # 65. " SODIUM BICARBONATE 1" --------------------------------------------------
 na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " SODIUM BICARBONATE 1")
+flagged_patients = c(flagged_patients, unique(med_select_FINAL$key[na_dose]))
+flagged_med_again = c(flagged_med_again, " SODIUM BICARBONATE 1")
 med_select_FINAL = med_select_FINAL[-na_dose, ]
 
+ml_sodbic = which(med_select_FINAL$Dose_Units %in% c("mL", "mL/hr", "mL/kg/hr")
+                  & med_select_FINAL$med_name_admin == " SODIUM BICARBONATE 1")
+med_select_FINAL$Dose[ml_sodbic] = med_select_FINAL$Dose[ml_sodbic] / 2
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " SODIUM BICARBONATE 1"] = 1
 
 # 66. " SOTALOL 0"   -----------------------------------------------------------
+# (remove)
 med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " SOTALOL 0", ]
 
 # 67. " SPIRONOLACTONE 0"   ----------------------------------------------------
-# Has no effect on HR or MAP
+# (remove) (has no effect on HR or MAP)
 med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " SPIRONOLACTONE 0", ]
 
 # 68. " VALSARTAN 0"     -------------------------------------------------------
+# (remove)
 med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " VALSARTAN 0", ]
 
 # 69. " VASOPRESSIN 0"   -------------------------------------------------------
-med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " VASOPRESSIN 0"] = 1
+# (remove)
+med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " VASOPRESSIN 0", ]
 
 # 70. " VASOPRESSIN 1"   -------------------------------------------------------
 na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " VASOPRESSIN 1")
-na_keys = med_select_FINAL$key[na_dose]
-temp = med_select_FINAL[med_select_FINAL$key %in% na_keys & med_select_FINAL$med_name_admin == " VASOPRESSIN 1", ]
-
-med_select_FINAL$Dose[na_dose] = 0.04
+flagged_patients = c(flagged_patients, unique(med_select_FINAL$key[na_dose]))
+flagged_med_again = c(flagged_med_again, " SODIUM BICARBONATE 1")
+med_select_FINAL = med_select_FINAL[-na_dose, ]
 
 med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " VASOPRESSIN 1"] = 1
 
 # 71. " VERAPAMIL 0"  ----------------------------------------------------------
-na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == " VERAPAMIL 0")
-med_select_FINAL = med_select_FINAL[-na_dose, ]
-
-med_select_FINAL$Strength[med_select_FINAL$med_name_admin == " VERAPAMIL 0"] = 1
+# (remove)
+med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " VERAPAMIL 0", ]
 
 # 72. " VERAPAMIL 1"  ----------------------------------------------------------
+# (remove)
+med_select_FINAL = med_select_FINAL[med_select_FINAL$med_name_admin != " VERAPAMIL 1", ]
 
 # # ==============================================================================
-# m_id = 3
+# # Intermediate step to quickly look at the dose and strength units per med. ====
+# m_id = 72
 # print(med_names_alphabet[m_id])
+# if(med_names_alphabet[m_id] %in% flagged_med) print("NA flag")
 # specific_med = med_select_FINAL[med_select_FINAL$med_name_admin == med_names_alphabet[m_id], ]
 # apply(specific_med[,c("Dose", "Dose_Units", "Strength")], 2, table)
 # na_dose = which(is.na(med_select_FINAL$Dose) & med_select_FINAL$med_name_admin == med_names_alphabet[m_id])
-# na_med = med_select_FINAL[na_dose, ]
+# na_med = med_select_FINAL[sort(c(na_dose, na_dose-1, na_dose+1)), ,drop=F]
 # # ==============================================================================
 
 # ******************************************************************************
@@ -798,7 +765,17 @@ print(length(unique(med_select_FINAL$med_name_admin)))
 print(paste0("Number of NA doses: ", sum(is.na(med_select_FINAL$Dose))))
 print(paste0("Number of NA Strength: ", sum(is.na(med_select_FINAL$Strength))))
 
-save(med_select_FINAL, file = paste0("Data_updates/med_select_FINAL.rda"))
+flagged_patients = unique(flagged_patients)
+print("Number of flagged patients with inconsistent med records")
+print(length(flagged_patients))
+
+flagged_med_again = unique(flagged_med_again)
+print("Number of flagged meds with inconsistent records")
+print(length(flagged_med_again))
+
+save(med_select_FINAL, file = paste0("Data/med_select_FINAL.rda"))
+save(flagged_patients, file = paste0("Data/flagged_patients_med.rda"))
+save(flagged_med_again, file = paste0("Data/flagged_medications.rda"))
 
 # SCALING DOSE! ************************************************************
 med_select_FINAL$Dose = as.numeric(med_select_FINAL$Dose)
@@ -812,10 +789,10 @@ for(i in 1:length(med_dose_unique)){
     med_i = which(med_select_FINAL$med_name_admin == med_dose_unique[i])
     mean_i = mean(med_select_FINAL$Dose[med_i])
     sd_i = sd(med_select_FINAL$Dose[med_i])
-    med_dose_scale_factor[i, 2:3] = c(mean_i, sd_i)
+    med_dose_scale_factor[i, c("mean","sd")] = c(mean_i, sd_i)
     med_select_FINAL$Dose[med_i] = med_select_FINAL$Dose[med_i] / mean_i
 }
-save(med_dose_scale_factor, file = paste0('Data_updates/med_dose_scale_factor.rda'))
+save(med_dose_scale_factor, file = paste0('Data/med_dose_scale_factor.rda'))
 # ******************************************************************************
 
 # Create a column with the "instance" number of that med to help determine if
@@ -823,6 +800,7 @@ save(med_dose_scale_factor, file = paste0('Data_updates/med_dose_scale_factor.rd
 sub_med_list = NULL
 first_id = med_select_FINAL$key[1]
 for(i in 1:nrow(med_select_FINAL)) {
+    print(paste0(i, " of ", nrow(med_select_FINAL)))
     if(med_select_FINAL$key[i] != first_id) {
         sub_med_list = NULL
         first_id = med_select_FINAL$key[i]
