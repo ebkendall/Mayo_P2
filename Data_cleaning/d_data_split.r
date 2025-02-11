@@ -167,7 +167,6 @@ ind_icu_time = which(data_format[,"EID"] %in% EIDs_sub)
 data_format = data_format[ind_icu_time, ]
 level_of_care_vec = level_of_care_vec[ind_icu_time]
 if(nrow(data_format) != length(level_of_care_vec)) print("error")
-# mean(prop_ICU_time[EIDs_sub %in% data_format[data_format[,"RBC_rule"] == 1, "EID"]] > 0.8)
 
 # Selection of training patients -----------------------------------------------
 rbc_patients = unique(data_format[data_format[,"RBC_rule"] == 1,"EID"])
@@ -184,15 +183,20 @@ TEST_SET = c(sample(clinical_patients[clinical_patients %in% clinical_id_no],
              sample(clinical_patients[clinical_patients %in% clinical_id_yes], 
                     size = 3, replace = F))
 save(TEST_SET, file = "Data/TEST_SET.rda")
-clinical_patients = clinical_patients[-which(clinical_patients %in% TEST_SET)]
 
-id_leftover_ind = which(EIDs_sub %in% c(rbc_patients, clinical_patients, TEST_SET))
-remaining_ids = EIDs_sub[-id_leftover_ind]
+clinical_patients = clinical_patients[!(clinical_patients %in% TEST_SET)]
+rbc_patients = rbc_patients[!(rbc_patients %in% TEST_SET)]
+rbc_clinic_both = unique(c(rbc_patients, clinical_patients))
+
+remaining_ids = EIDs_sub[!(EIDs_sub %in% c(rbc_clinic_both, TEST_SET))]
 
 set.seed(2025)
-EIDs_FINAL = c(rbc_patients, clinical_patients, 
-               sample(remaining_ids, size = 500 - length(c(rbc_patients, clinical_patients)),
+EIDs_FINAL = c(rbc_clinic_both, sample(remaining_ids, size = 500 - length(rbc_clinic_both),
                       replace = F))
+EIDs_FINAL = sort(EIDs_FINAL)
+
+# double check TEST_SET is NOT in the training set!
+if(sum(TEST_SET %in% EIDs_FINAL) != 0) print("ERROR: TEST IDs are in TRAIN IDs")
 
 data_format = data_format[data_format[,"EID"] %in% EIDs_FINAL, ]
 save(data_format, file = "Data/data_format_train.rda")
@@ -346,7 +350,7 @@ for(i in 1:length(map_disc_names)) {
 rm(med_select_FINAL)
 mean_dn_omega = as.numeric(c(upp_down_omega[,2]))
 print(c(mean_dn_omega))
-  
+cat(mean_dn_omega, sep = ',')
 # -1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
 # -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
 # -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
