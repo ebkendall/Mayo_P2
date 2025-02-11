@@ -829,12 +829,13 @@ map_disc = map_medications[map_medications$continuous_med == 0, ,drop=F]
 map_disc_names = unique(map_disc$med_name_admin)
 
 Dn_omega_names = c(hr_cont_names, hr_disc_names, map_cont_names, map_disc_names)
-save(Dn_omega_names, file = paste0("Data_updates/Dn_omega_names.rda"))
+save(Dn_omega_names, file = paste0("Data/Dn_omega_names.rda"))
+
 hr_map_names = c(rep("hr_cont", length(hr_cont_names)),
                  rep("hr_disc", length(hr_disc_names)),
                  rep("map_cont", length(map_cont_names)),
                  rep("map_disc", length(map_disc_names)))
-save(hr_map_names, file = paste0('Data_updates/hr_map_names.rda'))
+save(hr_map_names, file = paste0('Data/hr_map_names.rda'))
 
 EIDs = unique(data_format[,"EID"])
 hr_cont_design = hr_disc_design = map_cont_design = map_disc_design = vector(mode = 'list', length = length(EIDs))
@@ -1040,107 +1041,7 @@ for(j in 1:length(EIDs)) {
     
 }
 
-Dn_omega = vector(mode = 'list', length = length(EIDs))
-hr_cont_num = length(hr_cont_names)
-hr_disc_num = length(hr_disc_names)
-map_cont_num = length(map_cont_names)
-map_disc_num = length(map_disc_names)
-total_cols_hr = hr_cont_num + hr_disc_num
-total_cols_map = map_cont_num + map_disc_num
-for(i in 1:length(Dn_omega)) {
-    Dn_omega[[i]] = vector(mode = 'list', length = sum(data_format[,"EID"] == EIDs[i]))
-    for(j in 1:length(Dn_omega[[i]])) {
-        med_mat = matrix(0, nrow = 4, ncol = total_cols_hr + total_cols_map)
-        hr_info = map_info = NULL
-        
-        if(is.null(hr_cont_design[[i]])) {
-            hr_info = rep(0, hr_cont_num)    
-        } else {
-            hr_info = hr_cont_design[[i]][j,]
-        }
-        
-        if(is.null(hr_disc_design[[i]])) {
-            hr_info = c(hr_info, rep(0, hr_disc_num))
-        } else {
-            hr_info = c(hr_info, hr_disc_design[[i]][j,])
-        }
-        names(hr_info) = NULL
-        
-        if(is.null(map_cont_design[[i]])) {
-            map_info = rep(0, map_cont_num)    
-        } else {
-            map_info = map_cont_design[[i]][j,]
-        }
-        
-        if(is.null(map_disc_design[[i]])) {
-            map_info = c(map_info, rep(0, map_disc_num))
-        } else {
-            map_info = c(map_info, map_disc_design[[i]][j,])
-        }
-        names(map_info) = NULL
-        
-        med_mat[2, 1:total_cols_hr] = hr_info
-        med_mat[3, (total_cols_hr+1):(total_cols_hr+total_cols_map)] = map_info
-        
-        Dn_omega[[i]][[j]] = med_mat
-    }
-}
-
-save(Dn_omega, file = paste0('Data_updates/Dn_omega.rda'))
-
-# Understanding what the mean of Dn_omega should be
-upp_down_omega = matrix(nrow = length(Dn_omega_names), ncol = 2)
-upp_down_omega[,1] = Dn_omega_names
-ind = 1
-for(i in 1:length(hr_cont_names)) {
-    if(upp_down_omega[ind,1] != hr_cont_names[i]) {
-        print(hr_cont_names[i])
-    } else{
-        ef = unique(med_select_FINAL$hr[med_select_FINAL$med_name_admin == hr_cont_names[i]]) 
-        print(ef)
-        upp_down_omega[ind, 2] = as.numeric(ef)
-    }
-    ind = ind + 1
-}
-for(i in 1:length(hr_disc_names)) {
-    if(upp_down_omega[ind,1] != hr_disc_names[i]) {
-        print(hr_disc_names[i])
-    } else{
-        ef = unique(med_select_FINAL$hr[med_select_FINAL$med_name_admin == hr_disc_names[i]]) 
-        print(ef)
-        upp_down_omega[ind, 2] = as.numeric(ef)
-    }
-    ind = ind + 1
-}
-for(i in 1:length(map_cont_names)) {
-    if(upp_down_omega[ind,1] != map_cont_names[i]) {
-        print(map_cont_names[i])
-    } else{
-        ef = unique(med_select_FINAL$map[med_select_FINAL$med_name_admin == map_cont_names[i]]) 
-        print(ef)
-        upp_down_omega[ind, 2] = as.numeric(ef)
-    }
-    ind = ind + 1
-}
-for(i in 1:length(map_disc_names)) {
-    if(upp_down_omega[ind,1] != map_disc_names[i]) {
-        print(map_disc_names[i])
-    } else{
-        ef = unique(med_select_FINAL$map[med_select_FINAL$med_name_admin == map_disc_names[i]]) 
-        print(ef)
-        upp_down_omega[ind, 2] = as.numeric(ef)
-    }
-    ind = ind + 1
-}
-
-mean_dn_omega = as.numeric(c(upp_down_omega[,2]))
-print(c(mean_dn_omega))
-
-
-# c(-1, -1,  1, -1,  1,  1, -1, -1, -1,  1,  1,  1,  1, 
-#   -1,  1,  1,  1, -1,  1, -1,  1, -1, -1, -1, -1, -1, 
-#   -1, -1, -1, -1,  1, -1,  1, -1, -1,  1,  1, -1,  1, 
-#   -1, -1,  1,  1, -1, -1, -1, -1, -1, -1,  1, -1,  1,
-#    1, -1,  1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1, 
-#   -1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1, -1, 
-#   -1, -1,  1, -1, -1, -1, -1, -1, -1,  1)
+save(hr_cont_design, file = "Data/hr_cont_design.rda")
+save(map_cont_design, file = "Data/map_cont_design.rda")
+save(hr_disc_design, file = "Data/hr_disc_design.rda")
+save(map_disc_design, file = "Data/map_disc_design.rda")
