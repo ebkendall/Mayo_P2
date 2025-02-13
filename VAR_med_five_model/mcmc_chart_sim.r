@@ -6,15 +6,15 @@ simulation = T
 data_num = 5
 
 trialNum = 6
-sampNum = 1
-itNum = 2
+sampNum = 2
+itNum = 1
 all_seeds = F
-long_chain = T
+long_chain = F
 
 if(all_seeds) {
     seed_list = 1:3
 } else {
-    seed_list = 1
+    seed_list = 2
 }
 
 # Load the model output -------------------------------------------------------

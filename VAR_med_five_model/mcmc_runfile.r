@@ -1,21 +1,10 @@
 source('mcmc_routine.r')
 
+# Input will be a number 1-12 (three seeds with four sampling routines)
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
-sampling_num = NULL
-
-if(seed_num <= 3) {
-    sampling_num = 1
-} else if(seed_num > 3 & seed_num <= 6) {
-    seed_num = seed_num - 3
-    sampling_num = 2
-} else if(seed_num > 6 & seed_num <= 9) {
-    seed_num = seed_num - 6
-    sampling_num = 3
-} else {
-    seed_num = seed_num - 9
-    sampling_num = 4
-}
+sampling_num = floor((seed_num - 1) / 3) + 1
+seed_num = seed_num - 3 * floor((seed_num - 1)/3)
 
 set.seed(seed_num)
 ind = seed_num
