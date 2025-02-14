@@ -1,138 +1,20 @@
 #include <RcppDist.h>
 // [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
-#include <omp.h>
-// [[Rcpp::plugins(openmp)]]
+// #include <omp.h>
+// // [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadilloExtensions/sample.h>
 
 using namespace Rcpp;
 
-// Defining the Omega_List as a global variable when pre-compiling ----------
-const arma::imat adj_mat = {{1, 1, 0, 1, 0},
-                            {0, 1, 1, 1, 0},
-                            {1, 1, 1, 1, 0},
-                            {0, 1, 0, 1, 1},
-                            {1, 1, 0, 1, 1} };
-
-const arma::imat adj_mat_sub = {{1, 0, 0, 1, 0},
-                                {0, 1, 0, 0, 0},
-                                {1, 0, 1, 1, 0},
-                                {0, 0, 0, 1, 1},
-                                {1, 0, 0, 1, 1} };
-
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// Combinatoric functions for finding possible state sequences -----------------
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-
-// [[Rcpp::export]]
 NumericVector csample_num( NumericVector x, int size, bool replace,
                            NumericVector prob = NumericVector::create()) {
     NumericVector ret = RcppArmadillo::sample(x, size, replace, prob);
     return ret;
 }
 
-// Original approach
-arma::field<arma::field<arma::mat>> Omega_set(const arma::imat &G) {
-  int N = G.n_cols; // dimension of adj matrix
-  
-  arma::field<arma::mat> c(N);
-  arma::field<arma::mat> b(N, N);
-  arma::field<arma::mat> a(N);
-  
-  for(int i = 0; i < N; i++) {
-    for(int j = 0; j < N; j++) {
-      b(i, j) = arma::mat(1, 2, arma::fill::zeros);
-    }
-  }
-  
-  // a -------------------------------------------------------
-  for(int i = 0; i < N; i++) {
-    arma::mat a_i(1, 2, arma::fill::zeros);
-    arma::uvec sec_elem = arma::find(G.row(i) == 1);
-    
-    for(int j = 0; j < sec_elem.n_elem; j++) {
-      int sec_ind = sec_elem(j);
-      arma::uvec third_elem = arma::find(G.row(sec_ind) == 1);
-      
-      for(int k = 0; k < third_elem.n_elem; k++) {
-        int third_ind = third_elem(k);
-        arma::mat temp(1,2);
-        temp(0,0) = sec_ind; temp(0,1) = third_ind;
-        a_i = arma::join_vert(a_i, temp+1);
-      }
-    }
-    
-    a_i = a_i.rows(1, a_i.n_rows-1);
-    a(i) = a_i;
-  }
-  
-  // b -------------------------------------------------------
-  for(int i = 0; i < N; i++) {
-    arma::uvec sec_elem = arma::find(G.row(i) == 1);
-    
-    for(int j = 0; j < sec_elem.n_elem; j++) {
-      int sec_ind = sec_elem(j);
-      arma::uvec third_elem = arma::find(G.row(sec_ind) == 1);
-      
-      for(int k = 0; k < third_elem.n_elem; k++) {
-        int third_ind = third_elem(k);
-        arma::uvec fourth_elem = arma::find(G.row(third_ind) == 1);
-        
-        for(int l = 0; l < fourth_elem.n_elem; l++) {
-          int fourth_ind = fourth_elem(l);
-          arma::mat temp(1,2);
-          temp(0,0) = sec_ind; temp(0,1) = third_ind;
-          b(i, fourth_ind) = arma::join_vert(b(i, fourth_ind), temp+1);
-        }
-      }
-    }
-  }
-  
-  for(int i = 0; i < N; i++) {
-    for(int j = 0; j < N; j++) {
-      if (b(i,j).n_rows > 1) {
-        b(i, j) = b(i, j).rows(1, b(i,j).n_rows - 1);
-      } else{
-        arma::mat temp(1,2); temp(0,0) = -1; temp(0,1) = -1;
-        b(i,j) = temp;
-      }
-    }
-  }
-  
-  // c -------------------------------------------------------
-  for(int i = 0; i < N; i++) {
-    arma::mat c_i(1, 2, arma::fill::zeros);
-    arma::uvec sec_elem = arma::find(G.col(i) == 1);
-    
-    for(int j = 0; j < sec_elem.n_elem; j++) {
-      int sec_ind = sec_elem(j);
-      arma::uvec third_elem = arma::find(G.col(sec_ind) == 1);
-      
-      for(int k = 0; k < third_elem.n_elem; k++) {
-        int third_ind = third_elem(k);
-        arma::mat temp(1,2);
-        temp(0,0) = third_ind; temp(0,1) = sec_ind;
-        c_i = arma::join_vert(c_i, temp+1);
-      }
-    }
-    
-    c_i = c_i.rows(1, c_i.n_rows-1);
-    c(i) = c_i;
-  }
-  
-  arma::field<arma::field<arma::mat>> Omega_List(3);
-  Omega_List(0) = c; Omega_List(1) = b; Omega_List(2) = a;
-  
-  return Omega_List;
-}
-
-const arma::field<arma::field<arma::mat>> Omega_List_GLOBAL = Omega_set(adj_mat);
-const arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub = Omega_set(adj_mat_sub);
-
-// New approach 
+// Combinatoric functions for finding possible state sequences -----------------
 void findStateSequences_backward(int currentState,
                                  int endState,
                                  const arma::imat& adjacencyMatrix,
@@ -293,7 +175,6 @@ List getAllStateSequences_both(int start_state, int end_state, const arma::imat&
     return result;
 }
 
-// [[Rcpp::export]]
 arma::field<arma::field<arma::mat>> get_Omega_list(const arma::imat &adj_mat, int s) {
     
     int N = adj_mat.n_cols; // dimension of adj matrix
@@ -369,49 +250,59 @@ arma::field<arma::field<arma::mat>> get_Omega_list(const arma::imat &adj_mat, in
     
     return Omega_List;
 }
+// -----------------------------------------------------------------------------
 
-const arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi = get_Omega_list(adj_mat, 3);
-const arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub, 3);
+arma::imat adj_mat_GLOBAL;
+arma::imat adj_mat_sub_GLOBAL;
 
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// Main functions used in the mcmc_routine -------------------------------------
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
+arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi;
+arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub_multi;
+
+int states_per_step_GLOBAL;
+
+// [[Rcpp::export]]
+void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s) {
+    adj_mat_GLOBAL = a_mat;
+    adj_mat_sub_GLOBAL = a_mat_sub;
+    states_per_step_GLOBAL = s_per_s;
+    
+    Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, states_per_step_GLOBAL);
+    Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub_GLOBAL, states_per_step_GLOBAL);
+}
 
 arma::mat Omega_fun_cpp_new(const int k, const int n_i, const arma::vec &b_i,
                             const bool sub) {
-  
-  arma::mat Omega_set;
-  // We are in a reduced dimension case
-  if(sub) { 
-    // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-    if (k == 1){
-      // () -> () -> 1-5
-      Omega_set = Omega_List_GLOBAL_sub(0)(b_i(2) - 1);
-    } else if (k <= n_i - 2) {
-      // 1-5 -> () -> () -> 1-5
-      Omega_set = Omega_List_GLOBAL_sub(1)(b_i(k - 2) - 1, b_i(k + 1) - 1);
-    } else if (k == n_i - 1) {
-      // 1-5 -> () -> ()
-      Omega_set = Omega_List_GLOBAL_sub(2)(b_i(n_i - 3) - 1);
+    
+    arma::mat Omega_set;
+    // We are in a reduced dimension case
+    if(sub) { 
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 1){
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub(0)(b_i(2) - 1);
+        } else if (k <= n_i - 2) {
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub(1)(b_i(k - 2) - 1, b_i(k + 1) - 1);
+        } else if (k == n_i - 1) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL_sub(2)(b_i(n_i - 3) - 1);
+        }
+    } else {
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 1) {
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL(0)(b_i(2) - 1);
+        } else if (k <= n_i - 2) {
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL(1)(b_i(k - 2) - 1, b_i(k + 1) - 1);
+        } else if (k == n_i - 1) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL(2)(b_i(n_i - 3) - 1);
+        }
     }
-  } else {
-    // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-    if (k == 1) {
-      // () -> () -> 1-5
-      Omega_set = Omega_List_GLOBAL(0)(b_i(2) - 1);
-    } else if (k <= n_i - 2) {
-      // 1-5 -> () -> () -> 1-5
-      Omega_set = Omega_List_GLOBAL(1)(b_i(k - 2) - 1, b_i(k + 1) - 1);
-    } else if (k == n_i - 1) {
-      // 1-5 -> () -> ()
-      Omega_set = Omega_List_GLOBAL(2)(b_i(n_i - 3) - 1);
-    }
-  }
-  
-  return Omega_set;
-  
+    
+    return Omega_set;
+    
 }
 
 arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b_i,
@@ -427,7 +318,7 @@ arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b
         } else if (k <= n_i - t_pt_length) {
             // 1-5 -> () -> () -> 1-5
             Omega_set = Omega_List_GLOBAL_sub_multi(1)(b_i(k - 2) - 1, 
-                                                 b_i(k + t_pt_length - 1) - 1);
+                                                    b_i(k + t_pt_length - 1) - 1);
         } else if (k == n_i - t_pt_length + 1) {
             // 1-5 -> () -> ()
             Omega_set = Omega_List_GLOBAL_sub_multi(2)(b_i(n_i - t_pt_length - 1) - 1);
@@ -440,7 +331,7 @@ arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b
         } else if (k <= n_i - t_pt_length) {
             // 1-5 -> () -> () -> 1-5
             Omega_set = Omega_List_GLOBAL_multi(1)(b_i(k - 2) - 1, 
-                                             b_i(k + t_pt_length - 1) - 1);
+                                                b_i(k + t_pt_length - 1) - 1);
         } else if (k == n_i - t_pt_length + 1) {
             // 1-5 -> () -> ()
             Omega_set = Omega_List_GLOBAL_multi(2)(b_i(n_i - t_pt_length - 1) - 1);
@@ -450,6 +341,44 @@ arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b
     return Omega_set;
     
 }
+
+arma::mat get_omega_list(const int k, const int n_i, const arma::vec &b_i, 
+                         int states_per_step, const bool sub) {
+    
+    arma::mat Omega_set;
+    
+    if(sub) {
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 0) {
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub_multi(0)(b_i(k + states_per_step) - 1);
+        } else if (k == n_i - states_per_step) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL_sub_multi(2)(b_i(n_i - states_per_step - 1) - 1);
+        } else {
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub_multi(1)(b_i(k - 1) - 1, 
+                                                        b_i(k + states_per_step) - 1);
+        }
+    } else {
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 0) {
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_multi(0)(b_i(k + states_per_step) - 1);
+        } else if (k == n_i - states_per_step) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL_multi(2)(b_i(n_i - states_per_step - 1) - 1);
+        } else { 
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_multi(1)(b_i(k - 1) - 1, 
+                                                b_i(k + states_per_step) - 1);
+        }    
+    }
+    
+    return Omega_set;
+    
+}
+// -----------------------------------------------------------------------------
 
 // [[Rcpp::export]]
 arma::vec log_f_i_cpp(const int i, const int ii, arma::vec t_pts, const arma::vec &par, 
@@ -698,8 +627,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, arma::vec t_pts, const arma::vec
   arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
   arma::vec in_vals_init(EIDs.n_elem, arma::fill::zeros);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         arma::vec in_val_vec = log_f_i_cpp(i, ii, t_pts, par, par_index, A(ii), B(ii), Y, z, Dn(ii), Xn(ii), Dn_omega(ii), W(ii));
@@ -1680,8 +1609,8 @@ Rcpp::List update_b_i_MH(const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::vec> B_return(EIDs.n_elem);
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2061,8 +1990,8 @@ Rcpp::List update_b_i_gibbs( const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::vec> B_return(EIDs.n_elem);
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2161,8 +2090,8 @@ Rcpp::List update_Dn_Xn_cpp( const arma::vec EIDs, arma::field <arma::vec> &B,
   arma::field<arma::field<arma::mat>> Dn(EIDs.n_elem);
   arma::field<arma::field<arma::mat>> Xn(EIDs.n_elem);
   
-  omp_set_num_threads(n_cores);
-  # pragma omp parallel for
+  // omp_set_num_threads(n_cores);
+  // # pragma omp parallel for
   for (int ii = 0; ii < EIDs.n_elem; ii++) {
     int i = EIDs(ii);
     arma::uvec sub_ind = arma::find(eids == i);
@@ -2262,8 +2191,8 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
                             (exp(vec_A_total(19)) - 1) / (1+exp(vec_A_total(19)))};
   arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); // THREE STATE
   
-  omp_set_num_threads(n_cores);
-  # pragma omp parallel for
+  // omp_set_num_threads(n_cores);
+  // # pragma omp parallel for
   for (int ii = 0; ii < EIDs.n_elem; ii++) {
       int i = EIDs(ii);
 
@@ -2421,8 +2350,8 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
                               (exp(vec_A_total(19)) - 1) / (1+exp(vec_A_total(19)))};
     arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); // THREE STATE
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -2714,8 +2643,8 @@ arma::vec update_beta_Upsilon_R_cpp( const arma::vec &EIDs, arma::vec par,
     arma::field<arma::mat> in_Upsilon_cov_main(EIDs.n_elem);
     // arma::field<arma::mat> in_Upsilon_omega(EIDs.n_elem);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -2864,8 +2793,8 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                               (exp(vec_A_total(19)) - 1) / (1+exp(vec_A_total(19)))};
     arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); // THREE STATE
     
-      omp_set_num_threads(n_cores);
-      # pragma omp parallel for
+      // omp_set_num_threads(n_cores);
+      // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {	
         
         int i = EIDs(ii);
@@ -3492,8 +3421,8 @@ Rcpp::List update_b_i_impute_cpp( const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::vec> B_return(EIDs.n_elem);
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         arma::uvec sub_ind = arma::find(eids == i);
@@ -3666,8 +3595,8 @@ arma::field <arma::vec> initialize_b_i(const arma::vec EIDs, const arma::vec &pa
     
     arma::field<arma::vec> B_return(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         int i = EIDs(ii);
@@ -3915,3 +3844,268 @@ void test_fnc() {
     //     Rcpp::Rcout << "same" << std::endl;
     // } 
 }
+
+double log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i, 
+                  arma::mat alpha_i, arma::mat omega_i, 
+                  arma::mat X_beta, arma::vec D_alpha, arma::mat D_omega, 
+                  arma::mat X_beta_1, arma::vec D_alpha_1, arma::mat D_omega_1,
+                  arma::vec vec_beta, arma::mat A_all_state, arma::mat R, 
+                  arma::mat zeta, arma::vec P_init) {
+    // par_index KEY: (0) beta, (1) alpha_tilde, (2) sigma_upsilon, (3) vec_A, (4) R, (5) zeta,
+    //                (6) init, (7) omega_tilde, (8) vec_upsilon_omega
+    // "i" is the numeric EID number
+    // "ii" is the index of the EID
+    
+    int b_i_k = b_i(k);
+    arma::vec y_i_k = y_i.col(k);
+    arma::vec nu_k = (D_alpha.t() * alpha_i).t() + 
+                        D_omega * omega_i + 
+                        X_beta * vec_beta;
+    arma::vec vec_A = A_all_state.col(b_i_k - 1);
+    
+    double log_like_i_k;
+    
+    // alpha_i is a 5x4 matrix, omega_i is a 84x1 matrix
+    if(k == 0) {
+        
+        arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+                            R(0,2) / (1 - vec_A(0) * vec_A(2)), R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                           {R(1,0) / (1 - vec_A(1) * vec_A(0)), R(1,1) / (1 - vec_A(1) * vec_A(1)), 
+                            R(1,2) / (1 - vec_A(1) * vec_A(2)), R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                           {R(2,0) / (1 - vec_A(2) * vec_A(0)), R(2,1) / (1 - vec_A(2) * vec_A(1)), 
+                            R(2,2) / (1 - vec_A(2) * vec_A(2)), R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                           {R(3,0) / (1 - vec_A(3) * vec_A(0)), R(3,1) / (1 - vec_A(3) * vec_A(1)), 
+                            R(3,2) / (1 - vec_A(3) * vec_A(2)), R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+        
+        arma::vec log_y_pdf = dmvnorm(y_i_k.t(), nu_k, Gamma, true);
+        log_like_i_k = log(P_init(b_i_k - 1)) + arma::as_scalar(log_y_pdf);
+        
+    } else {
+        // State space component
+        double q1_sub = arma::as_scalar(z_i.row(k) * zeta.col(0));
+        double q1 = exp(q1_sub);
+        double q2_sub = arma::as_scalar(z_i.row(k) * zeta.col(1));
+        double q2 = exp(q2_sub);
+        double q3_sub = arma::as_scalar(z_i.row(k) * zeta.col(2));
+        double q3 = exp(q3_sub);
+        double q4_sub = arma::as_scalar(z_i.row(k) * zeta.col(3));
+        double q4 = exp(q4_sub);
+        
+        double q5_sub = arma::as_scalar(z_i.row(k) * zeta.col(4));
+        double q5 = exp(q5_sub);
+        double q6_sub = arma::as_scalar(z_i.row(k) * zeta.col(5));
+        double q6 = exp(q6_sub);
+        double q7_sub = arma::as_scalar(z_i.row(k) * zeta.col(6));
+        double q7 = exp(q7_sub);
+        double q8_sub = arma::as_scalar(z_i.row(k) * zeta.col(7));
+        double q8 = exp(q8_sub);
+        
+        double q9_sub = arma::as_scalar(z_i.row(k) * zeta.col(8));
+        double q9 = exp(q9_sub);
+        double q10_sub = arma::as_scalar(z_i.row(k) * zeta.col(9));
+        double q10 = exp(q10_sub);
+        double q11_sub = arma::as_scalar(z_i.row(k) * zeta.col(10));
+        double q11 = exp(q11_sub);
+        double q12_sub = arma::as_scalar(z_i.row(k) * zeta.col(11));
+        double q12 = exp(q12_sub);
+        
+        arma::mat Q = { {   1,   q1,  0,  q2,  0},
+                        {   0,    1, q3,  q4,  0},
+                        {  q5,   q6,  1,  q7,  0},
+                        {   0,   q8,  0,   1, q9},
+                        { q10,  q11,  0, q12,  1}};
+        
+        arma::vec q_row_sums = arma::sum(Q, 1);
+        arma::mat P_i = Q.each_col() / q_row_sums;
+        int b_i_k_1 = b_i(k-1);
+        
+        arma::mat A_1 = arma::diagmat(vec_A);
+        
+        arma::vec y_i_k_1 = y_i.col(k-1);
+        arma::vec nu_k_1 = (D_alpha_1.t() * alpha_i).t() + 
+                            D_omega_1 * omega_i + 
+                            X_beta_1 * vec_beta;
+        
+        arma::vec mean_k = nu_k + A_1 * (y_i_k_1 - nu_k_1);
+        
+        arma::vec log_y_pdf = dmvnorm(y_i_k.t(), mean_k, R, true);
+        log_like_i_k = log(P_i(b_i_k_1 - 1, b_i_k - 1)) + arma::as_scalar(log_y_pdf);
+    }
+    
+    return log_like_i_k;
+}
+
+// [[Rcpp::export]]
+arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par, 
+                             const arma::field<arma::uvec> &par_index, 
+                             const arma::field <arma::vec> &A, 
+                             arma::field <arma::vec> &B, 
+                             const arma::mat &Y, const arma::mat &z, 
+                             arma::field<arma::field<arma::mat>> &Dn, 
+                             const arma::field <arma::field<arma::mat>> &Xn, 
+                             const arma::field<arma::field<arma::mat>> &Dn_omega, 
+                             const arma::field <arma::vec> &W,
+                             const arma::vec &bleed_indicator, int n_cores,
+                             int states_per_step) {
+    
+    // par_index KEY: (0) beta, (1) alpha_tilde, (2) sigma_upsilon, (3) vec_A, (4) R, (5) zeta,
+    //                (6) init, (7) omega_tilde, (8) vec_upsilon_omega
+    // Y key: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate, (5) RBC, (6) clinic
+    // "i" is the numeric EID number
+    // "ii" is the index of the EID
+    
+    // Initializing parameters -------------------------------------------------
+    arma::mat vec_beta = par.elem(par_index(0) - 1);
+    
+    arma::vec vec_A_total = par.elem(par_index(3) - 1);
+    arma::vec vec_A_scale = { exp(vec_A_total(0)) / (1+exp(vec_A_total(0))),
+                              exp(vec_A_total(1)) / (1+exp(vec_A_total(1))),
+                              exp(vec_A_total(2)) / (1+exp(vec_A_total(2))),
+                              exp(vec_A_total(3)) / (1+exp(vec_A_total(3))),
+                              exp(vec_A_total(4)) / (1+exp(vec_A_total(4))),
+                              exp(vec_A_total(5)) / (1+exp(vec_A_total(5))),
+                              exp(vec_A_total(6)) / (1+exp(vec_A_total(6))),
+                              exp(vec_A_total(7)) / (1+exp(vec_A_total(7))),
+                              exp(vec_A_total(8)) / (1+exp(vec_A_total(8))),
+                              exp(vec_A_total(9)) / (1+exp(vec_A_total(9))),
+                              exp(vec_A_total(10)) / (1+exp(vec_A_total(10))),
+                              exp(vec_A_total(11)) / (1+exp(vec_A_total(11))),
+                              exp(vec_A_total(12)) / (1+exp(vec_A_total(12))),
+                              exp(vec_A_total(13)) / (1+exp(vec_A_total(13))),
+                              exp(vec_A_total(14)) / (1+exp(vec_A_total(14))),
+                              exp(vec_A_total(15)) / (1+exp(vec_A_total(15))),
+                              exp(vec_A_total(16)) / (1+exp(vec_A_total(16))),
+                              exp(vec_A_total(17)) / (1+exp(vec_A_total(17))),
+                              exp(vec_A_total(18)) / (1+exp(vec_A_total(18))),
+                              exp(vec_A_total(19)) / (1+exp(vec_A_total(19)))};
+    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    
+    arma::vec vec_R = par.elem(par_index(4) - 1);
+    arma::mat R = arma::reshape(vec_R, 4, 4);
+    
+    arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
+    arma::mat zeta = arma::reshape(vec_zeta_content, 2, 12); 
+    
+    arma::vec vec_init = par.elem(par_index(6) - 1);
+    arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
+                            exp(vec_init(2)), exp(vec_init(3))}; 
+    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // -------------------------------------------------------------------------
+    
+    arma::field<arma::vec> B_return(EIDs.n_elem);
+    arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
+    
+    arma::vec eids = Y.col(0); 
+    arma::vec rbc_rule_vec = Y.col(5);
+    arma::vec clinic_rule_vec = Y.col(6);
+    
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
+    for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        // Subject-specific information ----------------------------------------
+        int i = EIDs(ii);
+        arma::uvec sub_ind = arma::find(eids == i);
+        int n_i = sub_ind.n_elem;
+        
+        int rbc_rule = rbc_rule_vec(sub_ind.min());
+        int clinic_rule = clinic_rule_vec(sub_ind.min());
+        
+        arma::vec b_i = B(ii);
+        arma::mat Y_temp = Y.rows(sub_ind);
+        arma::mat z_temp = z.rows(sub_ind);
+        
+        arma::mat y_i = Y_temp.cols(1, 4);
+        y_i = y_i.t();
+        
+        // Looping through subject state space ---------------------------------
+        for (int k = 0; k < n_i - states_per_step + 1; k++) {
+            
+            // All possible state transitions given current time point ---------
+            arma::mat Omega_set;
+            if(clinic_rule >= 0) {
+                Omega_set = get_omega_list(k, n_i, b_i, states_per_step, false);
+            } else {
+                Omega_set = get_omega_list(k, n_i, b_i, states_per_step, true);
+            }
+            
+            if(Omega_set.n_rows > 1) {
+                
+                arma::vec ss_prob(Omega_set.n_rows, arma::fill::ones);
+                ss_prob = (1/arma::accu(ss_prob)) * ss_prob;
+                arma::vec ss_ind = arma::linspace(0, Omega_set.n_rows-1, Omega_set.n_rows);
+                arma::vec row_ind = RcppArmadillo::sample(ss_ind, 1, false, ss_prob);
+                
+                double log_like_b = 0;
+                double log_like_s = 0;
+                arma::vec s_i = b_i;
+                s_i.rows(k, k+states_per_step-1) = Omega_set.row(row_ind(0)).t();
+                
+                if(arma::approx_equal(s_i, b_i, "absdiff", 0.001)) {
+                    b_i = s_i;
+                } else {
+                    // Computations for mean of current (b_i) ------------------
+                    arma::vec b_temp = b_i.subvec(0, k);
+                    arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_b(b_temp.n_elem, arma::fill::zeros);
+                    
+                    twos_b.elem(arma::find(b_temp == 2)) += 1;
+                    threes_b.elem(arma::find(b_temp == 3)) += 1;
+                    fours_b.elem(arma::find(b_temp == 4)) += 1;
+                    fives_b.elem(arma::find(b_temp == 5)) += 1;
+                    
+                    arma::vec D_alpha_b = {1, arma::accu(twos_b), arma::accu(threes_b),
+                                           arma::accu(fours_b), arma::accu(fives_b)};
+                    
+                    // Computations for mean of candidate (s_i) ----------------
+                    arma::vec s_temp = s_i.subvec(0, k);
+                    arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_s(s_temp.n_elem, arma::fill::zeros);
+                    
+                    twos_s.elem(arma::find(s_temp == 2)) += 1;
+                    threes_s.elem(arma::find(s_temp == 3)) += 1;
+                    fours_s.elem(arma::find(s_temp == 4)) += 1;
+                    fives_s.elem(arma::find(s_temp == 5)) += 1;
+                    
+                    arma::vec D_alpha_s = {1, arma::accu(twos_s), arma::accu(threes_s),
+                                           arma::accu(fours_s), arma::accu(fives_s)};
+                    
+                    for(int kk = k; kk < n_i; kk++) {
+                        if(kk == 0) {
+                            log_like_b = log_like_b + 
+                                log(P_init(b_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_b(kk), 1, true);
+                            
+                            log_like_s = log_like_s + 
+                                log(P_init(s_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_s(kk), 1, true);
+                            
+                        } else {
+                            log_like_b = log_like_b + 
+                                log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_b(kk), 1, true);
+                            
+                            log_like_s = log_like_s + 
+                                log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) + 
+                                R::dnorm(y_i(kk), mean_s(kk), 1, true);
+                        }
+                    }
+                    double diff_check = log_like_s - log_like_b;
+                    double min_log = log(arma::randu(arma::distr_param(0,1)));
+                    if(diff_check > min_log){b_i = s_i;} 
+                }
+            }
+        }
+        
+        B_return(ii) = b_i;
+    }
+   
+    return B_return;
+    
+}
+
+
+

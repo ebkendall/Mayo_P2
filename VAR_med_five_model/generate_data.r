@@ -110,11 +110,8 @@ pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4, 0.01, 0.01, 0.25, 0.25,
                                                   100,    1,    1,   25,   25, 
                                                     1, 0.01, 0.01, 0.25, 0.25)))
 
-pars_mean[par_index$vec_A] = c(rep(1.5, 4),
-                               rep(-1, 4),
-                               rep(0.1, 4),
-                               rep(0, 4),
-                               rep(0.1, 4))
+pars_mean[par_index$vec_A] = c(rep(1.5, 4), rep(-1, 4), rep(0.1, 4), 
+                               rep(0, 4),rep(0.1, 4))
 
 pars_mean[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
 
@@ -124,7 +121,6 @@ pars_mean[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
 pars_mean[par_index$vec_zeta] = c(-4.7405, 4.5, -5.2152,   1, -3.6473,-0.5, -3.1475, -0.2, 
                                   -6.4459,  -1, -3.9404,   2, -4.2151,   1, -4.1778, 2.5, 
                                   -3.0523,   0, -6.4459,-0.2, -4.2404, 3.5, -4.2151,   1)
-
 
 pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
 

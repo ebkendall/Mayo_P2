@@ -13,16 +13,26 @@ sourceCpp("likelihood_fnc.cpp")
 
 mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind, 
                          trialNum, Dn_omega, simulation, bleed_indicator, max_ind, 
-                         df_num, sampling_num){
+                         df_num, sampling_num, states_per_step, steps_per_it){
     
-    n_cores = strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
-    print(paste0("Number of cores: ", n_cores))
-
     EIDs = as.character(unique(Y[,'EID']))
     
-    # Number of states sampled at a time ---------------------------------------
-    # *********** DONT FORGET TO CHANGE THIS NUMBER IN THE .cpp FILE ***********
-    t_pt_length = 3
+    # Number of cores over which to parallelize --------------------------------
+    n_cores = 7#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    print(paste0("Number of cores: ", n_cores))
+    
+    # Transition information ---------------------------------------------------
+    adj_mat = matrix(c(1, 1, 0, 1, 0,
+                       0, 1, 1, 1, 0,
+                       1, 1, 1, 1, 0,
+                       0, 1, 0, 1, 1,
+                       1, 1, 0, 1, 1), nrow=5, byrow = T)
+    adj_mat_sub = matrix(c(1, 0, 0, 1, 0,
+                           0, 1, 0, 0, 0,
+                           1, 0, 1, 1, 0,
+                           0, 0, 0, 1, 1,
+                           1, 0, 0, 1, 1), nrow=5, byrow = T)
+    initialize_cpp(adj_mat, adj_mat_sub, states_per_step)
 
     # Index of observed versus missing data ------------------------------------
     # 1 = observed, 0 = missing
@@ -30,31 +40,26 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     colnames(otype) = c('hemo','hr','map','lactate')
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(# c(par_index$vec_init),
-                c(par_index$vec_zeta),
-                c(par_index$vec_A),
-            #    c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
-            #    c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
-            #    c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
-            #    c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
-            #    c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0 
-            #    c(par_index$vec_A[c(1,5,9,13,17)]),
-            #    c(par_index$vec_A[c(2,6,10,14,18)]),
-            #    c(par_index$vec_A[c(3,7,11,15,19)]),
-            #    c(par_index$vec_A[c(4,8,12,16,20)]),
-               # c(par_index$vec_upsilon_omega[c(1:16, 36:57)]),
-               # c(par_index$vec_upsilon_omega[c(17:35, 58:88)]),
+    mpi = list(c(par_index$vec_init),
+               c(par_index$vec_zeta),
+               c(par_index$vec_A),
+               c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
+               c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
+               c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
+               c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
+               c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0
+               c(par_index$vec_A[c(1,5,9,13,17)]),
+               c(par_index$vec_A[c(2,6,10,14,18)]),
+               c(par_index$vec_A[c(3,7,11,15,19)]),
+               c(par_index$vec_A[c(4,8,12,16,20)]),
+               c(par_index$vec_upsilon_omega[c(1:16, 36:57)]),
+               c(par_index$vec_upsilon_omega[c(17:35, 58:88)]),
                c(par_index$vec_R))
 
     n_group = length(mpi)
 
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
     pscale = rep( 0.0001, n_group)
-    
-    # Initialize B using "MLE" -------------------------------------------------
-    Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
-    Xn = Dn_Xn[[2]]
-    B = initialize_b_i(as.numeric(EIDs), par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
   
     # Initialize data storage --------------------------------------------------
     chain_length_MASTER = 10000
@@ -62,6 +67,11 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     B_chain = matrix( 0, chain_length_MASTER, nrow(Y)) 
     hc_chain = hr_chain = bp_chain = la_chain = NULL
     accept = rep( 0, n_group)
+    
+    # Initialize states to MLE state sequences ---------------------------------
+    Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
+    Xn = Dn_Xn[[2]]
+    B = initialize_b_i(as.numeric(EIDs), par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
 
     # Initialize design matrices -----------------------------------------------
     Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
@@ -79,6 +89,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
     B_chain[1, ] = do.call( 'c', B)
+    
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
 
@@ -97,26 +108,40 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                             'RBC_rule', 'clinic_rule')
         }
 
-        # Metropolis-within-Gibbs: B (states) ----------------------------------
         bbb_start_t = Sys.time()
-        if(sampling_num == 1) {
-            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                    Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                    t_pt_length, 1)
-            B = B_Dn[[1]]; names(B) = EIDs
-            Dn = B_Dn[[2]]; names(Dn) = EIDs
-        } else if(sampling_num == 2) {
-            B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                 Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                 t_pt_length, 3)
-            B = B_Dn[[1]]; names(B) = EIDs
-            Dn = B_Dn[[2]]; names(Dn) = EIDs
-        } else {
-            B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                    Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                    t_pt_length)
-            B = B_Dn[[1]]; names(B) = EIDs
-            Dn = B_Dn[[2]]; names(Dn) = EIDs
+        # State sequence updates -----------------------------------------------
+        for(s in 1:steps_per_it) {
+            # Random sample update ---------------------------------------------
+            if(sampling_num == 1) {
+                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                     states_per_step, 1)
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
+            }
+            
+            # Almost-Gibbs update ----------------------------------------------
+            else if(sampling_num == 2) {
+                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                     states_per_step, 3)
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
+            } 
+            
+            # Gibbs update -----------------------------------------------------
+            else if(sampling_num == 3) {
+                
+            }
+            
+            # Full seq MH update -----------------------------------------------
+            else if(sampling_num == 4) {
+                B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
+                                        Xn, Dn_omega, W, bleed_indicator, n_cores, 
+                                        states_per_step)
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
+            }    
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
