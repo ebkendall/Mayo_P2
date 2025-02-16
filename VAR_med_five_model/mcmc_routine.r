@@ -68,15 +68,14 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     hc_chain = hr_chain = bp_chain = la_chain = NULL
     accept = rep( 0, n_group)
     
+    # Initialize design matrix -------------------------------------------------
+    Xn = initialize_X( as.numeric(EIDs), Y, x)
+    
     # Initialize states to MLE state sequences ---------------------------------
-    Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
-    Xn = Dn_Xn[[2]]
-    B = initialize_b_i(as.numeric(EIDs), par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
-
-    # Initialize design matrices -----------------------------------------------
-    Dn_Xn = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, n_cores)
-    Dn = Dn_Xn[[1]]; names(Dn) = EIDs
-    Xn = Dn_Xn[[2]]
+    B_Dn = mle_state_seq(as.numeric(EIDs), par, par_index, A, Y, z, Xn, 
+                         Dn_omega, W, n_cores)
+    B = B_Dn[[1]]; names(B) = EIDs
+    Dn = B_Dn[[2]]; names(Dn) = EIDs
     
     # Keeping track of the sampled alpha_i -------------------------------------
     A_chain = vector(mode = "list", length = 5)

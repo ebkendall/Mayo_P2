@@ -381,9 +381,12 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
-# New patients ---------------------------------------------------------------
+# New patients -----------------------------------------------------------------
+load('../Data_cleaning/Data/hr_map_names.rda')
+
 pdf('Plots/initial_charts.pdf')
-panels = c(4, 1)
+panels = c(3, 1)
+inset_dim = c(0,-.18)
 par(mfrow=panels, mar=c(2,4,2,4), bg='black', fg='green')
 for(i in EIDs){
     # print(which(EIDs == i))
@@ -470,11 +473,14 @@ for(i in EIDs){
             col_vec = makeTransparent(col_vec, alpha = 0.35)  
         }
     }
-    # HEART RATE --------------------------------------------------------------
-    plot(use_data[indices_i, 'hr'], main=paste0('heart rate: ', i, ', RBC Rule = ', 
-                                                mean(use_data[indices_i, 'RBC_rule'])),
-         xlab='time', ylab=NA, col.main='green', col.axis='green', pch=20, cex=1)
-    hr_map_ylim = c(min(use_data[indices_i, 'hr']), max(use_data[indices_i, 'hr']))
+    # HEART RATE & MAP ---------------------------------------------------------
+    hr_map_ylim = c(min(c(use_data[indices_i, 'hr'], use_data[indices_i, 'map'])), 
+                    max(c(use_data[indices_i, 'hr'], use_data[indices_i, 'map'])))
+    
+    plot(1:n_i, use_data[indices_i, 'hr'], xlab='time', ylab=NA, ylim = hr_map_ylim,
+         main=paste0('HR and MAP: ', i, ', RBC Rule = ', mean(use_data[indices_i, 'RBC_rule'])),
+         col.main='green', col.axis='green', pch=20, cex=1)
+    points(1:n_i, use_data[indices_i, 'map'], col = 'orange')
     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
          ybottom = hr_map_ylim[1], 
          xright = rect_coords$t[-1]-0.5, 
@@ -482,54 +488,100 @@ for(i in EIDs){
          col = col_vec[-nrow(rect_coords)],
          border = NA)
     grid( nx=20, NULL, col='white')
-    axis( side=1, at=t_grid, col.axis='green', labels=t_grid / 4)
     # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
     abline(v = rbc_admin_times, col = 'grey', lwd = 1)
 
-    # MAP --------------------------------------------------------------
-    plot(use_data[indices_i, 'map'], main=paste0('map: ', i),
-         xlab='time', ylab=NA, col.main='green', col.axis='green', pch=20, cex=1)
-    hr_map_ylim = c(min(use_data[indices_i, 'map']), max(use_data[indices_i, 'map']))
+    # HEMO & Lactate -----------------------------------------------------------
+    hemo_lact_ylim = c(min(c(use_data[indices_i, 'hemo'], use_data[indices_i, 'lactate'])), 
+                       max(c(use_data[indices_i, 'hemo'], use_data[indices_i, 'lactate'])))
+    
+    plot(1:n_i, use_data[indices_i, 'hemo'], xlab='time', ylab=NA, ylim = hemo_lact_ylim,
+         main=paste0('hemo: ', i), col.main='green', col.axis='green', pch=20, cex=1)
+    points(1:n_i, use_data[indices_i, 'lactate'], col = 'orange')
     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
-         ybottom = hr_map_ylim[1], 
+         ybottom = hemo_lact_ylim[1], 
          xright = rect_coords$t[-1]-0.5, 
-         ytop = hr_map_ylim[2],
+         ytop = hemo_lact_ylim[2],
          col = col_vec[-nrow(rect_coords)],
          border = NA)
     grid( nx=20, NULL, col='white')
-    axis( side=1, at=t_grid, col.axis='green', labels=t_grid / 4)
     # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
     abline(v = rbc_admin_times, col = 'grey', lwd = 1)
-
-    # HEMO --------------------------------------------------------------
-    plot(use_data[indices_i, 'hemo'], main=paste0('hemo: ', i),
-         xlab='time', ylab=NA, col.main='green', col.axis='green', pch=20, cex=1)
-    hr_map_ylim = c(min(use_data[indices_i, 'hemo']), max(use_data[indices_i, 'hemo']))
-    rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1]-0.5, 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
-    grid( nx=20, NULL, col='white')
-    axis( side=1, at=t_grid, col.axis='green', labels=t_grid / 4)
-    # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
-    abline(v = rbc_admin_times, col = 'grey', lwd = 1)
-
-    # LACTATE --------------------------------------------------------------
-    plot(use_data[indices_i, 'lactate'], main=paste0('lactate: ', i),
-         xlab='time', ylab=NA, col.main='green', col.axis='green', pch=20, cex=1)
-    hr_map_ylim = c(min(use_data[indices_i, 'lactate']), max(use_data[indices_i, 'lactate']))
-    rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1]-0.5, 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
-    grid( nx=20, NULL, col='white')
-    axis( side=1, at=t_grid, col.axis='green', labels=t_grid / 4)
-    # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
-    abline(v = rbc_admin_times, col = 'grey', lwd = 1)
+    
+    # Medication ---------------------------------------------------------------
+    med_i = Dn_omega_sim[[which(EIDs == i)]]
+    omega_i = omega_i_mat[[which(EIDs == i)]]
+    med_i_mat = stacked_chains = do.call( rbind, med_i)
+    
+    hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
+    map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
+    
+    hr_mean_effect = hr_med_i_mat %*% omega_i
+    map_mean_effect = map_med_i_mat %*% omega_i
+    
+    hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
+    map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
+    
+    upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                 -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                 -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                 -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    
+    hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
+    map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
+    
+    hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
+    hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
+    map_upp_i  = map_med_i_mat[,map_upp_down == 1]
+    map_down_i = map_med_i_mat[,map_upp_down == -1]
+    
+    total_hr_up  = rowSums(hr_upp_i)
+    total_hr_dn  = rowSums(hr_down_i)
+    total_map_up = rowSums(map_upp_i)
+    total_map_dn = rowSums(map_down_i)
+    
+    hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+                        hr_mean_effect, map_mean_effect), 
+                    max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+                        hr_mean_effect, map_mean_effect))
+    if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
+    
+    plot(NULL, xlim=c(0.5,n_i+0.5), ylim=hr_map_ylim, main='Med. admin',
+         xlab='time', ylab=NA, col.main='green',
+         col.axis='green')
+    
+    if(simulation) {
+        rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+             ybottom = hr_map_ylim[1], 
+             xright = rect_coords$t[-1], 
+             ytop = hr_map_ylim[2],
+             col = col_vec[-nrow(rect_coords)],
+             border = NA)
+    } 
+    points(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA, 
+           col.main='green', col.axis='green', 
+           col = 'aquamarine', pch = 16) 
+    points(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA, 
+           col = 'orange', pch = 16) 
+    lines(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA, 
+          lwd=2, lty = 1, col = 'aquamarine') 
+    lines(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA, 
+          lwd=2, lty = 1, col = 'orange') 
+    
+    lines(x = 1:n_i, y = total_hr_up, xlab='time', ylab=NA, 
+          lwd=1, lty = 2, col = 'aquamarine4') 
+    lines(x = 1:n_i, y = total_map_up, xlab='time', ylab=NA,
+          lwd=1, lty = 3, col = 'darkolivegreen2') 
+    lines(x = 1:n_i, y = total_hr_dn, xlab='time', ylab=NA,
+          lwd=1, lty = 4, col = 'deeppink')
+    lines(x = 1:n_i, y = total_map_dn, xlab='time', ylab=NA,
+          lwd=1, lty = 5, col = 'palevioletred')
+    legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
+            legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
+            col=c( 'aquamarine', 'orange'))
+    
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_admin_times-0.5, col = 'grey', lwd = 1)
 
 }
 dev.off()

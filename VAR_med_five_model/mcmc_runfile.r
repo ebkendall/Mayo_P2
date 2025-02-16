@@ -112,12 +112,14 @@ for(i in EIDs){
 
 B = list()
 if(max_ind > 5) {
-    for(i in EIDs) {
-        B[[i]] = matrix(b_chain[data_format[,"EID"] == as.numeric(i)], ncol = 1)
-    }
+    
 } else {
     # Initialize at the "Maximum likelihood state sequence"
     
+    # Initialize at the "true" state sequence
+    for(i in EIDs) {
+        B[[i]] = matrix(b_chain[data_format[,"EID"] == as.numeric(i)], ncol = 1)
+    }
 }
 # -----------------------------------------------------------------------------
 
