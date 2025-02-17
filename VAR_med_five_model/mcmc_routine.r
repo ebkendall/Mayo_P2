@@ -112,9 +112,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         for(s in 1:steps_per_it) {
             # Random sample update ---------------------------------------------
             if(sampling_num == 1) {
-                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                     states_per_step, 1)
+                B_Dn = mh_up(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn, Xn, 
+                             Dn_omega, W, bleed_indicator, n_cores, states_per_step)
                 B = B_Dn[[1]]; names(B) = EIDs
                 Dn = B_Dn[[2]]; names(Dn) = EIDs
             }
@@ -339,7 +338,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                  hr_chain = Y[,'hr'], #hr_chain[index_keep,],
                                  bp_chain = Y[,'map'], #bp_chain[index_keep,], 
                                  la_chain = Y[,'lactate'], #la_chain[index_keep,],
-                                 # A_chain  = A_chain,
+                                 A_chain  = A_chain,
                                  otype=otype, accept=accept/length(burnin:ttt), 
                                  pscale=pscale, pcov = pcov, par_index=par_index)
             if(simulation) {
