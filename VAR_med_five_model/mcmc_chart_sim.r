@@ -3,59 +3,19 @@ library(plotrix)
 
 simulation = T
 
-data_num = 5
+trialNum = 1
+args = commandArgs(TRUE)
+sampling_num = as.numeric(args[1])
+one_chart = as.numeric(args[2])
 
-trialNum = 6
-sampNum = 2
-itNum = 1
-all_seeds = F
-long_chain = F
+it_num = 3
+it_seq = 1:it_num
 
-if(all_seeds) {
-    seed_list = 1:3
-} else {
-    seed_list = 2
-}
+states_per_step = 1
+steps_per_it = 1
+S = 5
 
-# Load the model output -------------------------------------------------------
-B_chain   = NULL
-Hr_chain  = NULL
-Map_chain = NULL
-Hc_chain  = NULL
-La_chain  = NULL
-
-for(seed_num in 1:length(seed_list)) {
-    print(seed_num)
-    
-    if(long_chain) {
-        it_seq = 1:itNum
-    } else {
-        it_seq = itNum
-    }
-    
-    for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_', seed_list[seed_num],'_', 
-                           trialNum,'it', it, '_samp', sampNum, '_sim.rda')
-        load(file_name)
-        print(file_name)
-        
-        if(it == 1) {
-            B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
-            # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
-            # Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
-            # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
-            # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
-        } else {
-            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
-            # Hr_chain  = mcmc_out_temp$hr_chain
-            # Map_chain = mcmc_out_temp$bp_chain
-            # Hc_chain  = mcmc_out_temp$hc_chain
-            # La_chain  = mcmc_out_temp$la_chain
-        }
-        rm(mcmc_out_temp)
-    }
-}
-#  ----------------------------------------------------------------------------
+seed_list = 1:3
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -63,21 +23,7 @@ Mode <- function(x) {
     return(ux[which.max(tabulate(match(x, ux)))])
 }
 
-state_seq_mode = apply(B_chain, 2, Mode)
-
-load(paste0('Data_sim/use_data1_', data_num, '.rda'))
-load(paste0('Data_sim/Dn_omega_sim_', data_num, '.rda'))
-load(paste0('Data_sim/omega_i_mat_', data_num, '.rda'))
-Dn_omega = Dn_omega_sim
-rm(Dn_omega_sim)
-EIDs = unique(use_data[,'EID'])
-
-ss_truth = use_data[,"b_true"]
-load('Data_sim/hr_map_names1.rda')
-
-# ------------------------------------------------------------------------------
 # Function to change transparency of colors # ----------------------------------
-# ------------------------------------------------------------------------------
 makeTransparent = function(..., alpha=0.35) {
     
     if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
@@ -95,63 +41,153 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
-eid_poor = NULL
+# Load the model output -------------------------------------------------------
+state_results = vector(mode = 'list', length = length(seed_list))
 
+for(s in 1:length(seed_list)) {
+    
+    B_chain   = NULL
+    Hr_chain  = NULL
+    Map_chain = NULL
+    Hc_chain  = NULL
+    La_chain  = NULL
+    
+    seed_num = seed_list[s]
+    for(it in it_seq) {
+        file_name = paste0('Model_out/mcmc_out_', seed_num,'_', trialNum,
+                           'it', it, '_samp', sampling_num, '_sim.rda')
+        load(file_name)
+        print(file_name)
+        
+        keep_ind = seq(1, nrow(mcmc_out_temp$B_chain), by = 5)
+        # if(it == 1) {
+        #     B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
+        #     # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
+        #     # Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
+        #     # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
+        #     # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
+        # } else {
+            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[keep_ind, ])
+            # Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
+            # Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
+            # Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
+            # La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
+        # }
+        rm(mcmc_out_temp)
+    }    
+    
+    state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
+    for(jj in 1:S) {
+        state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+    }
+    state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
+    rm(B_chain)
+}
+
+# Summarize data into combo and indiv results ----------------------------------
+combo_counts = state_results[[1]]
+for(i in 2:length(state_results)) {
+    combo_counts = combo_counts + state_results[[i]]
+}
+combo_counts[S+1, ] = apply(combo_counts[1:S,], 2, which.max)
+
+combo_counts_col_sum = colSums(combo_counts[1:S,])
+combo_counts_props = matrix(nrow = S, ncol = ncol(combo_counts))
+for(s in 1:S) {
+    combo_counts_props[s,] = combo_counts[s, ] / combo_counts_col_sum
+}
+
+all_seeds_state_mode = matrix(nrow = length(seed_list)+1, ncol = ncol(combo_counts))
+for(i in 1:length(seed_list)) {
+    all_seeds_state_mode[i, ] = state_results[[i]][S+1,]
+}
+all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
+
+# Load simulated data ----------------------------------------------------------
+load('Data_sim/use_data.rda')
+load('Data_sim/alpha_i_mat.rda')
+load('Data_sim/omega_i_mat.rda')
+load('Data_sim/Dn_omega_sim.rda')
+Dn_omega = Dn_omega_sim
+rm(Dn_omega_sim)
+EIDs = unique(use_data[,'EID'])
+
+ss_truth = use_data[,"b_true"]
+
+Hr_chain  = t(use_data[,"hr",drop=F])
+Map_chain = t(use_data[,"map",drop=F])
+Hc_chain  = t(use_data[,"hemo",drop=F])
+La_chain  = t(use_data[,"lactate",drop=F])
+
+# Summary stats of state identification ----------------------------------------
 print("Summary of identifying correct states with mode")
-if(length(ss_truth) != length(state_seq_mode)) {
-    print("ERROR")
-} else {
-    print(sum(ss_truth == state_seq_mode) / length(state_seq_mode))   
+for(s in 1:(length(seed_list)+1)) {
+    if(s <= length(seed_list)) {
+        print(paste0("Seed ", s))
+    } else {
+        print("Combo")
+    }
+    
+    if(length(ss_truth) != length(all_seeds_state_mode[s, ])) {
+        print("ERROR")
+    } else {
+        print(sum(ss_truth == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
+    }
 }
 
 print("Average (across subject) of proportion of correct states with mode")
-
-prop_sub = rep(0, length(EIDs))
-for(j in 1:length(EIDs)) {
-    sub_ind_j = which(use_data[,"EID"] == EIDs[j])
-    ss_truth_j = ss_truth[sub_ind_j]
-    state_seq_mode_j = state_seq_mode[sub_ind_j]
+mode_correctness = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
+sensitivity_S2 = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
+specificity_S2 = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
+for(s in 1:(length(seed_list)+1)) {
     
-    prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
+    prop_sub = rep(0, length(EIDs))
+
+    for(j in 1:length(EIDs)) {
+        sub_ind_j = which(use_data[,"EID"] == EIDs[j])
+        ss_truth_j = ss_truth[sub_ind_j]
+        state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
+        
+        prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
+    }
+    
+    if(s <= length(seed_list)) {
+        print(paste0("Seed ", s))
+    } else {
+        print("Combo")
+    }
+    
+    print(summary(prop_sub))
+    mode_correctness[,s] = prop_sub
+    
+    # eid_poor = NULL
+    # eid_poor = EIDs[prop_sub < 0.9]
+    
+    # Sensitivity of state 2: Pr(predict S2 | true S2)
+    predict_at_true_S2 = all_seeds_state_mode[s, (ss_truth == 2)]
+    print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
+    
+    # Specificity of state 2: Pr(predict not S2 | true not S2)
+    predict_not_S2 =  all_seeds_state_mode[s, (ss_truth != 2)]
+    print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
 }
 
-print(summary(prop_sub))
-print(sort(prop_sub))
-
-eid_poor = EIDs[prop_sub < 0.9]
-
-state_2_info = which(ss_truth == 2)
-state_2_truth = ss_truth[state_2_info]
-state_2_mode  = state_seq_mode[state_2_info]
-
-print("Correct identification of bleeding")
-print(sum(state_2_truth == state_2_mode) / length(state_2_mode))  
-
-# Sensitivity of state 2: Pr(predict S2 | true S2)
-predict_at_true_S2 = state_seq_mode[ss_truth == 2]
-print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
-
-# Specificity of state 2: Pr(predict not S2 | true not S2)
-predict_not_S2 = state_seq_mode[ss_truth != 2]
-print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
-
-return(0)
-# ------------------------------------------------------------------------------ 
 # Model evaluation plots -------------------------------------------------------
-# ------------------------------------------------------------------------------
-pdf_title = NULL
-if(all_seeds) {
-    pdf_title = paste0('Plots/model_eval_', trialNum, '_it', itNum, '_samp', sampNum, '_sim.pdf') 
+state_proportions = NULL
+if(one_chart == 0) {
+    state_proportions = combo_counts_props
 } else {
-    if(long_chain) {
-        pdf_title = paste0('Plots/model_eval_', trialNum, '_it', itNum, 
-                           '_seed',seed_list, '_samp', sampNum, '_sim_long.pdf')
-    } else {
-        pdf_title = paste0('Plots/model_eval_', trialNum, '_it', itNum, 
-                           '_seed',seed_list, '_samp', sampNum, '_sim.pdf')
+    state_counts_col_sum = colSums(state_results[[one_chart]][1:S,])
+    state_proportions = matrix(nrow = S, ncol = ncol(state_results[[one_chart]]))
+    for(s in 1:S) {
+        state_proportions[s,] = state_results[[one_chart]][s, ] / state_counts_col_sum
     }
 }
-pdf(pdf_title)
+
+load('Data_sim/hr_map_names.rda')
+
+pdf(paste0('Plots/chart_', trialNum, '_', one_chart, '_samp', sampling_num, '_',
+           states_per_step, '_', steps_per_it, '.pdf'))
 panel_dim = c(4,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
@@ -252,34 +288,18 @@ for(i in EIDs){
         col_vec = makeTransparent(col_vec, alpha = 0.35)  
     }
     
-    pb = barplot(rbind(colMeans(B_chain[, indices_i] == 1),
-                       colMeans(B_chain[, indices_i] == 2),
-                       colMeans(B_chain[, indices_i] == 3),
-                       colMeans(B_chain[, indices_i] == 4),
-                       colMeans(B_chain[, indices_i] == 5)), 
+    pb = barplot(state_proportions[,indices_i], 
                  col=c( 'dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray'), 
                  xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F) 
     
     # Heart Rate and MAP double plot -----------------------------------------
     if(mean(use_data[indices_i, 'clinic_rule']) != 0) {
-        if(i %in% eid_poor) {
-            title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                                mean(use_data[indices_i, 'RBC_rule']),
-                                ', clinic = ', mean(use_data[indices_i, 'clinic_rule']),
-                                ' (flag)')
-        } else {
-            title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                                mean(use_data[indices_i, 'RBC_rule']),
-                                ', clinic = ', mean(use_data[indices_i, 'clinic_rule']))
-        }
+        title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
+                            mean(use_data[indices_i, 'RBC_rule']),
+                            ', clinic = ', mean(use_data[indices_i, 'clinic_rule']))
     } else {
-        if(i %in% eid_poor) {
-            title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                                mean(use_data[indices_i, 'RBC_rule']), ' (flag)')   
-        } else {
-            title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                                mean(use_data[indices_i, 'RBC_rule']))
-        }
+        title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
+                            mean(use_data[indices_i, 'RBC_rule']))
     }
     
     hr_upper = colQuantiles( Hr_chain[, indices_i, drop=F], probs=.975)
@@ -317,7 +337,7 @@ for(i in EIDs){
     grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     
@@ -365,7 +385,7 @@ for(i in EIDs){
     grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # Medication admin plot ----------------------------------------------------
@@ -382,13 +402,10 @@ for(i in EIDs){
     hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
     map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
     
-    upp_down = c(-1, -1,  1, -1,  1,  1, -1, -1, -1,  1,  1,  1,  1,
-                 -1,  1,  1,  1, -1,  1, -1,  1, -1, -1, -1, -1, -1,
-                 -1, -1, -1, -1,  1, -1,  1, -1, -1,  1,  1, -1,  1,
-                 -1, -1,  1,  1, -1, -1, -1, -1, -1, -1,  1, -1,  1,
-                 1, -1,  1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1,
-                 -1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1, -1,
-                 -1, -1,  1, -1, -1, -1, -1, -1, -1,  1)
+    upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                 -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                 -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                 -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     
     hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
     map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
@@ -444,15 +461,11 @@ for(i in EIDs){
             col=c( 'aquamarine', 'orange'))
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # BAR PLOTS --------------------------------------------------------------
-    barplot(rbind(colMeans(B_chain[, indices_i] == 1),
-                  colMeans(B_chain[, indices_i] == 2),
-                  colMeans(B_chain[, indices_i] == 3),
-                  colMeans(B_chain[, indices_i] == 4),
-                  colMeans(B_chain[, indices_i] == 5)), 
+    barplot(state_proportions[,indices_i], 
             col=c( 'dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray'), 
             xlab='time', space=0, col.main='green', border=NA,
             xlim=range(pb) + c(-0.5,0.5)) 
@@ -468,7 +481,7 @@ for(i in EIDs){
     axis( side=2, at=0:1, col.axis='green')
     
     
-    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
 }
 dev.off()

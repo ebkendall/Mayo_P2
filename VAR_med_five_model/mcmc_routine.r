@@ -18,7 +18,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     EIDs = as.character(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 7#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -108,61 +108,62 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
 
         bbb_start_t = Sys.time()
-        # State sequence updates -----------------------------------------------
         for(s in 1:steps_per_it) {
             # Random sample update ---------------------------------------------
             if(sampling_num == 1) {
-                B_Dn = mh_up(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn, Xn, 
-                             Dn_omega, W, bleed_indicator, n_cores, states_per_step)
+                B_Dn = mh_up(as.numeric(EIDs), par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
+                             bleed_indicator, n_cores, states_per_step);
                 B = B_Dn[[1]]; names(B) = EIDs
                 Dn = B_Dn[[2]]; names(Dn) = EIDs
             }
             
             # Almost-Gibbs update ----------------------------------------------
             else if(sampling_num == 2) {
-                B_Dn = update_b_i_MH(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                     Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                     states_per_step, 3)
+                B_Dn = almost_gibbs_up(as.numeric(EIDs), par, par_index, A, B, Y, 
+                                       z, Xn, Dn_omega, W, bleed_indicator, 
+                                       n_cores, states_per_step);
                 B = B_Dn[[1]]; names(B) = EIDs
                 Dn = B_Dn[[2]]; names(Dn) = EIDs
             } 
             
             # Gibbs update -----------------------------------------------------
             else if(sampling_num == 3) {
-                
+                B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, A, B, Y, z, Xn, 
+                                Dn_omega, W, bleed_indicator, n_cores, states_per_step);
+                B = B_Dn[[1]]; names(B) = EIDs
+                Dn = B_Dn[[2]]; names(Dn) = EIDs
             }
             
             # Full seq MH update -----------------------------------------------
             else if(sampling_num == 4) {
-                B_Dn = update_b_i_gibbs(as.numeric(EIDs), par, par_index, A, B, Y, z, Dn,
-                                        Xn, Dn_omega, W, bleed_indicator, n_cores, 
-                                        states_per_step)
+                B_Dn = mh_up_all(as.numeric(EIDs), par, par_index, A, B, Y, z, Xn, 
+                                 Dn_omega, W, bleed_indicator, n_cores);
                 B = B_Dn[[1]]; names(B) = EIDs
                 Dn = B_Dn[[2]]; names(Dn) = EIDs
-            }    
+            }
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
-        # Gibbs: alpha_i -------------------------------------------------------
-        A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-                                Dn_omega, W, B, n_cores)
-        names(A) = EIDs
-
-        for(aaa in 1:length(a_chain_id)) {
-            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
-        }
-
-        # Gibbs: omega_i -------------------------------------------------------
-        W = update_omega_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-                                Dn_omega, A, B, n_cores)
-        names(W) = EIDs
-        
+        # # Gibbs: alpha_i -------------------------------------------------------
+        # A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
+        #                         Dn_omega, W, B, n_cores)
+        # names(A) = EIDs
+        # 
+        # for(aaa in 1:length(a_chain_id)) {
+        #     A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
+        # }
+        # 
+        # # Gibbs: omega_i -------------------------------------------------------
+        # W = update_omega_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
+        #                         Dn_omega, A, B, n_cores)
+        # names(W) = EIDs
+        # 
         # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
         # par = update_alpha_tilde_cpp( as.numeric(EIDs), par, par_index, A, Y)
         # par = update_omega_tilde_cpp( as.numeric(EIDs), par, par_index, W, Y)
         # par = update_beta_Upsilon_R_cpp( as.numeric(EIDs), par, par_index, A, Y,
         #                                  Dn, Xn, Dn_omega, W, B, n_cores)
-
+        # 
         # Store current parameter updates --------------------------------------
         chain[chain_ind,] = par
         
@@ -531,23 +532,3 @@ var_R_calc <- function(psi, nu, p) {
     
 #     rm(mcmc_out_temp)
 # }
-
-
-# Initialize B based on max likelihood at each point given initial values --
-# if(max_ind == 5) {
-#     Xn_initial = update_Dn_Xn_cpp( as.numeric(EIDs), B, Y, par, par_index, x, 10)
-#     Xn = Xn_initial[[2]]
-#     
-#     B = list()
-#     B = initialize_b_i(as.numeric(EIDs), par, par_index, A, Y, z, Xn, Dn_omega, W, 10)
-#     
-#     # Reset the clinic_rule subjects
-#     if(!simulation) {
-#         c_r = unique(Y[Y[,"clinic_rule"] < 0, "EID"])  
-#         for(j in c_r) {
-#             c_r_ind = which(EIDs == j)
-#             B[[c_r_ind]] = matrix(1, nrow = sum(Y[,"EID"] == j), ncol = 1)
-#         }
-#     }
-# }
-# --------------------------------------------------------------------------
