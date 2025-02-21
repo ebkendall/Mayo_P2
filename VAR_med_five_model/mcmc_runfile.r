@@ -50,7 +50,7 @@ load('Data_sim/true_par_index.rda')
 
 par = rep(0, max(par_index$vec_upsilon_omega))
 
-par[par_index$vec_beta] = c(0.5, -2, 2, -0.5)
+par[par_index$vec_beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
 par[par_index$vec_alpha_tilde] = c( 9, -1,  1, 0, 0,
                                    85,  5, -5, 0, 0,
                                    75, -5,  5, 0, 0,
