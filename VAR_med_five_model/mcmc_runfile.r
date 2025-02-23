@@ -8,7 +8,7 @@ seed_num = seed_num - 3 * floor((seed_num - 1)/3)
 
 set.seed(seed_num)
 
-states_per_step = 1
+states_per_step = 2
 steps_per_it = 1
 
 steps  = 30000
