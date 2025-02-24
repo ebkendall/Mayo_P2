@@ -331,7 +331,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             if(simulation) {
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',ind,'_', 
                                                   trialNum, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
-                                                  '_samp', sampling_num, '_sim.rda'))
+                                                  '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
+                                                  '_sim.rda'))
             } else {
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',ind,'_', 
                                                   trialNum, 'it', ttt/chain_length_MASTER + (max_ind - 5), 

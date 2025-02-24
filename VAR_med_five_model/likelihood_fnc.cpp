@@ -1,8 +1,8 @@
 #include <RcppDist.h>
 // [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
-// #include <omp.h>
-// // [[Rcpp::plugins(openmp)]]
+#include <omp.h>
+// [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadilloExtensions/sample.h>
 
@@ -552,8 +552,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, arma::vec t_pts, const arma::vec
   
   arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -693,8 +693,8 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
     
     arma::field<arma::vec> A(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -817,8 +817,8 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
     
     arma::field<arma::vec> W(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -1064,15 +1064,12 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
     
     arma::vec eids = Y.col(0);
 
-    // CHANGE THIS!
-    arma::vec sum_in_V(vec_beta_ind.n_elem, arma::fill::zeros);
-    arma::mat sum_in_inv_W(vec_beta_ind.n_elem, vec_beta_ind.n_elem, 
-                           arma::fill::zeros);
-    arma::mat sum_in_Upsilon_cov(vec_alpha_tilde.n_elem, vec_alpha_tilde.n_elem,
-                                 arma::fill::zeros);
+    arma::field<arma::vec> V_list(EIDs.n_elem);
+    arma::field<arma::mat> inv_W_list(EIDs.n_elem);
+    arma::field<arma::mat> in_Up_list(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -1145,9 +1142,19 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
         arma::mat hold2 = vec_alpha_i - vec_alpha_tilde;
         arma::mat in_Upsilon_cov = hold2 * hold2.t();
         
-        sum_in_V = sum_in_V + V_i;
-        sum_in_inv_W = sum_in_inv_W + W_i_inv;
-        sum_in_Upsilon_cov = sum_in_Upsilon_cov + in_Upsilon_cov;
+        V_list(ii) = V_i;
+        inv_W_list(ii) = W_i_inv;
+        in_Up_list(ii) = in_Upsilon_cov;
+    }
+    
+    arma::vec sum_in_V = V_list(0);
+    arma::mat sum_in_inv_W = inv_W_list(0);
+    arma::mat sum_in_Upsilon_cov = in_Up_list(0);
+    
+    for(int ii = 1; ii < EIDs.n_elem; ii++){
+        sum_in_V = sum_in_V + V_list(ii);
+        sum_in_inv_W = sum_in_inv_W + inv_W_list(ii);
+        sum_in_Upsilon_cov = sum_in_Upsilon_cov + in_Up_list(ii);
     }
     
     arma::vec V = inv_Sigma_beta * vec_beta_0 + sum_in_V;
@@ -1197,8 +1204,8 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
     arma::mat newY(Y.n_rows, 4); 
     arma::vec eids = Y.col(0);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {	
         
         int i = EIDs(ii);
@@ -1724,8 +1731,8 @@ Rcpp::List update_b_i_impute_cpp( const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::vec> B_return(EIDs.n_elem);
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         arma::uvec sub_ind = arma::find(eids == i);
@@ -1879,67 +1886,124 @@ Rcpp::List update_b_i_impute_cpp( const arma::vec EIDs, const arma::vec &par,
 // NEW ADDITIONS ---------------------------------------------------------------
 // *** Using ***
 bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i, 
-                arma::vec s_i) {
+                arma::vec s_i, int states_per_step, int k) {
     
     bool eval_like;
     
-    if(clinic_rule == -1) {
-        // clinic = -1, rbc = 0,1
-        eval_like = true;
-    } else if(clinic_rule == 1) {
-        if(rbc_rule > 0) {
-            // clinic = 1, rbc = 1
-            if(arma::any(s_i == 2)) {
-                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
-                int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
-                arma::uvec sim_bleed_ind = arma::find(s_i == 2);
-                arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                if(first_bleed_ind > 0) {
-                    check_vec(0) = s_i(first_bleed_ind-1);
-                }
-                
-                if(arma::any(sim_bleed_ind <= first_bleed_ind) && 
-                   arma::any(check_vec == 2)) {
-                    eval_like = true;
-                } else {
-                    eval_like = false;
-                }
-            } else {
-                eval_like = false;
-            }
-        } else {
-            // clinic = 1, rbc = 0
-            if(arma::any(s_i == 2)) {
-                eval_like = true;
-            } else {
-                eval_like = false;
-            }
-        }
-    } else {
-        if(rbc_rule > 0) {
-            // clinic = 0, rbc = 1
-            if(arma::any(s_i == 2)) {
-                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
-                int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
-                arma::uvec sim_bleed_ind = arma::find(s_i == 2);
-                arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                if(first_bleed_ind > 0) {
-                    check_vec(0) = s_i(first_bleed_ind-1);
-                }
-                
-                if(arma::any(sim_bleed_ind <= first_bleed_ind) && 
-                   arma::any(check_vec == 2)) {
-                    eval_like = true;
-                } else {
-                    eval_like = false;
-                }
-            } else {
-                eval_like = false;
-            }
-        } else {
-            // clinic = 0, rbc = 0
+    if(states_per_step == -1) {
+        // Full state sequence update ------------------------------------------
+        if(clinic_rule == -1) {
+            // clinic = -1, rbc = 0,1
             eval_like = true;
-        }    
+        } else if(clinic_rule == 1) {
+            if(rbc_rule > 0) {
+                // clinic = 1, rbc = 1
+                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
+                int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
+                arma::vec check_vec = {0, s_i(first_bleed_ind)};
+                if(first_bleed_ind > 0) {
+                    check_vec(0) = s_i(first_bleed_ind-1);
+                }
+                
+                if(arma::any(check_vec == 2)) {
+                    eval_like = true;
+                } else {
+                    eval_like = false;
+                }
+            } else {
+                // clinic = 1, rbc = 0
+                if(arma::any(s_i == 2)) {
+                    eval_like = true;
+                } else { 
+                    eval_like = false;
+                }
+            }
+        } else {
+            if(rbc_rule > 0) {
+                // clinic = 0, rbc = 1
+                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
+                int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
+                arma::vec check_vec = {0, s_i(first_bleed_ind)};
+                if(first_bleed_ind > 0) {
+                    check_vec(0) = s_i(first_bleed_ind-1);
+                }
+                
+                if(arma::any(check_vec == 2)) {
+                    eval_like = true;
+                } else { 
+                    eval_like = false;
+                }
+            } else {
+                // clinic = 0, rbc = 0
+                eval_like = true;
+            }    
+        } 
+    } else {
+        // states_per_step update ----------------------------------------------
+        if(clinic_rule == -1) {
+            // clinic = -1, rbc = 0,1
+            eval_like = true;
+        } else if(clinic_rule == 1) {
+            if(rbc_rule > 0) {
+                // clinic = 1, rbc = 1
+                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
+                double first_bleed_ind = arma::as_scalar(bleed_ind_ind);
+                arma::vec check_vec = {0, s_i(first_bleed_ind)};
+                arma::vec check_vec_ind = {0, first_bleed_ind};
+                if(first_bleed_ind > 0) {
+                    check_vec(0) = s_i(first_bleed_ind-1);
+                    check_vec_ind(0) = first_bleed_ind - 1;
+                }
+                
+                arma::vec k_inds = arma::linspace(k, k + states_per_step - 1, states_per_step);
+                arma::vec bleed_k_int = arma::intersect(k_inds, check_vec_ind);
+                
+                if(bleed_k_int.n_elem > 0) {
+                    if(arma::any(check_vec == 2)) {
+                        eval_like = true;
+                    } else {
+                        eval_like = false;
+                    }
+                } else {
+                    eval_like = true;
+                }
+            } else {
+                // clinic = 1, rbc = 0
+                if(arma::any(s_i == 2)) {
+                    eval_like = true;
+                } else {
+                    eval_like = false;
+                }
+            }
+        } else {
+            if(rbc_rule > 0) {
+                // clinic = 0, rbc = 1
+                arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
+                double first_bleed_ind = arma::as_scalar(bleed_ind_ind);
+                arma::vec check_vec = {0, s_i(first_bleed_ind)};
+                arma::vec check_vec_ind = {0, first_bleed_ind};
+                if(first_bleed_ind > 0) {
+                    check_vec(0) = s_i(first_bleed_ind-1);
+                    check_vec_ind(0) = first_bleed_ind - 1;
+                }
+                
+                arma::vec k_inds = arma::linspace(k, k + states_per_step - 1, states_per_step);
+                arma::vec bleed_k_int = arma::intersect(k_inds, check_vec_ind);
+                
+                if(bleed_k_int.n_elem > 0) {
+                    if(arma::any(check_vec == 2)) {
+                        eval_like = true;
+                    } else {
+                        eval_like = false;
+                    }
+                } else {
+                    eval_like = true;
+                }
+            } else {
+                // clinic = 0, rbc = 0
+                eval_like = true;
+            }    
+        }
     }
     
     return eval_like;
@@ -2107,8 +2171,8 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
     arma::vec eids = Y.col(0);
     arma::vec clinic_rule_vec = Y.col(6);
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2311,9 +2375,10 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
         arma::uvec sub_ind = arma::find(eids == i);
@@ -2363,8 +2428,9 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
                 if(arma::accu(arma::abs(s_i - b_i)) == 0) {
                     b_i = s_i;
                 } else {
-                    // Incorporate RBC_rule & clinic_rule ----------------------
-                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i);
+                    // Local RBC_rule & clinic_rule ----------------------------
+                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i,
+                                                states_per_step, k);
                     
                     if(eval_like) {
                         // Computations for mean of current (b_i) --------------
@@ -2515,8 +2581,8 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2618,15 +2684,16 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
                 if(arma::accu(arma::abs(s_i - b_i)) == 0) {
                     b_i = s_i;
                 } else {
-                    // Incorporate RBC_rule & clinic_rule ----------------------
-                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i);
+                    // Local RBC_rule & clinic_rule ----------------------------
+                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i,
+                                                states_per_step, k);
                     
                     if(eval_like) {
                         if(k >= n_i - states_per_step - 1) {
                             // Gibbs update
                             b_i = s_i;
                         } else {
-                            // Computations for mean of current (b_i) --------------
+                            // Computations for mean of current (b_i) ----------
                             arma::vec ones_b(b_i.n_elem, arma::fill::ones);
                             arma::vec twos_b(b_i.n_elem, arma::fill::zeros);
                             arma::vec threes_b(b_i.n_elem, arma::fill::zeros);
@@ -2775,8 +2842,8 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2873,8 +2940,10 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
                 if(arma::accu(arma::abs(s_i - b_i)) == 0) {
                     b_i = s_i;
                 } else {
-                    // Incorporate RBC_rule & clinic_rule ----------------------
-                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i);
+                    // Local RBC_rule & clinic_rule ----------------------------
+                    bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i,
+                                                states_per_step, k);
+                    
                     if(eval_like) {b_i = s_i;}
                 }
             }
@@ -2955,8 +3024,8 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -3096,7 +3165,7 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
         double diff_check = arma::accu(log(all_like_vals_s)) - arma::accu(log(all_like_vals_b));
         double min_log = log(arma::randu(arma::distr_param(0,1)));
         if(diff_check > min_log){
-            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i);
+            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, -1, -1);
             if(eval_like) {
                 b_i = s_i;   
             }
@@ -3135,17 +3204,16 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
 }
 
 // [[Rcpp::export]]
-void test_fnc() {
+void test_fnc(int states_per_step) {
     
-    arma::vec test = { 9, -1,  1, 0, 0,
-                       85,  5, -5, 0, 0,
-                       75, -5,  5, 0, 0,
-                       5,  1, -1, 0, 0};  
-    arma::mat test_A = arma::reshape(test, 5, 4);
-    Rcpp::Rcout << test << std::endl;
-    Rcpp::Rcout << test_A << std::endl;
-    
-
+    // arma::vec test = { 9, -1,  1, 0, 0,
+    //                    85,  5, -5, 0, 0,
+    //                    75, -5,  5, 0, 0,
+    //                    5,  1, -1, 0, 0};  
+    // arma::mat test_A = arma::reshape(test, 5, 4);
+    // Rcpp::Rcout << test << std::endl;
+    // Rcpp::Rcout << test_A << std::endl;
+    // 
     // arma::vec vec_A_mean = {1.5,  1.5,  1.5,  1.5, -1.0, -1.0, -1.0, -1.0,
     //                         0.1,  0.1,  0.1,  0.1,    0,    0,    0,    0,
     //                         0.1,  0.1,  0.1,  0.1};
@@ -3160,102 +3228,43 @@ void test_fnc() {
     // Rcpp::Rcout << a << std::endl;
     // Rcpp::Rcout << b << std::endl;
     // Rcpp::Rcout << c+1 << std::endl;
-    // 
-    // int clinic_rule = 0;
-    // int rbc_rule = 1;
-    // 
-    // arma::vec s_i = {4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,2,2,2,2,2,2,2,2,2,
-    //                  2,2,2,2,4,4,4,4,5,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    //                  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,
-    //                  3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    //                  2,2,2,2,4,4,4,4,4,4,4,4,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    //                  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
-    //                  3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4};
-    // arma::vec bleed_ind_i = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    //                          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    // 
-    // if((clinic_rule < 0) | (rbc_rule >= 1)) {
-    //     Rcpp::Rcout << "hello worlds " << std::endl;
-    // }
-    // 
-    // 
-    // bool eval_like;
-    // 
-    // // Incorporate RBC_rule & clinic_rule ----------------------
-    // if(clinic_rule == -1) {
-    //     // clinic = -1, rbc = 0,1
-    //     eval_like = true;
-    // } else if(clinic_rule == 1) {
-    //     if(rbc_rule > 0) {
-    //         // clinic = 1, rbc = 1
-    //         if(arma::any(s_i == 2)) {
-    //             arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
-    //             int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
-    //             arma::uvec sim_bleed_ind = arma::find(s_i == 2);
-    //             
-    //             arma::vec check_vec = {0, s_i(first_bleed_ind)};
-    //             if(first_bleed_ind > 0) {
-    //                 check_vec(0) = s_i(first_bleed_ind-1);
-    //             }
-    //             
-    //             if(arma::any(sim_bleed_ind <= first_bleed_ind) && arma::any(check_vec == 2)) {
-    //                 eval_like = true;
-    //             } else {
-    //                 eval_like = false;
-    //             }
-    //         } else {
-    //             eval_like = false;
-    //         }
-    //     } else {
-    //         // clinic = 1, rbc = 0
-    //         if(arma::any(s_i == 2)) {
-    //             eval_like = true;
-    //         } else {
-    //             eval_like = false;
-    //         }
-    //     }
-    // } else {
-    //     if(rbc_rule > 0) {
-    //         Rcpp::Rcout << "here1" << std::endl;
-    //         // clinic = 0, rbc = 1
-    //         if(arma::any(s_i == 2)) {
-    //             Rcpp::Rcout << "here2" << std::endl;
-    //             arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
-    //             int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
-    //             arma::uvec sim_bleed_ind = arma::find(s_i == 2);
-    //             
-    //             arma::vec check_vec = {0, s_i(first_bleed_ind)};
-    //             if(first_bleed_ind > 0) {
-    //                 check_vec(0) = s_i(first_bleed_ind-1);
-    //             }
-    //             
-    //             Rcpp::Rcout << sim_bleed_ind.t() << std::endl;
-    //             Rcpp::Rcout << first_bleed_ind << std::endl;
-    //             Rcpp::Rcout << check_vec << std::endl;
-    //             Rcpp::Rcout << arma::any(sim_bleed_ind <= first_bleed_ind) << std::endl;
-    //             Rcpp::Rcout << arma::any(check_vec == 2) << std::endl;
-    //             
-    //             if(arma::any(sim_bleed_ind <= first_bleed_ind) && arma::any(check_vec == 2)) {
-    //                 Rcpp::Rcout << "here3" << std::endl;
-    //                 eval_like = true;
-    //             } else {
-    //                 eval_like = false;
-    //             }
-    //         } else {
-    //             eval_like = false;
-    //         }
-    //     } else {
-    //         // clinic = 0, rbc = 0
-    //         eval_like = true;
-    //     }    
-    // }
-    // 
-    // Rcpp::Rcout << eval_like << std::endl;
+
+    int clinic_rule = 0;
+    int rbc_rule = 1;
+
+    arma::vec s_i = {4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,2,2,2,2,2,2,2,2,2,
+                     2,2,2,2,4,4,4,4,5,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+                     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,
+                     3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+                     2,2,2,2,4,4,4,4,4,4,4,4,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+                     3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+                     3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4};
+    arma::vec bleed_ind_i = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    arma::uvec bleed_ind_ind = arma::find(bleed_ind_i == 1);
+    double first_bleed_ind = arma::as_scalar(bleed_ind_ind);
+    arma::vec bleed_ind_checks = {0, first_bleed_ind};
+    if(first_bleed_ind > 0) {
+        bleed_ind_checks(0) = first_bleed_ind - 1;
+    }
     
+    for(int k = 0; k < bleed_ind_i.n_elem - states_per_step + 1; k++) {
+        
+        arma::vec k_inds = arma::linspace(k, k + states_per_step - 1, states_per_step);
+        arma::vec bleed_k_int = arma::intersect(k_inds, bleed_ind_checks);
+        
+        bool eval_like;
+        if(bleed_k_int.n_elem > 0) {
+            eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, states_per_step, k);
+        } else {
+            eval_like = true;
+        }    
+    }
 } 

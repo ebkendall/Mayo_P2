@@ -260,8 +260,7 @@ for(i in 1:N){
         if(2 %in% b_i) {
             first_bleed_ind = which(bleed_ind_i == 1)
             sim_bleed_ind = which(b_i == 2)
-            if((sum(sim_bleed_ind <= first_bleed_ind) > 0) & 
-               (2 %in% b_i[c(first_bleed_ind, first_bleed_ind - 1)])) {
+            if(2 %in% b_i[c(first_bleed_ind, first_bleed_ind - 1)]){
                 correct_bleed = T
                 rbc_bleed_correct[length(rbc_bleed_correct)] = 1
             } 
