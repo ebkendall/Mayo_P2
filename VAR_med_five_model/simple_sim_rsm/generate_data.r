@@ -2,10 +2,10 @@ for(seed_num in 1:100) {
     
     print(seed_num)
     set.seed(seed_num)
-    N = 100
+    N = 150
     n_state = 2
     
-    par = c(0, 1, -3, -3)
+    par = c(0, 2, -3, -3)
     par_index = list()
     par_index$mu = 1:2
     par_index$t_p = 3:4

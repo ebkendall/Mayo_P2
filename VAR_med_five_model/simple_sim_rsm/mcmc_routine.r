@@ -11,7 +11,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 7#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 8#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -151,11 +151,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
                     if(ttt %% 480 == 0){
                         accept[j] = 0
 
-                    } else if( accept[j] / (ttt %% 480) < .4 ){
-                        pscale[j] = (.75^2)*pscale[j]
+                    } else if( accept[j] / (ttt %% 480) < .45 ){
+                        pscale[j] = (.5^2)*pscale[j]
 
-                    } else if( accept[j] / (ttt %% 480) > .5 ){
-                        pscale[j] = (1.25^2)*pscale[j]
+                    } else if( accept[j] / (ttt %% 480) > .55 ){
+                        pscale[j] = (1.5^2)*pscale[j]
                     }
                 }
             }

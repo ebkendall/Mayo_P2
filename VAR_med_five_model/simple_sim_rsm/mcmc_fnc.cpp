@@ -288,28 +288,6 @@ arma::mat get_omega_list(const int k, const int n_i, const arma::vec &b_i, int s
     
 }
 
-arma::mat Omega_fun_cpp_new_multi(const int k, const int n_i, const arma::vec &b_i,
-                                  int t_pt_length) {
-    
-    arma::mat Omega_set;
-    
-    // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-    if (k == 1) {
-        // () -> () -> 1-5
-        Omega_set = Omega_List_GLOBAL_multi(0)(b_i(k + t_pt_length - 1) - 1);
-    } else if (k <= n_i - t_pt_length) {
-        // 1-5 -> () -> () -> 1-5
-        Omega_set = Omega_List_GLOBAL_multi(1)(b_i(k - 2) - 1, 
-                                            b_i(k + t_pt_length - 1) - 1);
-    } else if (k == n_i - t_pt_length + 1) {
-        // 1-5 -> () -> ()
-        Omega_set = Omega_List_GLOBAL_multi(2)(b_i(n_i - t_pt_length - 1) - 1);
-    }
-    
-    return Omega_set;
-    
-} 
-
 // -----------------------------------------------------------------------------
 
 double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par, 
@@ -433,7 +411,7 @@ arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
         // Looping through subject state space ---------------------------------
         for (int k = 0; k < n_i - states_per_step + 1; k++) {
 
-            // All possible state transitions given current time point -----
+            // All possible state transitions given current time point ---------
             arma::mat Omega_set = get_omega_list(k, n_i, b_i, states_per_step);
             
             if(Omega_set.n_rows > 1) {
@@ -458,7 +436,7 @@ arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
                             log_like_val = log_like_val + 
                                            log(P_init(ss_jj(kk) - 1)) + 
                                            R::dnorm(y_i(kk), mean_s(kk), 1, true);
-                        } else if(kk <= n_i - states_per_step) {
+                        } else {
                             log_like_val = log_like_val + 
                                            log(P_i(ss_jj(kk-1) - 1, ss_jj(kk) - 1)) + 
                                            R::dnorm(y_i(kk), mean_s(kk), 1, true);
@@ -544,7 +522,7 @@ arma::field<arma::vec> almost_gibbs_up(const arma::vec EIDs, const arma::vec &pa
                             log_like_val = log_like_val + 
                                 log(P_init(ss_jj(kk) - 1)) + 
                                 R::dnorm(y_i(kk), mean_s(kk), 1, true);
-                        } else if(kk <= n_i - states_per_step) {
+                        } else if(kk < n_i) {
                             log_like_val = log_like_val + 
                                 log(P_i(ss_jj(kk-1) - 1, ss_jj(kk) - 1)) + 
                                 R::dnorm(y_i(kk), mean_s(kk), 1, true);
@@ -693,7 +671,7 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
                                 log(P_init(s_i(kk) - 1)) + 
                                 R::dnorm(y_i(kk), mean_s(kk), 1, true);
                             
-                        } else if(kk <= n_i - states_per_step) {
+                        } else {
                             log_like_b = log_like_b + 
                                 log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
                                 R::dnorm(y_i(kk), mean_b(kk), 1, true);
@@ -996,6 +974,3 @@ void test_fnc() {
     Rcpp::Rcout << test2.index_min() << std::endl;
     
 }
-
-
-
