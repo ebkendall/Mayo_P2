@@ -14,7 +14,7 @@ for(states_per_step in 1:3) {
     steps  = 10000
     burnin =  5000
     
-    simulation = T
+    simulation = F
     data_format = NULL
     
     if(simulation) {
@@ -31,7 +31,7 @@ for(states_per_step in 1:3) {
         max_ind = 5
         if(max_ind > 5) burnin = 0
         
-        load('Data_real/data_format.rda')
+        load('Data_real/data_format_train.rda')
         print(paste0('REAL: seed ', seed_num, ' samp ', 
                      sampling_num, ' trial ', trialNum))
     }
@@ -91,9 +91,7 @@ for(states_per_step in 1:3) {
         
         b_chain = data_format[, "b_true"]
     } else {
-        
-        # FILL IN
-        
+        load('Data_real/Dn_omega.rda')
         bleed_indicator = b_ind_fnc(data_format)
     }
     # -----------------------------------------------------------------------------
@@ -114,11 +112,15 @@ for(states_per_step in 1:3) {
     if(max_ind > 5) {
         
     } else {
-        # Initialize at the "Maximum likelihood state sequence"
-        
-        # Initialize at the "true" state sequence
-        for(i in EIDs) {
-            B[[i]] = matrix(b_chain[data_format[,"EID"] == as.numeric(i)], ncol = 1)
+        if(simulation) {
+            # Initialize at the "Maximum likelihood state sequence"
+            
+            # Initialize at the "true" state sequence
+            for(i in EIDs) {
+                B[[i]] = matrix(b_chain[data_format[,"EID"] == as.numeric(i)], ncol = 1)
+            }    
+        } else {
+            B[[i]] = matrix(rep(1, sum(data_format[,"EID"] == as.numeric(i))), ncol = 1)
         }
     }
     # -----------------------------------------------------------------------------

@@ -69,11 +69,28 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Initialize design matrix -------------------------------------------------
     Xn = initialize_X( as.numeric(EIDs), Y, x)
     
-    # Initialize states to MLE state sequences ---------------------------------
-    B_Dn = mle_state_seq(as.numeric(EIDs), par, par_index, A, Y, z, Xn, 
-                         Dn_omega, W, n_cores)
-    B = B_Dn[[1]]; names(B) = EIDs
-    Dn = B_Dn[[2]]; names(Dn) = EIDs
+    # Initialize Y and states --------------------------------------------------
+    if(!simulation) {
+        vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
+        Y_B_Dn_init = initialize_Y(as.numeric(EIDs), par, par_index, A, Y, z, Xn,
+                                   Dn_omega, W, otype, n_cores, vital_means)
+        
+        Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_B_Dn_init[[1]]
+        B = Y_B_Dn_init[[2]]; names(B) = EIDs
+        Dn = Y_B_Dn_init[[3]]; names(Dn) = EIDs
+        
+        for(i in 1:100) {
+            Y = update_Y_i_cpp( as.numeric(EIDs), par, par_index, A, Y, Dn, Xn,
+                                otype, Dn_omega, W, B, n_cores)
+            colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
+                            'RBC_rule', 'clinic_rule')    
+        }    
+    } else {
+        B_Dn = mle_state_seq(as.numeric(EIDs), par, par_index, A, Y, z, Xn, 
+                             Dn_omega, W, n_cores)
+        B = B_Dn[[1]]; names(B) = EIDs
+        Dn = B_Dn[[2]]; names(Dn) = EIDs    
+    }
     
     # Keeping track of the sampled alpha_i -------------------------------------
     A_chain = vector(mode = "list", length = 5)
@@ -437,7 +454,7 @@ var_R_calc <- function(psi, nu, p) {
 
 
 
-# Create function for initializing missing Y
+# # Create function for initializing missing Y
 # if(max_ind == 5) {
 #     file_name = paste0("Data_updates/Y_init", trialNum, "_df", df_num, ".rda")
 #     if(file.exists(file_name)) {
@@ -450,15 +467,15 @@ var_R_calc <- function(psi, nu, p) {
 #             heading_names = c('hemo', 'hr', 'map', 'lactate')
 #             noise_var = c(diag(matrix(par[par_index$vec_R], nrow = 4)))
 #             sub_dat = Y[Y[,"EID"] == i, ]
-    
+# 
 #             for(k in 1:length(heading_names)) {
 #                 if(sum(is.na(sub_dat[,heading_names[k]])) == nrow(sub_dat)) {
-#                     sub_dat[,heading_names[k]] = mean(Y[,heading_names[k]], na.rm =T) + 
+#                     sub_dat[,heading_names[k]] = mean(Y[,heading_names[k]], na.rm =T) +
 #                         rnorm(n = nrow(sub_dat), mean = 0, sd = sqrt(noise_var[k]))
 #                 } else {
 #                     if(sum(!is.na(sub_dat[,heading_names[k]])) == 1) {
 #                         non_na_val = sub_dat[!is.na(sub_dat[,heading_names[k]]), heading_names[k]]
-#                         sub_dat[is.na(sub_dat[,heading_names[k]]), heading_names[k]] = rnorm(n = sum(is.na(sub_dat[,heading_names[k]])), 
+#                         sub_dat[is.na(sub_dat[,heading_names[k]]), heading_names[k]] = rnorm(n = sum(is.na(sub_dat[,heading_names[k]])),
 #                                                                                                 mean = non_na_val,
 #                                                                                                 sd = sqrt(noise_var[k]))
 #                         # sub_dat[,heading_names[k]] = sub_dat[!is.na(sub_dat[,heading_names[k]]), heading_names[k]]
@@ -467,16 +484,16 @@ var_R_calc <- function(psi, nu, p) {
 #                         miss_indices = which(is.na(sub_dat[,heading_names[k]]))
 #                         for(j in miss_indices) {
 #                             if(j < obs_indices[1]) {
-#                                 sub_dat[j,heading_names[k]] = sub_dat[obs_indices[1], heading_names[k]] + 
+#                                 sub_dat[j,heading_names[k]] = sub_dat[obs_indices[1], heading_names[k]] +
 #                                     rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
 #                             } else if(j > tail(obs_indices,1)) {
-#                                 sub_dat[j,heading_names[k]] = sub_dat[tail(obs_indices,1), heading_names[k]] + 
+#                                 sub_dat[j,heading_names[k]] = sub_dat[tail(obs_indices,1), heading_names[k]] +
 #                                     rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
 #                             } else {
 #                                 end_pts = c(max(obs_indices[obs_indices < j]),
 #                                             min(obs_indices[obs_indices > j]))
 #                                 slope = (sub_dat[end_pts[2], heading_names[k]] - sub_dat[end_pts[1], heading_names[k]]) / diff(end_pts)
-#                                 sub_dat[j,heading_names[k]] = slope * (j - end_pts[1]) + sub_dat[end_pts[1], heading_names[k]] + 
+#                                 sub_dat[j,heading_names[k]] = slope * (j - end_pts[1]) + sub_dat[end_pts[1], heading_names[k]] +
 #                                                                         rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
 #                             }
 #                         }
@@ -485,13 +502,13 @@ var_R_calc <- function(psi, nu, p) {
 #                 Y[Y[,"EID"] == i, heading_names[k]] = sub_dat[,heading_names[k]]
 #             }
 #         }
-        
+# 
 #         # Ensure we don't have any negative values
 #         Y[Y[,'hemo']    < 0,'hemo']    = 0.001
 #         Y[Y[,'hr']      < 0,'hr']      = 0.001
 #         Y[Y[,'map']     < 0,'map']     = 0.001
 #         Y[Y[,'lactate'] < 0,'lactate'] = 0.001
-        
+# 
 #         save(Y, file = file_name)
 #         print("Done initializing")
 #     }
@@ -501,21 +518,21 @@ var_R_calc <- function(psi, nu, p) {
 #     prev_file = paste0('Model_out/mcmc_out_interm_', ind, '_', trialNum, 'it', max_ind-5, '_df', df_num, '.rda')
 #     load(prev_file)
 #     # ----------------------------------------------------------------------
-    
+# 
 #     pcov = mcmc_out_temp$pcov
 #     pscale = mcmc_out_temp$pscale
-    
+# 
 #     # Setting initial values for Y
 #     Y[, 'hemo']    = c(mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ])
 #     Y[, 'hr']      = c(mcmc_out_temp$hr_chain[nrow(mcmc_out_temp$hr_chain), ])
 #     Y[, 'map']     = c(mcmc_out_temp$bp_chain[nrow(mcmc_out_temp$bp_chain), ])
 #     Y[, 'lactate'] = c(mcmc_out_temp$la_chain[nrow(mcmc_out_temp$la_chain), ])
-    
+# 
 #     # Ensure we don't have any negative values
 #     Y[Y[,'hemo']    < 0,'hemo']    = 0.001
 #     Y[Y[,'hr']      < 0,'hr']      = 0.001
 #     Y[Y[,'map']     < 0,'map']     = 0.001
 #     Y[Y[,'lactate'] < 0,'lactate'] = 0.001
-    
+# 
 #     rm(mcmc_out_temp)
 # }
