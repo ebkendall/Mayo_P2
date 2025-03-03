@@ -1,8 +1,8 @@
 #include <RcppDist.h>
 // [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
-#include <omp.h>
-// [[Rcpp::plugins(openmp)]]
+// #include <omp.h>
+// // [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadilloExtensions/sample.h>
 
@@ -255,6 +255,7 @@ arma::field<arma::field<arma::mat>> get_Omega_list(const arma::imat &a_mat, int 
 arma::imat adj_mat_GLOBAL;
 int states_per_step_GLOBAL;
 arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi;
+arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi_2;
 arma::vec P_init;
 
 // [[Rcpp::export]]
@@ -262,6 +263,7 @@ void initialize_cpp(arma::imat a_mat, int s_per_s) {
     adj_mat_GLOBAL = a_mat;
     states_per_step_GLOBAL = s_per_s;
     Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, states_per_step_GLOBAL);
+    Omega_List_GLOBAL_multi_2 = get_Omega_list(adj_mat_GLOBAL, 2);
 
     arma::vec init_global_temp(a_mat.n_rows, arma::fill::ones);
     P_init = init_global_temp / arma::accu(init_global_temp);
@@ -300,8 +302,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     arma::vec mu = par.elem(par_index(0) - 1);
     arma::vec zeta = par.elem(par_index(1) - 1);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         double like_comp_transition = 0;
@@ -397,8 +399,8 @@ arma::field<arma::vec> gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec q_row_sums = arma::sum(Q, 1);
     arma::mat P_i = Q.each_col() / q_row_sums;
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -482,8 +484,8 @@ arma::field<arma::vec> almost_gibbs_up(const arma::vec EIDs, const arma::vec &pa
     arma::vec q_row_sums = arma::sum(Q, 1);
     arma::mat P_i = Q.each_col() / q_row_sums;
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -616,8 +618,8 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec q_row_sums = arma::sum(Q, 1);
     arma::mat P_i = Q.each_col() / q_row_sums;
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -628,7 +630,7 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
         arma::vec y_i = y.rows(sub_ind);
     
         // Looping through subject state space ---------------------------------
-        for (int k = 0; k < n_i - states_per_step + 1; k++) {
+        for (int k = 0; k <= n_i - states_per_step; k++) {
         
             // All possible state transitions given current time point -----
             arma::mat Omega_set = get_omega_list(k, n_i, b_i, states_per_step);
@@ -645,7 +647,7 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
                 arma::vec s_i = b_i;
                 s_i.rows(k, k+states_per_step-1) = Omega_set.row(row_ind(0)).t();
                 
-                if(arma::approx_equal(s_i, b_i, "absdiff", 0.001)) {
+                if(arma::accu(arma::abs(s_i - b_i)) == 0) {
                     b_i = s_i;
                 } else {
                     arma::vec ones(b_i.n_elem, arma::fill::ones);
@@ -716,8 +718,8 @@ arma::field<arma::vec> mh_up_all(const arma::vec EIDs, const arma::vec &par,
     arma::vec q_row_sums = arma::sum(Q, 1);
     arma::mat P_i = Q.each_col() / q_row_sums;
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for(int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -788,6 +790,96 @@ arma::field<arma::vec> mh_up_all(const arma::vec EIDs, const arma::vec &par,
     return B_return;
 }
 
+// // [[Rcpp::export]]
+// arma::field<arma::vec> almost_gibbs_fast( const arma::vec EIDs, const arma::vec &par,
+//                                           const arma::field<arma::uvec> &par_index,
+//                                           arma::field <arma::vec> &B,
+//                                           const arma::vec &y, const arma::vec &eids,
+//                                           int n_cores, int states_per_step) {
+//     // par_index KEY: (0) mu, (1) zeta;
+//     // "i" is the numeric EID number; "ii" is the index of the EID
+//     arma::field<arma::vec> B_return(EIDs.n_elem);
+// 
+//     arma::vec mu = par.elem(par_index(0) - 1);
+//     arma::vec zeta = par.elem(par_index(1) - 1);
+// 
+//     arma::vec qz = exp(zeta);
+//     arma::mat Q = { {    1,   qz(0)},
+//                     {qz(1),       1}};
+// 
+//     arma::vec q_row_sums = arma::sum(Q, 1);
+//     arma::mat P_i = Q.each_col() / q_row_sums;
+// 
+//     // omp_set_num_threads(n_cores);
+//     // # pragma omp parallel for
+//     for (int ii = 0; ii < EIDs.n_elem; ii++) {
+//         // Subject-specific information ----------------------------------------
+//         int i = EIDs(ii);
+//         arma::uvec sub_ind = arma::find(eids == i);
+//         int n_i = sub_ind.n_elem;
+// 
+//         arma::vec b_i = B(ii);
+//         arma::vec s_i(n_i, arma::fill::zeros);
+//         arma::vec y_i = y.rows(sub_ind);
+// 
+//         arma::vec all_like_vals_b(n_i, arma::fill::zeros);
+//         arma::vec all_like_vals_s(n_i, arma::fill::zeros);
+// 
+//         // Propose a full state sequence ---------------------------------------
+//         for(int k = 0; k < n_i; k++) {
+//             
+//             for(int l = 0; l <= states_per_step - 2; l++) {
+//                 
+//                 arma::vec like_vals_s(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
+//                 arma::vec like_vals_b(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
+//                 
+//                 for(int m = 0; m < adj_mat_GLOBAL.n_cols; m++) {
+//                     
+//                     // Necessary computations for mean of candidate state seq (s_i)
+//                     arma::vec s_temp = s_i.subvec(0, k+l);
+//                     s_temp(k+l) = m+1;
+//                     arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
+//                     twos_s.elem(arma::find(s_temp == 2)) += 1;
+//                     arma::vec D_s = {1, arma::accu(twos_s)};
+//                     double mean_s = arma::as_scalar(D_s.t() * mu);
+//                     
+//                     // Necessary computations for mean of current state seq (b_i)
+//                     arma::vec b_temp = b_i.subvec(0, k+l);
+//                     arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
+//                     twos_b.elem(arma::find(b_temp == 2)) += 1;
+//                     arma::vec D_b = {1, arma::accu(twos_b)};
+//                     double mean_b = arma::as_scalar(D_b.t() * mu);
+//                     
+//                     if(k+l == 0) {
+//                         like_vals_s(m) = P_init(m) * R::dnorm(y_i(k), mean_s, 1, false);
+//                         like_vals_b(m) = like_vals_s(m);
+//                     } else {
+//                         like_vals_s(m) = P_i(s_i(k-1) - 1, m) * R::dnorm(y_i(k), mean_s, 1, false);
+//                         like_vals_b(m) = P_i(b_i(k-1) - 1, m) * R::dnorm(y_i(k), mean_b, 1, false);
+//                     }
+//                 }
+//                 
+//             }
+// 
+//             // all_like_vals_s(k) = arma::accu(like_vals_s);
+//             // all_like_vals_b(k) = arma::accu(like_vals_b);
+// 
+//             // Determine sampling distribution for s_i -------------------------
+//             arma::vec ss_ind = arma::linspace(0, adj_mat_GLOBAL.n_cols-1,
+//                                               adj_mat_GLOBAL.n_cols);
+// 
+//             double prob_max = like_vals_s.max();
+//             like_vals_s = like_vals_s / prob_max;
+//             arma::vec ss_prob = (1/arma::accu(like_vals_s)) * like_vals_s;
+// 
+//             arma::vec row_ind = RcppArmadillo::sample(ss_ind, 1, false, ss_prob);
+//             s_i(k) = row_ind(0) + 1;
+//         }
+//     }
+// 
+//     return B_return;
+// }
+
 // [[Rcpp::export]]
 arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par, 
                                      const arma::field<arma::uvec> &par_index,
@@ -807,8 +899,8 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     arma::mat P_i = Q.each_col() / q_row_sums;
     
     // Find the MLE state sequence given the current parameters ----------------
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------
@@ -898,8 +990,8 @@ arma::field<arma::vec> viterbi_alg(const arma::vec &EIDs, const arma::vec &par,
     arma::mat P_i = Q.each_col() / q_row_sums;
     
     // Find the MLE state sequence given the current parameters ----------------
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------

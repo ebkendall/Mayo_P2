@@ -3,7 +3,7 @@ library(plotrix)
 
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
-it_num = 3
+it_num = 1
 states_per_step = 1
 steps_per_it = 1
 S = 2
@@ -146,7 +146,7 @@ panel_dim = c(4,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
 for(i in EIDs){
-    print(which(EIDs == i))
+    
     indices_i = (data_format[,'id']==i)
     n_i = sum(indices_i)
 

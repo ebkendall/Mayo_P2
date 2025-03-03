@@ -2,11 +2,11 @@ args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 
 index_seeds = c(1:3)
-it_num = 3
+it_num = 1
 states_per_step = 2
 steps_per_it = 1
 
-true_par = c(0, 2, -3, -3)
+true_par = c(-3, 3, -3, -3)
 par_index = list()
 par_index$mu = 1:2
 par_index$t_p = 3:4
@@ -109,7 +109,7 @@ GR_mult = c(R_hat, R_hat_stable$mpsrf)
 
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('trace_plot_samp', sampling_num, '_', states_per_step, 
+pdf_title = paste0('Plots/trace_plot_samp', sampling_num, '_', states_per_step, 
                    '_', steps_per_it,'.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))

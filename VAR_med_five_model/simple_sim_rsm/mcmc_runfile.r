@@ -1,7 +1,7 @@
-args = commandArgs(TRUE)
-seed_num = as.numeric(args[1])
+# args = commandArgs(TRUE)
+# seed_num = as.numeric(args[1])
 
-# seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
+seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 
 sampling_num = NULL
 pseudo = F
@@ -19,9 +19,13 @@ if(pseudo) {
 }
 
 # Num. states sampled per step, Num. steps per MCMC it -------------------------
-for(states_per_step in 1:2) {
-    # states_per_step = 1
+for(p in 0:2) {
+    states_per_step = p + 1
     steps_per_it = 1
+    
+    if(sampling_num == 4) {
+        steps_per_it = 2*states_per_step - 1
+    } 
     
     set.seed(seed_num)
     ind = seed_num
@@ -37,7 +41,7 @@ for(states_per_step in 1:2) {
     
     # Parameter initialization ----------------------------------------------------
 
-    par = c(0, 2, -3, -3)
+    par = c(-3, 3, -3, -3)
     par_index = list()
     par_index$mu = 1:2
     par_index$t_p = 3:4
@@ -61,7 +65,7 @@ for(states_per_step in 1:2) {
     }
     # -----------------------------------------------------------------------------
     
-    steps  = 30000
+    steps  = 10000
     burnin =  5000
     
     s_time = Sys.time()
@@ -76,8 +80,4 @@ for(states_per_step in 1:2) {
                                 sampling_num, states_per_step, steps_per_it)
     }
     e_time = Sys.time() - s_time; print(e_time)    
-    
-    if(sampling_num == 4) { 
-        break 
-    }
 }

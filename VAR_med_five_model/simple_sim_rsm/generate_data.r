@@ -5,7 +5,7 @@ for(seed_num in 1:100) {
     N = 150
     n_state = 2
     
-    par = c(0, 2, -3, -3)
+    par = c(-3, 3, -3, -3)
     par_index = list()
     par_index$mu = 1:2
     par_index$t_p = 3:4

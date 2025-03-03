@@ -11,7 +11,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 4#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -25,7 +25,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
-    pscale = rep( 0.0001, n_group)
+    pscale = rep(1, n_group)
     
     # Initialize data storage --------------------------------------------------
     chain_length_MASTER = 10000
@@ -161,7 +161,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
             }
             # --------------------------------------------------------------
         }
-        
+
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)
         
