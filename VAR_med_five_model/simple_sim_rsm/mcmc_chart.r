@@ -5,7 +5,7 @@ args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 it_num = 1
 states_per_step = 3
-steps_per_it = 5
+steps_per_it = 1
 S = 2
 
 

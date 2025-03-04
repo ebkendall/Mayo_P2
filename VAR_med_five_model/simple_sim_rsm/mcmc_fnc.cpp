@@ -560,65 +560,63 @@ arma::field<arma::vec> almost_gibbs_up(const arma::vec EIDs, const arma::vec &pa
                 arma::vec row_ind = RcppArmadillo::sample(ss_ind, 1, false, ss_prob);
                 s_i.rows(k, k+states_per_step-1) = Omega_set.row(row_ind(0)).t();
                 
-                if(arma::accu(arma::abs(s_i - b_i)) == 0) {
-                    b_i = s_i;
-                } else {
+                if(arma::accu(arma::abs(s_i - b_i)) != 0) {
                     arma::vec ones(b_i.n_elem, arma::fill::ones);
                     arma::vec twos_b(b_i.n_elem, arma::fill::zeros);
                     arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
-                    
+
                     twos_b.elem(arma::find(b_i == 2)) += 1;
                     twos_s.elem(arma::find(s_i == 2)) += 1;
-                    
+
                     arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos_b));
                     arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
-                    
+
                     arma::vec mean_b = D_b * mu;
                     arma::vec mean_s = D_s * mu;
-                    
+
                     // double log_like_b = 0;
                     // double log_like_s = 0;
-                    
+
                     double log_prob_diff = 0;
                     double log_like_diff = 0;
-                    
+
                     for(int kk = k + states_per_step; kk < n_i; kk++) {
-                        
+
                         if(kk == k + states_per_step) {
-                            log_prob_diff = log_prob_diff + 
-                                log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) - 
+                            log_prob_diff = log_prob_diff +
+                                log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) -
                                 log(P_i(b_i(kk-1) - 1, b_i(kk) - 1));
                         }
-                        
+
                         log_like_diff = log_like_diff +
-                            R::dnorm(y_i(kk), mean_s(kk), 1, true) - 
+                            R::dnorm(y_i(kk), mean_s(kk), 1, true) -
                             R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        
+
                         // if(kk == 0) {
-                        //     log_like_b = log_like_b + 
-                        //         log(P_init(b_i(kk) - 1)) + 
+                        //     log_like_b = log_like_b +
+                        //         log(P_init(b_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        //     
-                        //     log_like_s = log_like_s + 
-                        //         log(P_init(s_i(kk) - 1)) + 
+                        //
+                        //     log_like_s = log_like_s +
+                        //         log(P_init(s_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_s(kk), 1, true);
-                        //     
+                        //
                         // } else if(kk <= n_i - states_per_step) {
-                        //     log_like_b = log_like_b + 
-                        //         log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
+                        //     log_like_b = log_like_b +
+                        //         log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        //     
-                        //     log_like_s = log_like_s + 
-                        //         log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) + 
+                        //
+                        //     log_like_s = log_like_s +
+                        //         log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_s(kk), 1, true);
                         // }
                     }
-                    
+
                     // double diff_check = log_like_s - log_like_b;
                     double diff_check = log_prob_diff + log_like_diff;
                     double min_log = log(arma::randu(arma::distr_param(0,1)));
-                    if(diff_check > min_log){b_i = s_i;}    
-                }
+                    if(diff_check > min_log){b_i = s_i;}
+                } 
             }
         }
         
@@ -676,70 +674,69 @@ arma::field<arma::vec> mh_up(const arma::vec EIDs, const arma::vec &par,
                 arma::vec s_i = b_i;
                 s_i.rows(k, k+states_per_step-1) = Omega_set.row(row_ind(0)).t();
                 
-                if(arma::accu(arma::abs(s_i - b_i)) == 0) {
-                    b_i = s_i;
-                } else {
+                if(arma::accu(arma::abs(s_i - b_i)) != 0) {
+                    
                     arma::vec ones(b_i.n_elem, arma::fill::ones);
                     arma::vec twos_b(b_i.n_elem, arma::fill::zeros);
                     arma::vec twos_s(b_i.n_elem, arma::fill::zeros);
-                    
+
                     twos_b.elem(arma::find(b_i == 2)) += 1;
                     twos_s.elem(arma::find(s_i == 2)) += 1;
-                    
+
                     arma::mat D_b = arma::join_rows(ones, arma::cumsum(twos_b));
                     arma::mat D_s = arma::join_rows(ones, arma::cumsum(twos_s));
-                    
+
                     arma::vec mean_b = D_b * mu;
                     arma::vec mean_s = D_s * mu;
-                    
+
                     // double log_like_b = 0;
                     // double log_like_s = 0;
-                    
+
                     double log_prob_diff = 0;
                     double log_like_diff = 0;
-                        
+
                     for(int kk = k; kk < n_i; kk++) {
                         if(kk <= k + states_per_step) {
                             if(kk == 0) {
-                                log_prob_diff = log_prob_diff + 
-                                    log(P_init(s_i(kk) - 1)) - 
+                                log_prob_diff = log_prob_diff +
+                                    log(P_init(s_i(kk) - 1)) -
                                     log(P_init(b_i(kk) - 1));
                             } else {
-                                log_prob_diff = log_prob_diff + 
-                                    log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) - 
+                                log_prob_diff = log_prob_diff +
+                                    log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) -
                                     log(P_i(b_i(kk-1) - 1, b_i(kk) - 1));
                             }
-                        } 
-                        
+                        }
+
                         log_like_diff = log_like_diff +
-                            R::dnorm(y_i(kk), mean_s(kk), 1, true) - 
+                            R::dnorm(y_i(kk), mean_s(kk), 1, true) -
                             R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        
+
                         // if(kk == 0) {
-                        //     log_like_b = log_like_b + 
-                        //         log(P_init(b_i(kk) - 1)) + 
+                        //     log_like_b = log_like_b +
+                        //         log(P_init(b_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        //     
-                        //     log_like_s = log_like_s + 
-                        //         log(P_init(s_i(kk) - 1)) + 
+                        //
+                        //     log_like_s = log_like_s +
+                        //         log(P_init(s_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_s(kk), 1, true);
-                        //     
+                        //
                         // } else {
-                        //     log_like_b = log_like_b + 
-                        //         log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) + 
+                        //     log_like_b = log_like_b +
+                        //         log(P_i(b_i(kk-1) - 1, b_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_b(kk), 1, true);
-                        //     
-                        //     log_like_s = log_like_s + 
-                        //         log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) + 
+                        //
+                        //     log_like_s = log_like_s +
+                        //         log(P_i(s_i(kk-1) - 1, s_i(kk) - 1)) +
                         //         R::dnorm(y_i(kk), mean_s(kk), 1, true);
                         // }
                     }
-                    
+
                     // double diff_check = log_like_s - log_like_b;
                     double diff_check = log_prob_diff + log_like_diff;
                     double min_log = log(arma::randu(arma::distr_param(0,1)));
-                    if(diff_check > min_log){b_i = s_i;} 
-                }
+                    if(diff_check > min_log){b_i = s_i;}
+                } 
             }
         }
         
@@ -873,10 +870,11 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
         int n_i = sub_ind.n_elem;
 
         arma::vec b_i = B(ii);
-        arma::vec s_i = b_i;
         arma::vec y_i = y.rows(sub_ind);
 
         for(int k = 0; k < n_i - states_per_step + 1; k++) {
+            
+            arma::vec s_i = b_i;
             
             arma::vec all_like_vals_b(states_per_step - 2, arma::fill::zeros);
             arma::vec all_like_vals_s(states_per_step - 2, arma::fill::zeros);
