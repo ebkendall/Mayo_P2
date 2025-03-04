@@ -2,7 +2,7 @@ for(seed_num in 1:100) {
     
     print(seed_num)
     set.seed(seed_num)
-    N = 150
+    N = 500
     n_state = 2
     
     par = c(-3, 3, -3, -3)
@@ -24,7 +24,7 @@ for(seed_num in 1:100) {
     
     data_format = NULL
     for(i in 1:N) {
-        n_i = rpois(n = 1, lambda = 500)
+        n_i = rpois(n = 1, lambda = 100)
         b_i = NULL
         
         for(k in 1:n_i) {

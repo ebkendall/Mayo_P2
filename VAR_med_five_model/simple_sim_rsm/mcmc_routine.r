@@ -11,7 +11,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 4#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 2#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -25,7 +25,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
-    pscale = rep(1, n_group)
+    pscale = rep(0.001, n_group)
     
     # Initialize data storage --------------------------------------------------
     chain_length_MASTER = 10000
@@ -76,6 +76,13 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
             if(sampling_num == 4) {
                 B_Dn = mh_up_all(as.numeric(EIDs), par, par_index, B, y, ids,
                                  n_cores)
+                B = B_Dn
+            }
+            
+            # Almost-Gibbs efficient (b) ---------------------------------------
+            if(sampling_num == 5) {
+                B_Dn = almost_gibbs_fast_b(as.numeric(EIDs), par, par_index, B, y, ids,
+                                           n_cores, states_per_step)
                 B = B_Dn
             }
         }

@@ -25,6 +25,9 @@ for(p in 0:2) {
     
     if(sampling_num == 4) {
         steps_per_it = 2*states_per_step - 1
+        states_per_step = 1
+    } else if(sampling_num == 5) {
+        states_per_step = states_per_step + 2
     } 
     
     set.seed(seed_num)
