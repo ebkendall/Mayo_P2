@@ -1,20 +1,27 @@
 source('mcmc_routine.r')
 
-# Input will be a number 1-12 (three seeds with four sampling routines)
+# Input will be a number 1-15 (three seeds with four sampling routines)
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 sampling_num = floor((seed_num - 1) / 3) + 1
 seed_num = seed_num - 3 * floor((seed_num - 1)/3)
 
-set.seed(seed_num)
-
-for(states_per_step in 1:3) {
+for(p in 2:3) {
+    states_per_step = p + 1
     steps_per_it = 1
     
+    if(sampling_num == 4) {
+        steps_per_it = 2*states_per_step - 1
+        states_per_step = 1
+    } else if(sampling_num == 5) {
+        states_per_step = (10 * p) + 3
+    }
+    
+    set.seed(seed_num)
     steps  = 10000
     burnin =  5000
     
-    simulation = F
+    simulation = T
     data_format = NULL
     
     if(simulation) {
@@ -37,7 +44,7 @@ for(states_per_step in 1:3) {
     }
     
     Y = data_format[, c('EID','hemo', 'hr', 'map', 'lactate', 'RBC_rule', 'clinic_rule')] 
-    EIDs = as.character(unique(data_format[,'EID']))
+    EIDs = unique(data_format[,'EID'])
     
     # Covariate on the mean process
     x = data_format[,c('n_RBC_admin'), drop=F]
@@ -98,10 +105,10 @@ for(states_per_step in 1:3) {
     A = list()
     W = list()
     
-    for(i in EIDs){
+    for(i in 1:length(EIDs)){
         if(simulation) {
-            A[[i]] = alpha_i_mat[[which(EIDs == i)]]
-            W[[i]] = omega_i_mat[[which(EIDs == i)]]
+            A[[i]] = alpha_i_mat[[i]]
+            W[[i]] = omega_i_mat[[i]]
         } else {
             A[[i]] = matrix(par[par_index$vec_alpha_tilde], ncol =1)
             W[[i]] = matrix(par[par_index$omega_tilde], ncol =1)
@@ -112,15 +119,17 @@ for(states_per_step in 1:3) {
     if(max_ind > 5) {
         
     } else {
-        if(simulation) {
-            # Initialize at the "Maximum likelihood state sequence"
+        for(ii in 1:length(EIDs)) {
+            i = EIDs[ii]
             
-            # Initialize at the "true" state sequence
-            for(i in EIDs) {
-                B[[i]] = matrix(b_chain[data_format[,"EID"] == as.numeric(i)], ncol = 1)
-            }    
-        } else {
-            B[[i]] = matrix(rep(1, sum(data_format[,"EID"] == as.numeric(i))), ncol = 1)
+            if(simulation) {
+                # Initialize at the "Maximum likelihood state sequence"
+                
+                # Initialize at the "true" state sequence
+                B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+            } else {
+                B[[ii]] = matrix(rep(1, sum(data_format[,"EID"] == i)), ncol = 1)
+            }
         }
     }
     # -----------------------------------------------------------------------------
@@ -130,8 +139,4 @@ for(states_per_step in 1:3) {
                              trialNum, Dn_omega, simulation, bleed_indicator, 
                              max_ind, df_num, sampling_num, states_per_step, steps_per_it)
     e_time = Sys.time() - s_time; print(e_time) 
-    
-    if(sampling_num == 4) { 
-        break 
-    }
 }

@@ -15,7 +15,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                          trialNum, Dn_omega, simulation, bleed_indicator, max_ind, 
                          df_num, sampling_num, states_per_step, steps_per_it){
     
-    EIDs = as.character(unique(Y[,'EID']))
+    EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
     n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
@@ -41,17 +41,17 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$vec_init),
-               c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
-               c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
-               c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
-               c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
-               c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0
-               c(par_index$vec_A[c(1,5,9,13,17)]),
-               c(par_index$vec_A[c(2,6,10,14,18)]),
-               c(par_index$vec_A[c(3,7,11,15,19)]),
-               c(par_index$vec_A[c(4,8,12,16,20)]),
-               c(par_index$vec_upsilon_omega[c(1:16, 36:57)]),
-               c(par_index$vec_upsilon_omega[c(17:35, 58:88)]),
+               c(par_index$vec_zeta[seq(1,23,by=2)]), # baselines
+               c(par_index$vec_zeta[seq(2,24,by=2)]), # slopes
+               # c(par_index$vec_zeta[c(1,5, 7,11,15,21)]), # baselines (w/    S2)
+               # c(par_index$vec_zeta[c(3,9,13,17,19,23)]), # baselines (w/out S2)
+               # c(par_index$vec_zeta[c(2,12,16,22)]),      # RBC > 0 (to S2)
+               # c(par_index$vec_zeta[c(4,14,18,24)]),      # RBC > 0 (no S2)
+               # c(par_index$vec_zeta[c(6,8,10,20)]),       # RBC < 0
+               c(par_index$vec_A[c(1,4,5,8,9,12,13,16,17,20)]),
+               c(par_index$vec_A[c(2,3,6,7,10,11,14,15,18,19)]),
+               c(par_index$vec_upsilon_omega[c(1:16, 35:56)]),  # continuous
+               c(par_index$vec_upsilon_omega[c(17:34, 57:84)]), # discrete
                c(par_index$vec_R))
 
     n_group = length(mpi)
@@ -67,29 +67,42 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     accept = rep( 0, n_group)
     
     # Initialize design matrix -------------------------------------------------
-    Xn = initialize_X( as.numeric(EIDs), Y, x)
+    Xn = initialize_X(EIDs, Y, x)
     
     # Initialize Y and states --------------------------------------------------
     if(!simulation) {
         vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
-        Y_B_Dn_init = initialize_Y(as.numeric(EIDs), par, par_index, A, Y, z, Xn,
+        Y_B_Dn_init = initialize_Y(EIDs, par, par_index, A, Y, z, Xn,
                                    Dn_omega, W, otype, n_cores, vital_means)
         
         Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_B_Dn_init[[1]]
-        B = Y_B_Dn_init[[2]]; names(B) = EIDs
-        Dn = Y_B_Dn_init[[3]]; names(Dn) = EIDs
+        B = Y_B_Dn_init[[2]]
+        Dn = Y_B_Dn_init[[3]]
         
-        for(i in 1:100) {
-            Y = update_Y_i_cpp( as.numeric(EIDs), par, par_index, A, Y, Dn, Xn,
-                                otype, Dn_omega, W, B, n_cores)
+        impute_its = 250
+        # hemo_init = matrix(nrow = impute_its, ncol = nrow(Y))
+        # hr_init = matrix(nrow = impute_its, ncol = nrow(Y))
+        # map_init = matrix(nrow = impute_its, ncol = nrow(Y))
+        # lact_init = matrix(nrow = impute_its, ncol = nrow(Y))
+        
+        for(i in 1:impute_its) {
+            Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
+                               Dn_omega, W, B, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
-        }    
+            # hemo_init[i,] = Y_temp[,'hemo']
+            # hr_init[i,] = Y_temp[,'hr']
+            # map_init[i,] = Y_temp[,'map']
+            # lact_init[i,] = Y_temp[,'lactate']
+        }
+        # Y[,'hemo'] = colMeans(hemo_init)
+        # Y[,'hr'] = colMeans(hr_init)
+        # Y[,'map'] = colMeans(map_init)
+        # Y[,'lactate'] = colMeans(lact_init)
     } else {
-        B_Dn = mle_state_seq(as.numeric(EIDs), par, par_index, A, Y, z, Xn, 
-                             Dn_omega, W, n_cores)
-        B = B_Dn[[1]]; names(B) = EIDs
-        Dn = B_Dn[[2]]; names(Dn) = EIDs    
+        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
+        B = B_Dn[[1]]
+        Dn = B_Dn[[2]]
     }
     
     # Keeping track of the sampled alpha_i -------------------------------------
@@ -116,8 +129,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
         # Imputing the missing Y values ----------------------------------------
         if(!simulation) {
-            Y = update_Y_i_cpp( as.numeric(EIDs), par, par_index, A, Y, Dn, Xn,
-                                otype, Dn_omega, W, B, n_cores)
+            Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
+                               Dn_omega, W, B, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')
         }
@@ -126,198 +139,201 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         for(s in 1:steps_per_it) {
             # Random sample update ---------------------------------------------
             if(sampling_num == 1) {
-                B_Dn = mh_up(as.numeric(EIDs), par, par_index, A, B, Y, 
-                             z, Xn, Dn_omega, W, bleed_indicator, 
-                             n_cores, states_per_step);
-                B = B_Dn[[1]]; names(B) = EIDs
-                Dn = B_Dn[[2]]; names(Dn) = EIDs
+                B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
+                             bleed_indicator, n_cores, states_per_step)
+                B = B_Dn[[1]]
+                Dn = B_Dn[[2]]
             }
             
             # Almost-Gibbs update ----------------------------------------------
             else if(sampling_num == 2) {
-                B_Dn = almost_gibbs_up(as.numeric(EIDs), par, par_index, A, B, Y, 
-                                       z, Xn, Dn_omega, W, bleed_indicator, 
-                                       n_cores, states_per_step);
-                B = B_Dn[[1]]; names(B) = EIDs
-                Dn = B_Dn[[2]]; names(Dn) = EIDs
+                B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
+                                       Dn_omega, W, bleed_indicator, n_cores, 
+                                       states_per_step)
+                B = B_Dn[[1]]
+                Dn = B_Dn[[2]]
             } 
             
             # Gibbs update -----------------------------------------------------
             else if(sampling_num == 3) {
-                B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, A, B, Y, z, Xn, 
-                                Dn_omega, W, bleed_indicator, n_cores, states_per_step);
-                B = B_Dn[[1]]; names(B) = EIDs
-                Dn = B_Dn[[2]]; names(Dn) = EIDs
+                B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+                                W, bleed_indicator, n_cores, states_per_step)
+                B = B_Dn[[1]]
+                Dn = B_Dn[[2]]
             }
             
             # Full seq MH update -----------------------------------------------
             else if(sampling_num == 4) {
-                B_Dn = mh_up_all(as.numeric(EIDs), par, par_index, A, B, Y, z, Xn, 
-                                 Dn_omega, W, bleed_indicator, n_cores);
-                B = B_Dn[[1]]; names(B) = EIDs
-                Dn = B_Dn[[2]]; names(Dn) = EIDs
+                B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+                                 W, bleed_indicator, n_cores)
+                B = B_Dn[[1]]
+                Dn = B_Dn[[2]]
+            }
+            
+            # Almost-Gibbs efficient (b) ---------------------------------------
+            else if(sampling_num == 5) {
+                B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
+                                           Dn_omega, W, bleed_indicator,n_cores,
+                                           states_per_step)
+                B = B_Dn[[1]] 
+                Dn = B_Dn[[2]]
             }
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
-        # # Gibbs: alpha_i -------------------------------------------------------
-        # A = update_alpha_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-        #                         Dn_omega, W, B, n_cores)
-        # names(A) = EIDs
-        # 
-        # for(aaa in 1:length(a_chain_id)) {
-        #     A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
-        # }
-        # 
-        # # Gibbs: omega_i -------------------------------------------------------
-        # W = update_omega_i_cpp( as.numeric(EIDs), par, par_index, Y, Dn, Xn,
-        #                         Dn_omega, A, B, n_cores)
-        # names(W) = EIDs
-        # 
-        # # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
-        # par = update_alpha_tilde_cpp( as.numeric(EIDs), par, par_index, A, Y)
-        # par = update_omega_tilde_cpp( as.numeric(EIDs), par, par_index, W, Y)
-        # par = update_beta_upsilon_cpp( as.numeric(EIDs), par, par_index, A, Y,
-        #                                  Dn, Xn, Dn_omega, W, B, n_cores)
+        # Gibbs: alpha_i -------------------------------------------------------
+        A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
+
+        for(aaa in 1:length(a_chain_id)) {
+            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
+        }
+
+        # Gibbs: omega_i -------------------------------------------------------
+        W = update_omega_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, A, B, n_cores)
+
+        # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
+        par = update_alpha_tilde_cpp(EIDs, par, par_index, A, Y)
+        par = update_omega_tilde_cpp(EIDs, par, par_index, W, Y)
+        par = update_beta_upsilon_cpp(EIDs, par, par_index, A, Y, Dn, Xn, 
+                                      Dn_omega, W, B, n_cores)
 
         # Store current parameter updates --------------------------------------
         chain[chain_ind,] = par
         
-        # # Evaluate log-likelihood before MH step -------------------------------
-        # log_target_prev = log_post_cpp( as.numeric(EIDs), par, par_index, A, B,
-        #                                 Y, z, Dn, Xn, Dn_omega, W, n_cores)
-        # 
-        # if(!is.finite(log_target_prev)){
-        #     print("Infinite log-posterior; Gibbs update went wrong")
-        #     print(paste0("value: ", log_target_prev))
-        #     break
-        # }
-        # 
-        # # Metropolis-Hastings updates ------------------------------------------
-        # for(j in 1:n_group) {
-        # 
-        #     ind_j = mpi[[j]]
-        #     proposal = par
-        # 
-        #     # MH update: A, zeta, init -----------------------------------------
-        #     if(sum(ind_j %in% par_index$vec_R) == 0) {
-        #         proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                    sigma=pscale[[j]]*pcov[[j]])
-        # 
-        #         # Evaluate proposed log-likelihood -----------------------------
-        #         log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index,
-        #                                    A, B, Y, z, Dn, Xn, Dn_omega, W, n_cores)
-        # 
-        #         if(ttt < burnin){
-        #             while(!is.finite(log_target)){
-        #                 print('bad proposal')
-        #                 proposal = par
-        #                 proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-        #                                            sigma=pcov[[j]]*pscale[j])
-        # 
-        #                 log_target = log_post_cpp( as.numeric(EIDs), proposal,
-        #                                            par_index, A, B, Y, z, Dn,
-        #                                            Xn, Dn_omega, W, n_cores)
-        #             }
-        #         }
-        # 
-        #         if(!is.finite(log_target) | is.nan(log_target)) {
-        #             # Ensuring that we do not have problems from C++
-        #             print(paste0("bad proposal post burnin: ", log_target))
-        #             log_target = -Inf
-        #         }
-        # 
-        #         # Compute Metropolis ratio -------------------------------------
-        #         if( log_target - log_target_prev > log(runif(1,0,1)) ){
-        #             log_target_prev = log_target
-        #             par[ind_j] = proposal[ind_j]
-        #             accept[j] = accept[j] +1
-        #         }
-        # 
-        #         chain[chain_ind,ind_j] = par[ind_j]
-        # 
-        #         # Proposal tuning scheme ---------------------------------------
-        #         # During the burnin period, update the proposal covariance in each step
-        #         # to capture the relationships within the parameters vectors for each
-        #         # transition.  This helps with mixing.
-        #         if(ttt < burnin){
-        #             if(ttt == 100)  pscale[j] = 1
-        #             
-        #             if(100 <= ttt & ttt <= 2000){
-        #                 temp_chain = chain[1:ttt,ind_j]
-        #                 pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-        #                 
-        #             } else if(2000 < ttt){
-        #                 temp_chain = chain[(ttt-2000):ttt,ind_j]
-        #                 pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-        #             }
-        #             if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
-        #             
-        #             # Tune the proposal covariance for each transition to achieve
-        #             # reasonable acceptance ratios.
-        #             if(ttt %% 30 == 0){
-        #                 if(ttt %% 480 == 0){
-        #                     accept[j] = 0
-        #                     
-        #                 } else if( accept[j] / (ttt %% 480) < .4 ){ 
-        #                     pscale[j] = (.75^2)*pscale[j]
-        #                     
-        #                 } else if( accept[j] / (ttt %% 480) > .5 ){ 
-        #                     pscale[j] = (1.25^2)*pscale[j]
-        #                 }
-        #             }
-        #         }
-        #         # --------------------------------------------------------------
-        # 
-        #     } else {
-        #         # MH update: R -------------------------------------------------
-        #         # Prior for R 
-        #         nu_R = 1000
-        #         psi_R = diag(c(9, 9, 9, 9))
-        #         psi_R = (nu_R - 4 - 1) * psi_R
-        #         
-        #         # Proposal df and scale matrix
-        #         psi_nu_q = proposal_R_cpp_new(nu_R, psi_R, Y, Dn, Xn,
-        #                                       A, par, par_index, as.numeric(EIDs),
-        #                                       B, Dn_omega, W)
-        #         psi_q = psi_nu_q[[1]]
-        #         nu_q = psi_nu_q[[2]]
-        #         
-        #         # Current
-        #         curr_R = matrix(par[ind_j], nrow = 4)
-        #         log_q_curr = dinvwishart(Sigma = curr_R, nu = nu_q, S = psi_q, log = T)
-        #         
-        #         # Proposal
-        #         proposal[ind_j] = c(rinvwishart(nu = nu_q, S = psi_q))
-        #         prop_R = matrix(proposal[ind_j], nrow = 4)
-        #         log_q_prop = dinvwishart(Sigma = prop_R, nu = nu_q, S = psi_q, log = T)
-        #         
-        #         log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index,
-        #                                    A, B, Y, z, Dn, Xn, Dn_omega, W, n_cores)
-        #         
-        #         if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) | 
-        #            is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
-        #             print("Current R")
-        #             print(curr_R)
-        #             print("Prop R")
-        #             print(prop_R)
-        #             print(paste0("log_target: ", log_target))
-        #             print(paste0("log_q_curr: ", log_q_curr))
-        #             print(paste0("log_target_prev: ", log_target_prev))
-        #             print(paste0("log_q_prop: ", log_q_prop))
-        #             print(log_target + log_q_curr - log_target_prev - log_q_prop)
-        #         }
-        #         
-        #         # Compute Metropolis ratio 
-        #         if( log_target + log_q_curr - log_target_prev - log_q_prop > log(runif(1,0,1)) ){
-        #             log_target_prev = log_target
-        #             par[ind_j] = proposal[ind_j]
-        #             accept[j] = accept[j] +1
-        #         }
-        #         
-        #         chain[chain_ind,ind_j] = par[ind_j]
-        #     }
-        # }
+        # Evaluate log-likelihood before MH step -------------------------------
+        log_target_prev = log_post_cpp(EIDs, par, par_index, A, B, Y, z, Dn, Xn,
+                                       Dn_omega, W, n_cores)
+
+        if(!is.finite(log_target_prev)){
+            print("Infinite log-posterior; Gibbs update went wrong")
+            print(paste0("value: ", log_target_prev))
+            break
+        }
+
+        # Metropolis-Hastings updates ------------------------------------------
+        for(j in 1:n_group) {
+
+            ind_j = mpi[[j]]
+            proposal = par
+
+            # MH update: A, zeta, init -----------------------------------------
+            if(sum(ind_j %in% par_index$vec_R) == 0) {
+                proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                           sigma=pscale[[j]]*pcov[[j]])
+
+                # Evaluate proposed log-likelihood -----------------------------
+                log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Y, z,
+                                          Dn, Xn, Dn_omega, W, n_cores)
+
+                if(ttt < burnin){
+                    while(!is.finite(log_target)){
+                        print('bad proposal')
+                        proposal = par
+                        proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                                   sigma=pcov[[j]]*pscale[j])
+
+                        log_target = log_post_cpp(EIDs, proposal, par_index, A, 
+                                                  B, Y, z, Dn, Xn, Dn_omega, W, 
+                                                  n_cores)
+                    }
+                }
+
+                if(!is.finite(log_target) | is.nan(log_target)) {
+                    # Ensuring that we do not have problems from C++
+                    print(paste0("bad proposal post burnin: ", log_target))
+                    log_target = -Inf
+                }
+
+                # Compute Metropolis ratio -------------------------------------
+                if( log_target - log_target_prev > log(runif(1,0,1)) ){
+                    log_target_prev = log_target
+                    par[ind_j] = proposal[ind_j]
+                    accept[j] = accept[j] +1
+                }
+
+                chain[chain_ind,ind_j] = par[ind_j]
+
+                # Proposal tuning scheme ---------------------------------------
+                # During the burnin period, update the proposal covariance in each step
+                # to capture the relationships within the parameters vectors for each
+                # transition.  This helps with mixing.
+                if(ttt < burnin){
+                    if(ttt == 100)  pscale[j] = 1
+
+                    if(100 <= ttt & ttt <= 2000){
+                        temp_chain = chain[1:ttt,ind_j]
+                        pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+
+                    } else if(2000 < ttt){
+                        temp_chain = chain[(ttt-2000):ttt,ind_j]
+                        pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                    }
+                    if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
+
+                    # Tune the proposal covariance for each transition to achieve
+                    # reasonable acceptance ratios.
+                    if(ttt %% 30 == 0){
+                        if(ttt %% 480 == 0){
+                            accept[j] = 0
+
+                        } else if( accept[j] / (ttt %% 480) < .4 ){
+                            pscale[j] = (.75^2)*pscale[j]
+
+                        } else if( accept[j] / (ttt %% 480) > .5 ){
+                            pscale[j] = (1.25^2)*pscale[j]
+                        }
+                    }
+                }
+                # --------------------------------------------------------------
+
+            } else {
+                # MH update: R -------------------------------------------------
+                # Prior for R
+                nu_R = 1000
+                psi_R = diag(c(9, 9, 9, 9))
+                psi_R = (nu_R - 4 - 1) * psi_R
+
+                # Proposal df and scale matrix
+                psi_nu_q = proposal_R_cpp_new(nu_R, psi_R, Y, Dn, Xn, A, par, 
+                                              par_index, EIDs, B, Dn_omega, W)
+                psi_q = psi_nu_q[[1]]
+                nu_q = psi_nu_q[[2]]
+
+                # Current
+                curr_R = matrix(par[ind_j], nrow = 4)
+                log_q_curr = dinvwishart(Sigma = curr_R, nu = nu_q, S = psi_q, log = T)
+
+                # Proposal
+                proposal[ind_j] = c(rinvwishart(nu = nu_q, S = psi_q))
+                prop_R = matrix(proposal[ind_j], nrow = 4)
+                log_q_prop = dinvwishart(Sigma = prop_R, nu = nu_q, S = psi_q, log = T)
+
+                log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Y, z,
+                                          Dn, Xn, Dn_omega, W, n_cores)
+
+                if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) |
+                   is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
+                    print("Current R")
+                    print(curr_R)
+                    print("Prop R")
+                    print(prop_R)
+                    print(paste0("log_target: ", log_target))
+                    print(paste0("log_q_curr: ", log_q_curr))
+                    print(paste0("log_target_prev: ", log_target_prev))
+                    print(paste0("log_q_prop: ", log_q_prop))
+                    print(log_target + log_q_curr - log_target_prev - log_q_prop)
+                }
+
+                # Compute Metropolis ratio
+                if( log_target + log_q_curr - log_target_prev - log_q_prop > log(runif(1,0,1)) ){
+                    log_target_prev = log_target
+                    par[ind_j] = proposal[ind_j]
+                    accept[j] = accept[j] +1
+                }
+
+                chain[chain_ind,ind_j] = par[ind_j]
+            }
+        }
 
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)
@@ -330,7 +346,6 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         # ----------------------------------------------------------------------
 
         if(ttt%%1==0)  cat('--->',ttt,'\n')
-        # if(ttt%%1==0) print(log_target_prev)
         if(ttt%%100==0) print(accept)
         
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
@@ -451,88 +466,3 @@ var_R_calc <- function(psi, nu, p) {
     }
     return(var_mat)
 }
-
-
-
-# # Create function for initializing missing Y
-# if(max_ind == 5) {
-#     file_name = paste0("Data_updates/Y_init", trialNum, "_df", df_num, ".rda")
-#     if(file.exists(file_name)) {
-#         load(file_name)
-#     } else {
-#         # Setting initial values for Y
-#         print("Initializing the missing Y's for imputation")
-#         for(i in EIDs) {
-#             print(which(EIDs == i))
-#             heading_names = c('hemo', 'hr', 'map', 'lactate')
-#             noise_var = c(diag(matrix(par[par_index$vec_R], nrow = 4)))
-#             sub_dat = Y[Y[,"EID"] == i, ]
-# 
-#             for(k in 1:length(heading_names)) {
-#                 if(sum(is.na(sub_dat[,heading_names[k]])) == nrow(sub_dat)) {
-#                     sub_dat[,heading_names[k]] = mean(Y[,heading_names[k]], na.rm =T) +
-#                         rnorm(n = nrow(sub_dat), mean = 0, sd = sqrt(noise_var[k]))
-#                 } else {
-#                     if(sum(!is.na(sub_dat[,heading_names[k]])) == 1) {
-#                         non_na_val = sub_dat[!is.na(sub_dat[,heading_names[k]]), heading_names[k]]
-#                         sub_dat[is.na(sub_dat[,heading_names[k]]), heading_names[k]] = rnorm(n = sum(is.na(sub_dat[,heading_names[k]])),
-#                                                                                                 mean = non_na_val,
-#                                                                                                 sd = sqrt(noise_var[k]))
-#                         # sub_dat[,heading_names[k]] = sub_dat[!is.na(sub_dat[,heading_names[k]]), heading_names[k]]
-#                     } else {
-#                         obs_indices = which(!is.na(sub_dat[,heading_names[k]]))
-#                         miss_indices = which(is.na(sub_dat[,heading_names[k]]))
-#                         for(j in miss_indices) {
-#                             if(j < obs_indices[1]) {
-#                                 sub_dat[j,heading_names[k]] = sub_dat[obs_indices[1], heading_names[k]] +
-#                                     rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
-#                             } else if(j > tail(obs_indices,1)) {
-#                                 sub_dat[j,heading_names[k]] = sub_dat[tail(obs_indices,1), heading_names[k]] +
-#                                     rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
-#                             } else {
-#                                 end_pts = c(max(obs_indices[obs_indices < j]),
-#                                             min(obs_indices[obs_indices > j]))
-#                                 slope = (sub_dat[end_pts[2], heading_names[k]] - sub_dat[end_pts[1], heading_names[k]]) / diff(end_pts)
-#                                 sub_dat[j,heading_names[k]] = slope * (j - end_pts[1]) + sub_dat[end_pts[1], heading_names[k]] +
-#                                                                         rnorm(n = 1, mean = 0, sd = sqrt(noise_var[k]))
-#                             }
-#                         }
-#                     }
-#                 }
-#                 Y[Y[,"EID"] == i, heading_names[k]] = sub_dat[,heading_names[k]]
-#             }
-#         }
-# 
-#         # Ensure we don't have any negative values
-#         Y[Y[,'hemo']    < 0,'hemo']    = 0.001
-#         Y[Y[,'hr']      < 0,'hr']      = 0.001
-#         Y[Y[,'map']     < 0,'map']     = 0.001
-#         Y[Y[,'lactate'] < 0,'lactate'] = 0.001
-# 
-#         save(Y, file = file_name)
-#         print("Done initializing")
-#     }
-# } else {
-#     print("continue from last iteration")
-#     # ----------------------------------------------------------------------
-#     prev_file = paste0('Model_out/mcmc_out_interm_', ind, '_', trialNum, 'it', max_ind-5, '_df', df_num, '.rda')
-#     load(prev_file)
-#     # ----------------------------------------------------------------------
-# 
-#     pcov = mcmc_out_temp$pcov
-#     pscale = mcmc_out_temp$pscale
-# 
-#     # Setting initial values for Y
-#     Y[, 'hemo']    = c(mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ])
-#     Y[, 'hr']      = c(mcmc_out_temp$hr_chain[nrow(mcmc_out_temp$hr_chain), ])
-#     Y[, 'map']     = c(mcmc_out_temp$bp_chain[nrow(mcmc_out_temp$bp_chain), ])
-#     Y[, 'lactate'] = c(mcmc_out_temp$la_chain[nrow(mcmc_out_temp$la_chain), ])
-# 
-#     # Ensure we don't have any negative values
-#     Y[Y[,'hemo']    < 0,'hemo']    = 0.001
-#     Y[Y[,'hr']      < 0,'hr']      = 0.001
-#     Y[Y[,'map']     < 0,'map']     = 0.001
-#     Y[Y[,'lactate'] < 0,'lactate'] = 0.001
-# 
-#     rm(mcmc_out_temp)
-# }

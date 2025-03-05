@@ -11,7 +11,7 @@ one_chart = as.numeric(args[2])
 it_num = 1
 it_seq = 1:it_num
 
-states_per_step = 1
+states_per_step = 2
 steps_per_it = 1
 S = 5
 
@@ -54,8 +54,10 @@ for(s in 1:length(seed_list)) {
     
     seed_num = seed_list[s]
     for(it in it_seq) {
+        
         file_name = paste0('Model_out/mcmc_out_', seed_num,'_', trialNum,
-                           'it', it, '_samp', sampling_num, '_sim.rda')
+                           'it', it, '_samp', sampling_num, '_', states_per_step,
+                           '_', steps_per_it,'_sim.rda')
         load(file_name)
         print(file_name)
         
