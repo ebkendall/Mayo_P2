@@ -257,21 +257,22 @@ arma::imat adj_mat_sub_GLOBAL;
 
 arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi;
 arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub_multi;
-arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_multi_2;
-arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub_multi_2;
 
 int states_per_step_GLOBAL;
 
 // [[Rcpp::export]]
-void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s) {
+void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s, int sampling_num) {
     adj_mat_GLOBAL = a_mat;
     adj_mat_sub_GLOBAL = a_mat_sub;
     states_per_step_GLOBAL = s_per_s;
     
-    Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, states_per_step_GLOBAL);
-    Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub_GLOBAL, states_per_step_GLOBAL);
-    Omega_List_GLOBAL_multi_2 = get_Omega_list(adj_mat_GLOBAL, 2);
-    Omega_List_GLOBAL_sub_multi_2 = get_Omega_list(adj_mat_sub_GLOBAL, 2);
+    if(sampling_num == 5) {
+        Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, 2);    
+        Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub_GLOBAL, 2);
+    } else {
+        Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, states_per_step_GLOBAL);    
+        Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub_GLOBAL, states_per_step_GLOBAL);
+    }
 }
 
 arma::mat Omega_fun_cpp_new(const int k, const int n_i, const arma::vec &b_i,
@@ -351,61 +352,31 @@ arma::mat get_omega_list(const int k, const int n_i, const arma::vec &b_i,
     
     arma::mat Omega_set;
     
-    if(states_per_step == 2) {
-        if(sub) {
-            // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-            if (k == 0) {
-                // () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_sub_multi_2(0)(b_i(k + states_per_step) - 1);
-            } else if (k == n_i - states_per_step) {
-                // 1-5 -> () -> ()
-                Omega_set = Omega_List_GLOBAL_sub_multi_2(2)(b_i(n_i - states_per_step - 1) - 1);
-            } else {
-                // 1-5 -> () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_sub_multi_2(1)(b_i(k - 1) - 1,
-                                                        b_i(k + states_per_step) - 1);
-            }
+    if(sub) {
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 0) {
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub_multi(0)(b_i(k + states_per_step) - 1);
+        } else if (k == n_i - states_per_step) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL_sub_multi(2)(b_i(n_i - states_per_step - 1) - 1);
         } else {
-            // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-            if (k == 0) {
-                // () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_multi_2(0)(b_i(k + states_per_step) - 1);
-            } else if (k == n_i - states_per_step) {
-                // 1-5 -> () -> ()
-                Omega_set = Omega_List_GLOBAL_multi_2(2)(b_i(n_i - states_per_step - 1) - 1);
-            } else {
-                // 1-5 -> () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_multi_2(1)(b_i(k - 1) - 1,
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_sub_multi(1)(b_i(k - 1) - 1,
                                                     b_i(k + states_per_step) - 1);
-            }
         }
     } else {
-        if(sub) {
-            // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-            if (k == 0) {
-                // () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_sub_multi(0)(b_i(k + states_per_step) - 1);
-            } else if (k == n_i - states_per_step) {
-                // 1-5 -> () -> ()
-                Omega_set = Omega_List_GLOBAL_sub_multi(2)(b_i(n_i - states_per_step - 1) - 1);
-            } else {
-                // 1-5 -> () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_sub_multi(1)(b_i(k - 1) - 1,
-                                                        b_i(k + states_per_step) - 1);
-            }
+        // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
+        if (k == 0) {
+            // () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_multi(0)(b_i(k + states_per_step) - 1);
+        } else if (k == n_i - states_per_step) {
+            // 1-5 -> () -> ()
+            Omega_set = Omega_List_GLOBAL_multi(2)(b_i(n_i - states_per_step - 1) - 1);
         } else {
-            // b(k) is either 1, 2, 3, 4, 5 therefore subtract 1 for the index
-            if (k == 0) {
-                // () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_multi(0)(b_i(k + states_per_step) - 1);
-            } else if (k == n_i - states_per_step) {
-                // 1-5 -> () -> ()
-                Omega_set = Omega_List_GLOBAL_multi(2)(b_i(n_i - states_per_step - 1) - 1);
-            } else {
-                // 1-5 -> () -> () -> 1-5
-                Omega_set = Omega_List_GLOBAL_multi(1)(b_i(k - 1) - 1,
-                                                    b_i(k + states_per_step) - 1);
-            }
+            // 1-5 -> () -> () -> 1-5
+            Omega_set = Omega_List_GLOBAL_multi(1)(b_i(k - 1) - 1,
+                                                b_i(k + states_per_step) - 1);
         }
     }
     
