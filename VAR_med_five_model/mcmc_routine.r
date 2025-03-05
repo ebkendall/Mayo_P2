@@ -18,7 +18,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 5#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
