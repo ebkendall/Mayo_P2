@@ -1,8 +1,8 @@
 #include <RcppDist.h>
 // [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
-#include <omp.h>
-// [[Rcpp::plugins(openmp)]]
+// #include <omp.h>
+// // [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadilloExtensions/sample.h>
 
@@ -557,8 +557,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, arma::vec t_pts, const arma::vec
   
   arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -698,8 +698,8 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
     
     arma::field<arma::vec> A(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -822,8 +822,8 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
     
     arma::field<arma::vec> W(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -1073,8 +1073,8 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
     arma::field<arma::mat> inv_W_list(EIDs.n_elem);
     arma::field<arma::mat> in_Up_list(EIDs.n_elem);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         
@@ -1209,8 +1209,8 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
     arma::mat newY(Y.n_rows, 4); 
     arma::vec eids = Y.col(0);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {	
         
         int i = EIDs(ii);
@@ -1409,8 +1409,8 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
 
 // *** Using ***
 // [[Rcpp::export]]
-Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R,const arma::mat &Y, 
-                              arma::field<arma::field<arma::mat>> &Dn, 
+Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
+                              const arma::mat &Y, arma::field<arma::field<arma::mat>> &Dn, 
                               const arma::field<arma::field<arma::mat>> &Xn, 
                               const arma::field <arma::vec> A, const arma::vec par, 
                               const arma::field<arma::uvec> par_index, 
@@ -1426,6 +1426,8 @@ Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R,const arma::
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
     arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
     arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    
+    arma::mat curr_R_sqrt = arma::sqrtmat_sympd(curr_R);
     // -------------------------------------------------------------------------
     
     arma::vec eids = Y.col(0);
@@ -1455,7 +1457,30 @@ Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R,const arma::
             arma::mat A_k = arma::diagmat(vec_A_k);
             
             if(k == 0) {
-                psi_q = psi_q + y_diff_k * y_diff_k.t();
+                arma::mat Gamma = {{curr_R(0,0) / (1 - vec_A_k(0) * vec_A_k(0)), 
+                                    curr_R(0,1) / (1 - vec_A_k(0) * vec_A_k(1)), 
+                                    curr_R(0,2) / (1 - vec_A_k(0) * vec_A_k(2)), 
+                                    curr_R(0,3) / (1 - vec_A_k(0) * vec_A_k(3))},
+                                   {curr_R(1,0) / (1 - vec_A_k(1) * vec_A_k(0)), 
+                                    curr_R(1,1) / (1 - vec_A_k(1) * vec_A_k(1)), 
+                                    curr_R(1,2) / (1 - vec_A_k(1) * vec_A_k(2)), 
+                                    curr_R(1,3) / (1 - vec_A_k(1) * vec_A_k(3))},
+                                   {curr_R(2,0) / (1 - vec_A_k(2) * vec_A_k(0)), 
+                                    curr_R(2,1) / (1 - vec_A_k(2) * vec_A_k(1)), 
+                                    curr_R(2,2) / (1 - vec_A_k(2) * vec_A_k(2)), 
+                                    curr_R(2,3) / (1 - vec_A_k(2) * vec_A_k(3))},
+                                   {curr_R(3,0) / (1 - vec_A_k(3) * vec_A_k(0)), 
+                                    curr_R(3,1) / (1 - vec_A_k(3) * vec_A_k(1)), 
+                                    curr_R(3,2) / (1 - vec_A_k(3) * vec_A_k(2)), 
+                                    curr_R(3,3) / (1 - vec_A_k(3) * vec_A_k(3))}};
+                
+                arma::mat inv_Gamma = arma::inv_sympd(Gamma);
+                arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_Gamma);
+                
+                arma::vec y_diff_temp = curr_R_sqrt * inv_gamma_sqrt * y_diff_k;
+                
+                psi_q = psi_q + y_diff_temp * y_diff_temp.t();
+
             } else {
                 arma::vec nu_k_1 = Dn_i(k-1) * vec_alpha_i + 
                                    Dn_omega_i(k-1) * vec_omega_i + 
@@ -1864,8 +1889,8 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
     arma::vec eids = Y.col(0);
     arma::vec clinic_rule_vec = Y.col(6);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2070,8 +2095,8 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------
@@ -2284,8 +2309,8 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2551,8 +2576,8 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2736,8 +2761,8 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -2949,8 +2974,8 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
     arma::vec rbc_rule_vec = Y.col(5);
     arma::vec clinic_rule_vec = Y.col(6);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // Subject-specific information ----------------------------------------
         int i = EIDs(ii);
@@ -3272,8 +3297,8 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
     arma::vec eids = Y.col(0);
     arma::vec clinic_rule_vec = Y.col(6);
     
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
@@ -3746,8 +3771,8 @@ Rcpp::List update_b_i_impute_cpp( const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::vec> B_return(EIDs.n_elem);
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
 
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
+    // omp_set_num_threads(n_cores);
+    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         int i = EIDs(ii);
         arma::uvec sub_ind = arma::find(eids == i);

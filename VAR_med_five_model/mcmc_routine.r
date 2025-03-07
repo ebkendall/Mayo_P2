@@ -283,26 +283,41 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
             } else {
                 # MH update: R -------------------------------------------------
+                curr_R = matrix(par[ind_j], nrow = 4)
+                
                 # Prior for R
                 nu_R = 1000
                 psi_R = diag(c(9, 9, 9, 9))
                 psi_R = (nu_R - 4 - 1) * psi_R
 
-                # Proposal df and scale matrix
-                psi_nu_q = proposal_R_cpp_new(nu_R, psi_R, Y, Dn, Xn, A, par, 
-                                              par_index, EIDs, B, Dn_omega, W)
-                psi_q = psi_nu_q[[1]]
-                nu_q = psi_nu_q[[2]]
-
-                # Current
-                curr_R = matrix(par[ind_j], nrow = 4)
-                log_q_curr = dinvwishart(Sigma = curr_R, nu = nu_q, S = psi_q, log = T)
-
                 # Proposal
-                proposal[ind_j] = c(rinvwishart(nu = nu_q, S = psi_q))
+                psi_nu_q_star = proposal_R_cpp_new(nu_R, psi_R, curr_R, Y, Dn, 
+                                                   Xn, A, par, par_index, EIDs, 
+                                                   B, Dn_omega, W)
+                psi_q_star = psi_nu_q_star[[1]]
+                nu_q_star = psi_nu_q_star[[2]]
+                
+                proposal[ind_j] = c(rinvwishart(nu = nu_q_star, S = psi_q_star))
                 prop_R = matrix(proposal[ind_j], nrow = 4)
-                log_q_prop = dinvwishart(Sigma = prop_R, nu = nu_q, S = psi_q, log = T)
-
+                
+                # Current
+                psi_nu_q_curr = proposal_R_cpp_new(nu_R, psi_R, prop_R, Y, Dn, 
+                                                   Xn, A, par, par_index, EIDs, 
+                                                   B, Dn_omega, W)
+                psi_q_curr = psi_nu_q_curr[[1]]
+                nu_q_curr = psi_nu_q_curr[[2]]
+                
+                # q(R* | R)
+                log_q_prop = dinvwishart(Sigma = prop_R, 
+                                         nu = nu_q_star, 
+                                         S = psi_q_star, log = T)
+                
+                # q(R | R*)
+                log_q_curr = dinvwishart(Sigma = curr_R, 
+                                         nu = nu_q_curr, 
+                                         S = psi_q_curr, log = T)
+                
+                # Log-posterior at proposal
                 log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Y, z,
                                           Dn, Xn, Dn_omega, W, n_cores)
 

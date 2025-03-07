@@ -1,20 +1,22 @@
 dir = 'Model_out/'
 
-trialNum = 6
-sampNum = 1
-itNum = 3
+args = commandArgs(TRUE)
+sampling_num = as.numeric(args[1])
+
+trialNum = 1
+itNum = 1
 index_seeds = c(1:3)
+states_per_step = 3
+steps_per_it = 1
 long_chain = T
 
-data_num = 5
-load(paste0('Data_sim/true_pars_', data_num, '.rda'))
-true_par = true_pars
+load('Data_sim/true_pars.rda')
 
 # Size of posterior sample from mcmc chains
 steps = 1001
 
-load('Data_sim/Dn_omega_names1.rda')
-load('Data_sim/hr_map_names1.rda')
+load('../Data_cleaning/Data/Dn_omega_names.rda')
+load('../Data_cleaning/Data/hr_map_names.rda')
 
 labels = c("beta (n_RBC_admin): hemo", "beta (n_RBC_admin): hr", 
            "beta (n_RBC_admin): map", "beta (n_RBC_admin): lact",
@@ -39,8 +41,8 @@ labels = c("beta (n_RBC_admin): hemo", "beta (n_RBC_admin): hr",
            "intercept: S4 --> S5", "RBC_order: S4 --> S5",  "intercept: S5 --> S1", "RBC_order: S5 --> S1",
            "intercept: S5 --> S2", "RBC_order: S5 --> S2",  "intercept: S5 --> S4", "RBC_order: S5 --> S4",
            "logit Pr(init S2)", "logit Pr(init S3)","logit Pr(init S4)", "logit Pr(init S5)",
-           paste0("mean (hr): ", Dn_omega_names[1:35]), paste0("mean (map): ", Dn_omega_names[36:88]), 
-           paste0("log Upsilon (hr): ", Dn_omega_names[1:35]), paste0("log Upsilon (map): ", Dn_omega_names[36:88])) 
+           paste0("mean (hr): ", Dn_omega_names[1:34]), paste0("mean (map): ", Dn_omega_names[35:84]), 
+           paste0("log Upsilon (hr): ", Dn_omega_names[1:34]), paste0("log Upsilon (map): ", Dn_omega_names[35:84])) 
 additional_labels = c("Gamma(1,1) stable", "Gamma(2,2) stable", "Gamma(3,3) stable", "Gamma(4,4) stable",
                       "Gamma(1,1) bleed", "Gamma(2,2) bleed", "Gamma(3,3) bleed", "Gamma(4,4) bleed",
                       "Gamma(1,1) recov", "Gamma(2,2) recov", "Gamma(3,3) recov", "Gamma(4,4) recov",
@@ -69,8 +71,9 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         
-        file_name = paste0(dir,'mcmc_out_',toString(seed),'_', trialNum,'it', 
-                           it, '_samp', sampNum, '_sim.rda') 
+        file_name = paste0(dir,'mcmc_out_', seed, '_', trialNum, 'it', 
+                           it, '_samp', sampling_num, '_', states_per_step,
+                           '_', steps_per_it,'_sim.rda') 
         
         load(file_name)
         print(paste0(ind, ": ", file_name))
@@ -122,9 +125,8 @@ for(i in 1:nrow(stacked_chains)) {
     gamma_chain[i, ] = diag_gamma
 }
 
-pdf_title = paste0('Plots/trace_plot_', trialNum, '_it', itNum, '_samp', sampNum, '_sim.pdf')
-
-pdf(pdf_title)
+pdf(paste0('Plots/trace_', trialNum, '_samp', sampling_num, '_',
+           states_per_step, '_', steps_per_it, '.pdf'))
 par(mfrow=c(3, 2))
 lab_ind = 0
 for(s in names(par_index)){
@@ -160,59 +162,59 @@ for(s in names(par_index)){
         
         x_label = paste0('Mean =',toString(parMean),
                          ' Median =',toString(parMedian),
-                         ' True =', round(true_par[r], 3))
+                         ' True =', round(true_pars[r], 3))
         
         hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, main=NA, freq=FALSE,
               xlab=x_label)
         abline( v=upper, col='red', lwd=2, lty=2)
         abline( v=lower, col='purple', lwd=2, lty=2)
-        abline( v=true_par[r], col='green', lwd=2, lty=2)
+        abline( v=true_pars[r], col='green', lwd=2, lty=2)
     }   
 }
-
-if(long_chain) {
-    chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / (itNum*steps))
-} else {
-    chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / steps)   
-}
-for(i in 1:length(chain_list_gamma)) {
-    if(long_chain) {
-        max_ind = i * (itNum*steps)
-        chain_list_gamma[[i]] = gamma_chain[(max_ind - (itNum*steps - 1)):max_ind, ]
-    } else {
-        max_ind = i * steps   
-        chain_list_gamma[[i]] = gamma_chain[(max_ind - (steps - 1)):max_ind, ]
-    }
-}
-
-for(rr in 1:ncol(gamma_chain)){
-    
-    lab_ind = rr
-    parMean = round( mean(gamma_chain[,rr]), 4)
-    parMedian = round( median(gamma_chain[,rr]), 4)
-    upper = quantile( gamma_chain[,rr], prob=.975)
-    lower = quantile( gamma_chain[,rr], prob=.025)
-    
-    y_limit = range(gamma_chain[,rr])
-    
-    plot( NULL, ylab=NA, main=additional_labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
-          ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
-                                      ", ", round(upper, 4), "]"))
-    
-    for(seed in 1:length(chain_list_gamma)) {
-        lines( chain_list_gamma[[seed]][,rr], type='l', col=seed)
-        # abline(h = chain_list_gamma[[seed]][1,rr], col=seed)
-    }
-    
-    x_label = paste0('Mean =',toString(parMean),' Median =',toString(parMedian))
-    
-    hist( gamma_chain[,rr], breaks=sqrt(nrow(gamma_chain)), ylab=NA, main=NA, freq=FALSE,
-          xlab=x_label)
-    abline( v=upper, col='red', lwd=2, lty=2)
-    abline( v=lower, col='purple', lwd=2, lty=2)
-    abline( v=true_gamma[rr], col='green', lwd=2, lty=2)
-}
-
+# 
+# if(long_chain) {
+#     chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / (itNum*steps))
+# } else {
+#     chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / steps)   
+# }
+# for(i in 1:length(chain_list_gamma)) {
+#     if(long_chain) {
+#         max_ind = i * (itNum*steps)
+#         chain_list_gamma[[i]] = gamma_chain[(max_ind - (itNum*steps - 1)):max_ind, ]
+#     } else {
+#         max_ind = i * steps   
+#         chain_list_gamma[[i]] = gamma_chain[(max_ind - (steps - 1)):max_ind, ]
+#     }
+# }
+# 
+# for(rr in 1:ncol(gamma_chain)){
+#     
+#     lab_ind = rr
+#     parMean = round( mean(gamma_chain[,rr]), 4)
+#     parMedian = round( median(gamma_chain[,rr]), 4)
+#     upper = quantile( gamma_chain[,rr], prob=.975)
+#     lower = quantile( gamma_chain[,rr], prob=.025)
+#     
+#     y_limit = range(gamma_chain[,rr])
+#     
+#     plot( NULL, ylab=NA, main=additional_labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
+#           ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
+#                                       ", ", round(upper, 4), "]"))
+#     
+#     for(seed in 1:length(chain_list_gamma)) {
+#         lines( chain_list_gamma[[seed]][,rr], type='l', col=seed)
+#         # abline(h = chain_list_gamma[[seed]][1,rr], col=seed)
+#     }
+#     
+#     x_label = paste0('Mean =',toString(parMean),' Median =',toString(parMedian))
+#     
+#     hist( gamma_chain[,rr], breaks=sqrt(nrow(gamma_chain)), ylab=NA, main=NA, freq=FALSE,
+#           xlab=x_label)
+#     abline( v=upper, col='red', lwd=2, lty=2)
+#     abline( v=lower, col='purple', lwd=2, lty=2)
+#     abline( v=true_gamma[rr], col='green', lwd=2, lty=2)
+# }
+# 
 # # Plotting the sampled alpha_i
 # a_chain_id = c(3, 86, 163, 237, 427, 521, 632, 646, 692, 713)
 # hist_a_chain_list = vector(mode = 'list', length = length(a_chain_id))
