@@ -261,7 +261,8 @@ arma::field<arma::field<arma::mat>> Omega_List_GLOBAL_sub_multi;
 int states_per_step_GLOBAL;
 
 // [[Rcpp::export]]
-void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s, int sampling_num) {
+void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s, 
+                    int sampling_num) {
     adj_mat_GLOBAL = a_mat;
     adj_mat_sub_GLOBAL = a_mat_sub;
     states_per_step_GLOBAL = s_per_s;
@@ -1665,7 +1666,7 @@ arma::vec log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i,
                      arma::mat X_beta, arma::vec D_alpha, arma::mat D_omega, 
                      arma::mat X_beta_1, arma::vec D_alpha_1, arma::mat D_omega_1,
                      arma::vec vec_beta, arma::mat A_all_state, arma::mat R, 
-                     arma::mat zeta, arma::vec P_init) {
+                     arma::mat zeta, arma::vec P_init, bool log_l) {
     // par_index KEY: (0) beta, (1) alpha_tilde, (2) sigma_upsilon, (3) vec_A, (4) R, (5) zeta,
     //                (6) init, (7) omega_tilde, (8) vec_upsilon_omega
     // "i" is the numeric EID number
@@ -1691,10 +1692,15 @@ arma::vec log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i,
                            {R(3,0) / (1 - vec_A(3) * vec_A(0)), R(3,1) / (1 - vec_A(3) * vec_A(1)), 
                             R(3,2) / (1 - vec_A(3) * vec_A(2)), R(3,3) / (1 - vec_A(3) * vec_A(3))}};
         
-        arma::vec log_y_pdf = dmvnorm(y_i_k.t(), nu_k, Gamma, true);
-        
-        log_like_i_k(0) = log(P_init(b_i_k - 1));
-        log_like_i_k(1) = arma::as_scalar(log_y_pdf);
+        if(log_l) {
+            arma::vec log_y_pdf = dmvnorm(y_i_k.t(), nu_k, Gamma, true);
+            log_like_i_k(0) = log(P_init(b_i_k - 1));
+            log_like_i_k(1) = arma::as_scalar(log_y_pdf);    
+        } else {
+            arma::vec log_y_pdf = dmvnorm(y_i_k.t(), nu_k, Gamma, false);
+            log_like_i_k(0) = P_init(b_i_k - 1);
+            log_like_i_k(1) = arma::as_scalar(log_y_pdf); 
+        }
         
     } else {
         // State space component
@@ -1744,10 +1750,15 @@ arma::vec log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i,
         
         arma::vec mean_k = nu_k + A_1 * (y_i_k_1 - nu_k_1);
         
-        arma::vec log_y_pdf = dmvnorm(y_i_k.t(), mean_k, R, true);
-        
-        log_like_i_k(0) = log(P_i(b_i_k_1 - 1, b_i_k - 1));
-        log_like_i_k(1) = arma::as_scalar(log_y_pdf);
+        if(log_l) {
+            arma::vec log_y_pdf = dmvnorm(y_i_k.t(), mean_k, R, true);
+            log_like_i_k(0) = log(P_i(b_i_k_1 - 1, b_i_k - 1));
+            log_like_i_k(1) = arma::as_scalar(log_y_pdf);    
+        } else {
+            arma::vec log_y_pdf = dmvnorm(y_i_k.t(), mean_k, R, false);
+            log_like_i_k(0) = P_i(b_i_k_1 - 1, b_i_k - 1);
+            log_like_i_k(1) = arma::as_scalar(log_y_pdf);
+        }
     }
     
     return log_like_i_k;
@@ -1919,7 +1930,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
         }
 
         for(int k = 0; k < n_i; k++) {
-
+            
             // Shared information across k ------------
             arma::mat X_beta = X_i(k);
             arma::mat X_beta_1(X_beta.n_rows, X_beta.n_cols, arma::fill::zeros);
@@ -1952,7 +1963,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                                                          omega_i, X_beta, D_alpha,
                                                          D_omega, X_beta_1, D_alpha_1,
                                                          D_omega_1, vec_beta, A_all_state,
-                                                         R, zeta, P_init);
+                                                         R, zeta, P_init, true);
 
                     init_vals(jj) = arma::accu(log_like_temp);
                 }
@@ -2009,7 +2020,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                                                               omega_i, X_beta, D_alpha,
                                                               D_omega, X_beta_1, D_alpha_1,
                                                               D_omega_1, vec_beta, A_all_state,
-                                                              R, zeta, P_init);
+                                                              R, zeta, P_init, true);
                         poss_state_like(w_ind) = arma::accu(log_like_temp2);
                         
                         w_ind += 1;
@@ -2210,12 +2221,12 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
                                                                    D_omega_1, vec_beta, A_all_state,
-                                                                   R, zeta, P_init);
+                                                                   R, zeta, P_init, true);
                             arma::vec log_like_s_temp = log_like_i(kk, y_i, z_i, s_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
                                                                    D_omega_1, vec_beta, A_all_state,
-                                                                   R, zeta, P_init);
+                                                                   R, zeta, P_init, true);
 
                             if(kk <= k + states_per_step) {
                                 log_prob_diff = log_prob_diff + 
@@ -2390,7 +2401,7 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
                                                              omega_i, X_beta, D_alpha_k, 
                                                              D_omega, X_beta_1, D_alpha_k_1,
                                                              D_omega_1, vec_beta, A_all_state,
-                                                             R, zeta, P_init);
+                                                             R, zeta, P_init, true);
                         
                         log_like_val = log_like_val + arma::accu(log_like_temp);
                     }
@@ -2476,12 +2487,12 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
                                                                    D_omega_1, vec_beta, A_all_state,
-                                                                   R, zeta, P_init);
+                                                                   R, zeta, P_init, true);
                             arma::vec log_like_s_temp = log_like_i(kk, y_i, z_i, s_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
                                                                    D_omega_1, vec_beta, A_all_state,
-                                                                   R, zeta, P_init);
+                                                                   R, zeta, P_init, true);
                             
                             if(kk == k + states_per_step) {
                                 log_prob_diff = log_prob_diff +
@@ -2657,7 +2668,7 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
                                                              omega_i, X_beta, D_alpha_k, 
                                                              D_omega, X_beta_1, D_alpha_k_1,
                                                              D_omega_1, vec_beta, A_all_state,
-                                                             R, zeta, P_init);
+                                                             R, zeta, P_init, true);
                         
                         log_like_val = log_like_val + arma::accu(log_like_temp);
                     }
@@ -2865,12 +2876,12 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
                                                        omega_i, X_beta, D_alpha_s_k, 
                                                        D_omega, X_beta_1, D_alpha_s_k_1,
                                                        D_omega_1, vec_beta, A_all_state,
-                                                       R, zeta, P_init);
+                                                       R, zeta, P_init, true);
                 arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i, 
                                                        omega_i, X_beta, D_alpha_b_k, 
                                                        D_omega, X_beta_1, D_alpha_b_k_1,
                                                        D_omega_1, vec_beta, A_all_state,
-                                                       R, zeta, P_init);
+                                                       R, zeta, P_init, true);
                 
                 like_vals_s(m) = arma::accu(log_like_s_temp);
                 like_vals_b(m) = arma::accu(log_like_b_temp);
@@ -2881,6 +2892,13 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
             
             // Determine sampling distribution for s_i -------------------------
             arma::vec ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
+            
+            if(clinic_rule < 0) {
+                // Remove state 2 as a possibility
+                like_vals_s = {like_vals_s(0), like_vals_s(2), 
+                               like_vals_s(3), like_vals_s(4)};
+                ss_ind = {ss_ind(0), ss_ind(2), ss_ind(3), ss_ind(4)};
+            }
             
             double prob_log_max = like_vals_s.max();
             like_vals_s = like_vals_s - prob_log_max;
@@ -3087,12 +3105,12 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                                                            omega_i, X_beta, D_alpha_s_k,
                                                            D_omega, X_beta_1, D_alpha_s_k_1,
                                                            D_omega_1, vec_beta, A_all_state,
-                                                           R, zeta, P_init);
+                                                           R, zeta, P_init, true);
                     arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i,
                                                            omega_i, X_beta, D_alpha_b_k,
                                                            D_omega, X_beta_1, D_alpha_b_k_1,
                                                            D_omega_1, vec_beta, A_all_state,
-                                                           R, zeta, P_init);
+                                                           R, zeta, P_init, true);
 
                     like_vals_s(m) = arma::accu(log_like_s_temp);
                     like_vals_b(m) = arma::accu(log_like_b_temp);
@@ -3104,6 +3122,13 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                 // Determine sampling distribution for s_i ---------------------
                 arma::vec ss_ind = arma::linspace(0, adj_mat_i.n_cols-1,
                                                   adj_mat_i.n_cols);
+                
+                if(clinic_rule < 0) {
+                    // Remove state 2 as a possibility
+                    like_vals_s = {like_vals_s(0), like_vals_s(2), 
+                                   like_vals_s(3), like_vals_s(4)};
+                    ss_ind = {ss_ind(0), ss_ind(2), ss_ind(3), ss_ind(4)};
+                }
                 
                 double prob_log_max = like_vals_s.max();
                 like_vals_s = like_vals_s - prob_log_max;
@@ -3193,12 +3218,12 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                                                                omega_i, X_beta, D_alpha_b_k,
                                                                D_omega, X_beta_1, D_alpha_b_k_1,
                                                                D_omega_1, vec_beta, A_all_state,
-                                                               R, zeta, P_init);
+                                                               R, zeta, P_init, true);
                         arma::vec log_like_s_temp = log_like_i(t, y_i, z_i, s_i, alpha_i,
                                                                omega_i, X_beta, D_alpha_s_k,
                                                                D_omega, X_beta_1, D_alpha_s_k_1,
                                                                D_omega_1, vec_beta, A_all_state,
-                                                               R, zeta, P_init);
+                                                               R, zeta, P_init, true);
                         if(t < k + states_per_step + 1) {
                             log_prob_diff = log_prob_diff +
                                 log_like_s_temp(0) - log_like_b_temp(0);

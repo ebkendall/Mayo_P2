@@ -16,6 +16,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                          df_num, sampling_num, states_per_step, steps_per_it){
     
     EIDs = as.numeric(unique(Y[,'EID']))
+    b_true = do.call('c', B)
     
     # Number of cores over which to parallelize --------------------------------
     n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
@@ -159,19 +160,29 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             
             # Full seq MH update -----------------------------------------------
             else if(sampling_num == 4) {
+                b_curr = do.call('c', B)
+                print(paste0("before ", mean(b_true == b_curr)))
                 B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
                                  W, bleed_indicator, n_cores)
                 B = B_Dn[[1]]
                 Dn = B_Dn[[2]]
+                
+                b_curr = do.call('c', B)
+                print(paste0("after ", mean(b_true == b_curr)))
             }
             
             # Almost-Gibbs efficient (b) ---------------------------------------
             else if(sampling_num == 5) {
+                b_curr = do.call('c', B)
+                print(paste0("before ", mean(b_true == b_curr)))
                 B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
                                            Dn_omega, W, bleed_indicator,n_cores,
                                            states_per_step)
                 B = B_Dn[[1]] 
                 Dn = B_Dn[[2]]
+                
+                b_curr = do.call('c', B)
+                print(paste0("after ", mean(b_true == b_curr)))
             }
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
