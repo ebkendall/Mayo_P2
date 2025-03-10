@@ -567,6 +567,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, arma::vec t_pts, const arma::vec
                                   Y, z, Dn(ii), Xn(ii), Dn_omega(ii), W(ii));
     }
     
+    Rcpp::Rcout << in_vals << std::endl;
+    
     double in_value = arma::accu(in_vals);
     
     return in_value;

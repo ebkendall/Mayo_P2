@@ -173,16 +173,14 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             
             # Almost-Gibbs efficient (b) ---------------------------------------
             else if(sampling_num == 5) {
-                b_curr = do.call('c', B)
-                print(paste0("before ", mean(b_true == b_curr)))
                 B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
                                            Dn_omega, W, bleed_indicator,n_cores,
                                            states_per_step)
                 B = B_Dn[[1]] 
                 Dn = B_Dn[[2]]
                 
-                b_curr = do.call('c', B)
-                print(paste0("after ", mean(b_true == b_curr)))
+                print(B[[12]])
+                print(B[[13]])
             }
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
