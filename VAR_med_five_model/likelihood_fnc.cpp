@@ -567,8 +567,6 @@ double log_f_i_cpp_total(const arma::vec &EIDs, arma::vec t_pts, const arma::vec
                                   Y, z, Dn(ii), Xn(ii), Dn_omega(ii), W(ii));
     }
     
-    Rcpp::Rcout << in_vals << std::endl;
-    
     double in_value = arma::accu(in_vals);
     
     return in_value;
@@ -2800,11 +2798,11 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
         arma::vec bleed_ind_i = bleed_indicator.elem(sub_ind);
         
         arma::imat adj_mat_i;
-        if(clinic_rule >= 0) {
-            adj_mat_i = adj_mat_GLOBAL;
-        } else {
+        if(clinic_rule < 0) {
             adj_mat_i = adj_mat_sub_GLOBAL;
-        } 
+        } else {
+            adj_mat_i = adj_mat_GLOBAL;
+        }
         
         arma::vec all_like_vals_b(n_i, arma::fill::zeros);
         arma::vec all_like_vals_s(n_i, arma::fill::zeros);
@@ -2812,96 +2810,180 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
         // Propose a full state sequence ---------------------------------------
         for (int k = 0; k < n_i; k++) {
             
-            arma::vec like_vals_s(adj_mat_i.n_cols, arma::fill::zeros);
-            arma::vec like_vals_b(adj_mat_i.n_cols, arma::fill::zeros);
+            arma::vec ss_ind;
             
-            for(int m = 0; m < adj_mat_i.n_cols; m++) {
+            arma::vec like_vals_s;
+            arma::vec like_vals_b;
+            
+            if(k == 0) {
+                like_vals_s.zeros(adj_mat_i.n_cols);
+                like_vals_b.zeros(adj_mat_i.n_cols);
                 
-                // Computations for mean of candidate (s_i) ------------
-                arma::vec s_temp = s_i.subvec(0, k);
-                s_temp(k) = m+1;
-                arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
-                arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
-                arma::vec fours_s(s_temp.n_elem, arma::fill::zeros);
-                arma::vec fives_s(s_temp.n_elem, arma::fill::zeros);
-                
-                twos_s.elem(arma::find(s_temp == 2)) += 1;
-                threes_s.elem(arma::find(s_temp == 3)) += 1;
-                fours_s.elem(arma::find(s_temp == 4)) += 1;
-                fives_s.elem(arma::find(s_temp == 5)) += 1;
-                
-                // Computations for mean of current (b_i) --------------
-                arma::vec b_temp = b_i.subvec(0, k);
-                b_temp(k) = m+1;
-                arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
-                arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
-                arma::vec fours_b(b_temp.n_elem, arma::fill::zeros);
-                arma::vec fives_b(b_temp.n_elem, arma::fill::zeros);
-                
-                twos_b.elem(arma::find(b_temp == 2)) += 1;
-                threes_b.elem(arma::find(b_temp == 3)) += 1;
-                fours_b.elem(arma::find(b_temp == 4)) += 1;
-                fives_b.elem(arma::find(b_temp == 5)) += 1;
-                
-                arma::vec D_alpha_s_k = {1, arma::accu(twos_s), arma::accu(threes_s),
-                                         arma::accu(fours_s), arma::accu(fives_s)};
-                arma::vec D_alpha_s_k_1(D_alpha_s_k.n_elem, arma::fill::zeros);
-                
-                arma::vec D_alpha_b_k = {1, arma::accu(twos_b), arma::accu(threes_b),
-                                         arma::accu(fours_b), arma::accu(fives_b)};
-                arma::vec D_alpha_b_k_1(D_alpha_b_k.n_elem, arma::fill::zeros);
-                
-                arma::mat X_beta = X_i(k);
-                arma::mat X_beta_1(X_beta.n_rows, X_beta.n_cols, arma::fill::zeros);
-                arma::mat D_omega = D_omega_i(k);
-                arma::mat D_omega_1(D_omega.n_rows, D_omega.n_cols, arma::fill::zeros);
-                
-                if(k > 0) {
-                    D_alpha_s_k_1 = {1,  arma::accu(twos_s.subvec(0,k-1)), 
-                                         arma::accu(threes_s.subvec(0,k-1)),
-                                         arma::accu(fours_s.subvec(0,k-1)), 
-                                         arma::accu(fives_s.subvec(0,k-1))};
-                    D_alpha_b_k_1 = {1,  arma::accu(twos_b.subvec(0,k-1)), 
-                                         arma::accu(threes_b.subvec(0,k-1)),
-                                         arma::accu(fours_b.subvec(0,k-1)), 
-                                         arma::accu(fives_b.subvec(0,k-1))};
-                    X_beta_1 = X_i(k-1);
-                    D_omega_1 = D_omega_i(k-1);
+                for(int m = 0; m < adj_mat_i.n_cols; m++) {
+
+                    // Computations for mean of candidate (s_i) ------------
+                    arma::vec s_temp = s_i.subvec(0, k);
+                    s_temp(k) = m+1;
+                    arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_s(s_temp.n_elem, arma::fill::zeros);
+
+                    twos_s.elem(arma::find(s_temp == 2)) += 1;
+                    threes_s.elem(arma::find(s_temp == 3)) += 1;
+                    fours_s.elem(arma::find(s_temp == 4)) += 1;
+                    fives_s.elem(arma::find(s_temp == 5)) += 1;
+
+                    // Computations for mean of current (b_i) --------------
+                    arma::vec b_temp = b_i.subvec(0, k);
+                    b_temp(k) = m+1;
+                    arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_b(b_temp.n_elem, arma::fill::zeros);
+
+                    twos_b.elem(arma::find(b_temp == 2)) += 1;
+                    threes_b.elem(arma::find(b_temp == 3)) += 1;
+                    fours_b.elem(arma::find(b_temp == 4)) += 1;
+                    fives_b.elem(arma::find(b_temp == 5)) += 1;
+
+                    arma::vec D_alpha_s_k = {1, arma::accu(twos_s), arma::accu(threes_s),
+                                             arma::accu(fours_s), arma::accu(fives_s)};
+                    arma::vec D_alpha_s_k_1(D_alpha_s_k.n_elem, arma::fill::zeros);
+
+                    arma::vec D_alpha_b_k = {1, arma::accu(twos_b), arma::accu(threes_b),
+                                             arma::accu(fours_b), arma::accu(fives_b)};
+                    arma::vec D_alpha_b_k_1(D_alpha_b_k.n_elem, arma::fill::zeros);
+
+                    arma::mat X_beta = X_i(k);
+                    arma::mat X_beta_1(X_beta.n_rows, X_beta.n_cols, arma::fill::zeros);
+                    arma::mat D_omega = D_omega_i(k);
+                    arma::mat D_omega_1(D_omega.n_rows, D_omega.n_cols, arma::fill::zeros);
+
+                    arma::vec s_i_curr = s_i;
+                    arma::vec b_i_curr = b_i;
+                    s_i_curr(k) = m+1;
+                    b_i_curr(k) = m+1;
+
+                    arma::vec log_like_s_temp = log_like_i(k, y_i, z_i, s_i_curr, alpha_i,
+                                                           omega_i, X_beta, D_alpha_s_k,
+                                                           D_omega, X_beta_1, D_alpha_s_k_1,
+                                                           D_omega_1, vec_beta, A_all_state,
+                                                           R, zeta, P_init, true);
+                    arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i,
+                                                           omega_i, X_beta, D_alpha_b_k,
+                                                           D_omega, X_beta_1, D_alpha_b_k_1,
+                                                           D_omega_1, vec_beta, A_all_state,
+                                                           R, zeta, P_init, true);
+
+                    like_vals_s(m) = arma::accu(log_like_s_temp);
+                    like_vals_b(m) = arma::accu(log_like_b_temp);
                 }
                 
-                arma::vec s_i_curr = s_i;
-                arma::vec b_i_curr = b_i;
-                s_i_curr(k) = m+1;
-                b_i_curr(k) = m+1;
+                ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
                 
-                arma::vec log_like_s_temp = log_like_i(k, y_i, z_i, s_i_curr, alpha_i, 
-                                                       omega_i, X_beta, D_alpha_s_k, 
-                                                       D_omega, X_beta_1, D_alpha_s_k_1,
-                                                       D_omega_1, vec_beta, A_all_state,
-                                                       R, zeta, P_init, true);
-                arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i, 
-                                                       omega_i, X_beta, D_alpha_b_k, 
-                                                       D_omega, X_beta_1, D_alpha_b_k_1,
-                                                       D_omega_1, vec_beta, A_all_state,
-                                                       R, zeta, P_init, true);
+                if(clinic_rule < 0) {
+                    // Remove state 2 as a possibility
+                    like_vals_s = {like_vals_s(0), like_vals_s(2), 
+                                   like_vals_s(3), like_vals_s(4)};
+                    ss_ind = {ss_ind(0), ss_ind(2), ss_ind(3), ss_ind(4)};
+                }
                 
-                like_vals_s(m) = arma::accu(log_like_s_temp);
-                like_vals_b(m) = arma::accu(log_like_b_temp);
+            } else {
+                int prev_state_s = s_i(k-1);
+                int prev_state_b = b_i(k-1);
+                
+                like_vals_s.zeros(arma::accu(adj_mat_i.row(prev_state_s-1)));
+                like_vals_b.zeros(arma::accu(adj_mat_i.row(prev_state_b-1)));
+                
+                arma::vec state_vals_s(arma::accu(adj_mat_i.row(prev_state_s-1)), arma::fill::zeros);
+                arma::vec state_vals_b(arma::accu(adj_mat_i.row(prev_state_b-1)), arma::fill::zeros);
+
+                int s_ind = 0;
+                int b_ind = 0;
+                
+                for(int m = 0; m < adj_mat_i.n_cols; m++) {
+
+                    // Computations for mean of candidate (s_i) ------------
+                    arma::vec s_temp = s_i.subvec(0, k);
+                    s_temp(k) = m+1;
+                    arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_s(s_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_s(s_temp.n_elem, arma::fill::zeros);
+
+                    twos_s.elem(arma::find(s_temp == 2)) += 1;
+                    threes_s.elem(arma::find(s_temp == 3)) += 1;
+                    fours_s.elem(arma::find(s_temp == 4)) += 1;
+                    fives_s.elem(arma::find(s_temp == 5)) += 1;
+
+                    // Computations for mean of current (b_i) --------------
+                    arma::vec b_temp = b_i.subvec(0, k);
+                    b_temp(k) = m+1;
+                    arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fours_b(b_temp.n_elem, arma::fill::zeros);
+                    arma::vec fives_b(b_temp.n_elem, arma::fill::zeros);
+
+                    twos_b.elem(arma::find(b_temp == 2)) += 1;
+                    threes_b.elem(arma::find(b_temp == 3)) += 1;
+                    fours_b.elem(arma::find(b_temp == 4)) += 1;
+                    fives_b.elem(arma::find(b_temp == 5)) += 1;
+
+                    arma::vec D_alpha_s_k = {1, arma::accu(twos_s), arma::accu(threes_s),
+                                             arma::accu(fours_s), arma::accu(fives_s)};
+                    arma::vec D_alpha_s_k_1= {1,  arma::accu(twos_s.subvec(0,k-1)),
+                                              arma::accu(threes_s.subvec(0,k-1)),
+                                              arma::accu(fours_s.subvec(0,k-1)),
+                                              arma::accu(fives_s.subvec(0,k-1))};
+
+                    arma::vec D_alpha_b_k = {1, arma::accu(twos_b), arma::accu(threes_b),
+                                             arma::accu(fours_b), arma::accu(fives_b)};
+                    arma::vec D_alpha_b_k_1 = {1,  arma::accu(twos_b.subvec(0,k-1)),
+                                               arma::accu(threes_b.subvec(0,k-1)),
+                                               arma::accu(fours_b.subvec(0,k-1)),
+                                               arma::accu(fives_b.subvec(0,k-1))};
+
+                    arma::mat X_beta = X_i(k);
+                    arma::mat X_beta_1 = X_i(k-1);
+                    arma::mat D_omega = D_omega_i(k);
+                    arma::mat D_omega_1 = D_omega_i(k-1);
+
+                    arma::vec s_i_curr = s_i;
+                    arma::vec b_i_curr = b_i;
+                    s_i_curr(k) = m+1;
+                    b_i_curr(k) = m+1;
+
+                    if(adj_mat_i(prev_state_s-1, m) != 0) {
+                        arma::vec log_like_s_temp = log_like_i(k, y_i, z_i, s_i_curr, alpha_i,
+                                                               omega_i, X_beta, D_alpha_s_k,
+                                                               D_omega, X_beta_1, D_alpha_s_k_1,
+                                                               D_omega_1, vec_beta, A_all_state,
+                                                               R, zeta, P_init, true);    
+                        like_vals_s(s_ind) = arma::accu(log_like_s_temp);
+                        state_vals_s(s_ind) = m;
+                        s_ind = s_ind + 1;
+                    }
+                    
+                    if(adj_mat_i(prev_state_b-1, m) != 0) {
+                        arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i,
+                                                               omega_i, X_beta, D_alpha_b_k,
+                                                               D_omega, X_beta_1, D_alpha_b_k_1,
+                                                               D_omega_1, vec_beta, A_all_state,
+                                                               R, zeta, P_init, true);
+                        like_vals_b(b_ind) = arma::accu(log_like_b_temp);    
+                        state_vals_b(b_ind) = m;
+                        b_ind = b_ind + 1;
+                    }
+                }
+                
+                ss_ind = state_vals_s;
             }
             
             all_like_vals_s(k) = arma::accu(exp(like_vals_s));
             all_like_vals_b(k) = arma::accu(exp(like_vals_b));
             
             // Determine sampling distribution for s_i -------------------------
-            arma::vec ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
-            
-            if(clinic_rule < 0) {
-                // Remove state 2 as a possibility
-                like_vals_s = {like_vals_s(0), like_vals_s(2), 
-                               like_vals_s(3), like_vals_s(4)};
-                ss_ind = {ss_ind(0), ss_ind(2), ss_ind(3), ss_ind(4)};
-            }
-            
             double prob_log_max = like_vals_s.max();
             like_vals_s = like_vals_s - prob_log_max;
             like_vals_s = exp(like_vals_s);
@@ -3020,12 +3102,12 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
         
         arma::imat adj_mat_i;
         bool clinic_bool;
-        if(clinic_rule >= 0) {
-            adj_mat_i = adj_mat_GLOBAL;
-            clinic_bool = false;
-        } else {
+        if(clinic_rule < 0) {
             adj_mat_i = adj_mat_sub_GLOBAL;
             clinic_bool = true;
+        } else {
+            adj_mat_i = adj_mat_GLOBAL;
+            clinic_bool = false;
         }
 
         // Looping through subject state space ---------------------------------
@@ -3047,8 +3129,8 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                 
                 for(int m = 0; m < adj_mat_i.n_cols; m++) {
                     // Computations for mean of candidate (s_i) ------------
-                    arma::vec s_temp = s_i.subvec(0, k);
-                    s_temp(k) = m+1;
+                    arma::vec s_temp = s_i.subvec(0, t);
+                    s_temp(t) = m+1;
                     arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
                     arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
                     arma::vec fours_s(s_temp.n_elem, arma::fill::zeros);
@@ -3060,8 +3142,8 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                     fives_s.elem(arma::find(s_temp == 5)) += 1;
 
                     // Computations for mean of current (b_i) --------------
-                    arma::vec b_temp = b_i.subvec(0, k);
-                    b_temp(k) = m+1;
+                    arma::vec b_temp = b_i.subvec(0, t);
+                    b_temp(t) = m+1;
                     arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
                     arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
                     arma::vec fours_b(b_temp.n_elem, arma::fill::zeros);
@@ -3080,35 +3162,35 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                                              arma::accu(fours_b), arma::accu(fives_b)};
                     arma::vec D_alpha_b_k_1(D_alpha_b_k.n_elem, arma::fill::zeros);
 
-                    arma::mat X_beta = X_i(k);
+                    arma::mat X_beta = X_i(t);
                     arma::mat X_beta_1(X_beta.n_rows, X_beta.n_cols, arma::fill::zeros);
-                    arma::mat D_omega = D_omega_i(k);
+                    arma::mat D_omega = D_omega_i(t);
                     arma::mat D_omega_1(D_omega.n_rows, D_omega.n_cols, arma::fill::zeros);
 
-                    if(k > 0) {
-                        D_alpha_s_k_1 = {1,  arma::accu(twos_s.subvec(0,k-1)),
-                                         arma::accu(threes_s.subvec(0,k-1)),
-                                         arma::accu(fours_s.subvec(0,k-1)),
-                                         arma::accu(fives_s.subvec(0,k-1))};
-                        D_alpha_b_k_1 = {1,  arma::accu(twos_b.subvec(0,k-1)),
-                                         arma::accu(threes_b.subvec(0,k-1)),
-                                         arma::accu(fours_b.subvec(0,k-1)),
-                                         arma::accu(fives_b.subvec(0,k-1))};
-                        X_beta_1 = X_i(k-1);
-                        D_omega_1 = D_omega_i(k-1);
+                    if(t > 0) {
+                        D_alpha_s_k_1 = {1,  arma::accu(twos_s.subvec(0,t-1)),
+                                         arma::accu(threes_s.subvec(0,t-1)),
+                                         arma::accu(fours_s.subvec(0,t-1)),
+                                         arma::accu(fives_s.subvec(0,t-1))};
+                        D_alpha_b_k_1 = {1,  arma::accu(twos_b.subvec(0,t-1)),
+                                         arma::accu(threes_b.subvec(0,t-1)),
+                                         arma::accu(fours_b.subvec(0,t-1)),
+                                         arma::accu(fives_b.subvec(0,t-1))};
+                        X_beta_1 = X_i(t-1);
+                        D_omega_1 = D_omega_i(t-1);
                     }
 
                     arma::vec s_i_curr = s_i;
                     arma::vec b_i_curr = b_i;
-                    s_i_curr(k) = m+1;
-                    b_i_curr(k) = m+1;
+                    s_i_curr(t) = m+1;
+                    b_i_curr(t) = m+1;
 
-                    arma::vec log_like_s_temp = log_like_i(k, y_i, z_i, s_i_curr, alpha_i,
+                    arma::vec log_like_s_temp = log_like_i(t, y_i, z_i, s_i_curr, alpha_i,
                                                            omega_i, X_beta, D_alpha_s_k,
                                                            D_omega, X_beta_1, D_alpha_s_k_1,
                                                            D_omega_1, vec_beta, A_all_state,
                                                            R, zeta, P_init, true);
-                    arma::vec log_like_b_temp = log_like_i(k, y_i, z_i, b_i_curr, alpha_i,
+                    arma::vec log_like_b_temp = log_like_i(t, y_i, z_i, b_i_curr, alpha_i,
                                                            omega_i, X_beta, D_alpha_b_k,
                                                            D_omega, X_beta_1, D_alpha_b_k_1,
                                                            D_omega_1, vec_beta, A_all_state,
