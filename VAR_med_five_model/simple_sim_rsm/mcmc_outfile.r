@@ -3,7 +3,7 @@ sampling_num = as.numeric(args[1])
 
 index_seeds = c(1:3)
 it_num = 1
-states_per_step = 4
+states_per_step = 13
 steps_per_it = 1
 
 true_par = c(-3, 3, -3, -3)

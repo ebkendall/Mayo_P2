@@ -872,7 +872,9 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
         arma::vec b_i = B(ii);
         arma::vec y_i = y.rows(sub_ind);
 
-        for(int k = 0; k < n_i - states_per_step + 1; k++) {
+        // for(int k = 0; k < n_i - states_per_step + 1; k++) {
+        int k = 0;
+        while(k < n_i - 2) {
             
             arma::vec s_i = b_i;
             
@@ -880,7 +882,9 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
             arma::vec all_like_vals_s(states_per_step - 2, arma::fill::zeros);
 
             // Step 1: sample 1-at-a-time --------------------------------------
-            for(int t = k; t < k + states_per_step - 2; t++) {
+            arma::ivec t_lim = {k + states_per_step - 2, n_i - 2};
+            int t_max = arma::min(t_lim);
+            for(int t = k; t < t_max; t++) {
                 
                 arma::vec like_vals_s(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
                 arma::vec like_vals_b(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
@@ -905,7 +909,7 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
                     
                     if(t == 0) {
                         like_vals_s(m) = P_init(m) * R::dnorm(y_i(t), mean_s, 1, false);
-                        like_vals_b(m) = P_init(m) * R::dnorm(y_i(t), mean_b, 1, false);;
+                        like_vals_b(m) = P_init(m) * R::dnorm(y_i(t), mean_b, 1, false);
                     } else {
                         like_vals_s(m) = P_i(s_i(t-1) - 1, m) * R::dnorm(y_i(t), mean_s, 1, false);
                         like_vals_b(m) = P_i(b_i(t-1) - 1, m) * R::dnorm(y_i(t), mean_b, 1, false);
@@ -928,15 +932,15 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
             }
             
             // Step 2: sample the last 2 times together ------------------------
-            arma::mat Omega_set_s = get_omega_list(k + states_per_step - 2, n_i, s_i, 2);
-            arma::mat Omega_set_b = get_omega_list(k + states_per_step - 2, n_i, b_i, 2);
+            arma::mat Omega_set_s = get_omega_list(t_max, n_i, s_i, 2);
+            arma::mat Omega_set_b = get_omega_list(t_max, n_i, b_i, 2);
             
             arma::vec prob_omega_s(Omega_set_s.n_rows, arma::fill::ones);
             prob_omega_s = (1/arma::accu(prob_omega_s)) * prob_omega_s;
             arma::vec ind_omega_s = arma::linspace(0, Omega_set_s.n_rows-1, Omega_set_s.n_rows);
             arma::vec row_omega_s = RcppArmadillo::sample(ind_omega_s, 1, false, prob_omega_s);
             
-            s_i.rows(k + states_per_step - 2, k + states_per_step - 1) = Omega_set_s.row(row_omega_s(0)).t();
+            s_i.rows(t_max, t_max + 1) = Omega_set_s.row(row_omega_s(0)).t();
             
             // Step 3: compute MH-ratio to accept/reject -----------------------
             if(arma::accu(arma::abs(s_i - b_i)) != 0) {
@@ -956,6 +960,7 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
 
                 double log_prob_diff = 0;
                 double log_like_diff = 0;
+
                 for(int t = k + states_per_step - 2; t < n_i; t++) {
                     if(t < k + states_per_step + 1) {
                         log_prob_diff = log_prob_diff +
@@ -976,6 +981,8 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
                 double min_log = log(arma::randu(arma::distr_param(0,1)));
                 if(diff_check > min_log){b_i = s_i;}
             } 
+            
+            k = k + states_per_step - 2;
         }
 
         B_return(ii) = b_i;

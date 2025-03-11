@@ -6,7 +6,7 @@ sampling_num = as.numeric(args[1])
 trialNum = 1
 itNum = 1
 index_seeds = c(1:3)
-states_per_step = 3
+states_per_step = 0
 steps_per_it = 1
 long_chain = T
 
