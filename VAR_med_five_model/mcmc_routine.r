@@ -19,7 +19,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     b_true = do.call('c', B)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 15#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -41,13 +41,13 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     colnames(otype) = c('hemo','hr','map','lactate')
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(#c(par_index$vec_init),
+    mpi = list(c(par_index$vec_init),
                c(par_index$vec_zeta[seq(1,23,by=2)]), # baselines
                c(par_index$vec_zeta[seq(2,24,by=2)]), # slopes
                c(par_index$vec_A[c(1,4,5,8,9,12,13,16,17,20)]),
                c(par_index$vec_A[c(2,3,6,7,10,11,14,15,18,19)]),
-               #c(par_index$vec_upsilon_omega[c(1:16, 35:56)]),  # continuous
-               #c(par_index$vec_upsilon_omega[c(17:34, 57:84)]), # discrete
+               c(par_index$vec_upsilon_omega[c(1:16, 35:56)]),  # continuous
+               c(par_index$vec_upsilon_omega[c(17:34, 57:84)]), # discrete
                c(par_index$vec_R))
 
     n_group = length(mpi)
@@ -188,21 +188,21 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
         bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
-        # # Gibbs: alpha_i -------------------------------------------------------
-        # A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
-        # 
-        # for(aaa in 1:length(a_chain_id)) {
-        #     A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
-        # }
-        # 
-        # # Gibbs: omega_i -------------------------------------------------------
-        # W = update_omega_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, A, B, n_cores)
-        # 
-        # # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
-        # par = update_alpha_tilde_cpp(EIDs, par, par_index, A, Y)
-        # par = update_omega_tilde_cpp(EIDs, par, par_index, W, Y)
-        # par = update_beta_upsilon_cpp(EIDs, par, par_index, A, Y, Dn, Xn, 
-        #                               Dn_omega, W, B, n_cores)
+        # Gibbs: alpha_i -------------------------------------------------------
+        A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
+
+        for(aaa in 1:length(a_chain_id)) {
+            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
+        }
+
+        # Gibbs: omega_i -------------------------------------------------------
+        W = update_omega_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, A, B, n_cores)
+
+        # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
+        par = update_alpha_tilde_cpp(EIDs, par, par_index, A, Y)
+        par = update_omega_tilde_cpp(EIDs, par, par_index, W, Y)
+        par = update_beta_upsilon_cpp(EIDs, par, par_index, A, Y, Dn, Xn,
+                                      Dn_omega, W, B, n_cores)
 
         # Store current parameter updates --------------------------------------
         chain[chain_ind,] = par
