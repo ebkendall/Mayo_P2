@@ -67,8 +67,7 @@ for(p in 2:3) {
                                                   100,    1,    1,   25,   25, 
                                                   100,    1,    1,   25,   25, 
                                                   1, 0.01, 0.01, 0.25, 0.25)))
-    par[par_index$vec_A] = c(rep(1.5, 4), rep(-1, 4), rep(0.1, 4), 
-                             rep(0, 4),rep(0.1, 4))
+    par[par_index$vec_A] = c(rep(0, 4))
     par[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
     
     #    transitions:              1->2,         1->4,         2->3,         2->4, 

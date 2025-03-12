@@ -410,8 +410,9 @@ double log_f_i_cpp(const int i, const int ii, arma::vec t_pts, const arma::vec &
     arma::mat R = arma::reshape(vec_R, 4, 4);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
     
     arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
     arma::mat zeta = arma::reshape(vec_zeta_content, 2, 12); 
@@ -449,24 +450,23 @@ double log_f_i_cpp(const int i, const int ii, arma::vec t_pts, const arma::vec &
             
             int b_0 = b_i(0);
             
-            arma::vec vec_A = A_all_state.col(b_0 - 1);
-            
-            arma::mat Gamma = { {R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                                 R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                                 R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                                 R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                                 {R(1,0) / (1 - vec_A(1) * vec_A(0)), 
-                                  R(1,1) / (1 - vec_A(1) * vec_A(1)), 
-                                  R(1,2) / (1 - vec_A(1) * vec_A(2)), 
-                                  R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                                  {R(2,0) / (1 - vec_A(2) * vec_A(0)), 
-                                   R(2,1) / (1 - vec_A(2) * vec_A(1)), 
-                                   R(2,2) / (1 - vec_A(2) * vec_A(2)), 
-                                   R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                                   {R(3,0) / (1 - vec_A(3) * vec_A(0)), 
-                                    R(3,1) / (1 - vec_A(3) * vec_A(1)), 
-                                    R(3,2) / (1 - vec_A(3) * vec_A(2)), 
-                                    R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+            // arma::vec vec_A = A_all_state.col(b_0 - 1);
+            arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+                                R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+                                R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+                                R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                               {R(1,0) / (1 - vec_A(1) * vec_A(0)), 
+                                R(1,1) / (1 - vec_A(1) * vec_A(1)), 
+                                R(1,2) / (1 - vec_A(1) * vec_A(2)), 
+                                R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                               {R(2,0) / (1 - vec_A(2) * vec_A(0)), 
+                                R(2,1) / (1 - vec_A(2) * vec_A(1)), 
+                                R(2,2) / (1 - vec_A(2) * vec_A(2)), 
+                                R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                               {R(3,0) / (1 - vec_A(3) * vec_A(0)), 
+                                R(3,1) / (1 - vec_A(3) * vec_A(1)), 
+                                R(3,2) / (1 - vec_A(3) * vec_A(2)), 
+                                R(3,3) / (1 - vec_A(3) * vec_A(3))}};
           
             arma::vec y_1 = Y_i.col(0);
             arma::vec nu_1 = Dn_alpha_full(0) * vec_alpha_ii + 
@@ -517,7 +517,7 @@ double log_f_i_cpp(const int i, const int ii, arma::vec t_pts, const arma::vec &
             int b_k_1 = b_i(k-2);
             int b_k = b_i(k-1);
             
-            arma::vec vec_A = A_all_state.col(b_k - 1);
+            // arma::vec vec_A = A_all_state.col(b_k - 1);
             arma::mat A_1 = arma::diagmat(vec_A);
             
             arma::vec y_k_1 = Y_i.col(k-2);
@@ -597,10 +597,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     
     // Autocorrelation prior ---------------------------------------------------
     arma::vec vec_A_content = par.elem(par_index(3) - 1);
-    
-    arma::vec vec_A_mean = {1.5,  1.5,  1.5,  1.5, -1.0, -1.0, -1.0, -1.0,
-                            0.1,  0.1,  0.1,  0.1,    0,    0,    0,    0,
-                            0.1,  0.1,  0.1,  0.1};
+    arma::vec vec_A_mean(vec_A_content.n_elem, arma::fill::zeros);
     arma::vec scalar_A(vec_A_content.n_elem, arma::fill::ones);
     scalar_A = 20 * scalar_A;
     arma::mat A_var = arma::diagmat(scalar_A);
@@ -687,8 +684,9 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
     arma::mat inv_Upsilon = arma::inv_sympd(Upsilon);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -732,8 +730,9 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
             arma::mat D_k_o_1 = Dn_omega_full(k-1);
             arma::mat X_k_1 = Xn_full(k-1);
             
-            arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-            arma::mat A_1_k = arma::diagmat(vec_A_k);
+            // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+            // arma::mat A_1_k = arma::diagmat(vec_A_k);
+            arma::mat A_1_k = arma::diagmat(vec_A);
             
             arma::mat diff_hold_d = D_k - A_1_k * D_k_1;
             arma::mat diff_hold_d_o = D_k_o - A_1_k * D_k_o_1;
@@ -747,7 +746,7 @@ arma::field <arma::vec> update_alpha_i_cpp( const arma::vec &EIDs, const arma::v
             interm_V = interm_V + diff_hold_d.t() * invR * m_k;
         }
         
-        arma::vec vec_A = A_all_state.col(b_i(0) - 1);
+        // arma::vec vec_A = A_all_state.col(b_i(0) - 1);
         arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
                             R(0,1) / (1 - vec_A(0) * vec_A(1)), 
                             R(0,2) / (1 - vec_A(0) * vec_A(2)), 
@@ -811,8 +810,9 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
     arma::mat inv_Upsilon = arma::diagmat(vec_upsilon_omega_inv);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -853,8 +853,9 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
             arma::mat D_k_o_1 = Dn_omega_full(k-1);
             arma::mat X_k_1 = Xn_full(k-1);
             
-            arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-            arma::mat A_1_k = arma::diagmat(vec_A_k);
+            // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+            // arma::mat A_1_k = arma::diagmat(vec_A_k);
+            arma::mat A_1_k = arma::diagmat(vec_A);
             
             arma::mat diff_hold_d = D_k - A_1_k * D_k_1;
             arma::mat diff_hold_d_o = D_k_o - A_1_k * D_k_o_1;
@@ -868,7 +869,7 @@ arma::field <arma::vec> update_omega_i_cpp( const arma::vec &EIDs, const arma::v
             interm_V = interm_V + diff_hold_d_o.t() * invR * m_k;
         }
         
-        arma::vec vec_A = A_all_state.col(b_i(0) - 1);
+        // arma::vec vec_A = A_all_state.col(b_i(0) - 1);
         arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
                             R(0,1) / (1 - vec_A(0) * vec_A(1)), 
                             R(0,2) / (1 - vec_A(0) * vec_A(2)), 
@@ -1058,8 +1059,9 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
     
     // Other parameters
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -1107,8 +1109,9 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
             arma::mat D_k_o_1 = Dn_omega_full(k-1);
             arma::mat X_k_1 = Xn_full(k-1);
             
-            arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-            arma::mat A_1_k = arma::diagmat(vec_A_k);
+            // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+            // arma::mat A_1_k = arma::diagmat(vec_A_k);
+            arma::mat A_1_k = arma::diagmat(vec_A);
             
             arma::mat diff_hold_d = D_k - A_1_k * D_k_1;
             arma::mat diff_hold_d_o = D_k_o - A_1_k * D_k_o_1;
@@ -1121,7 +1124,7 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
             interm_V = interm_V + diff_hold_x.t() * invR * m_k;
         }
         
-        arma::vec vec_A = A_all_state.col(b_i(0) - 1);
+        // arma::vec vec_A = A_all_state.col(b_i(0) - 1);
         arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
                             R(0,1) / (1 - vec_A(0) * vec_A(1)), 
                             R(0,2) / (1 - vec_A(0) * vec_A(2)), 
@@ -1199,8 +1202,9 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -1241,7 +1245,7 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                 Y_i_new.col(k) = Y_i.col(k);
             } else {
                 if(k == 0) {
-                    arma::vec vec_A = A_all_state.col(b_i(k) - 1);
+                    // arma::vec vec_A = A_all_state.col(b_i(k) - 1);
                     arma::mat Gamma = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
                                         R(0,1) / (1 - vec_A(0) * vec_A(1)), 
                                         R(0,2) / (1 - vec_A(0) * vec_A(2)), 
@@ -1260,8 +1264,9 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                                         R(3,3) / (1 - vec_A(3) * vec_A(3))}};
                     arma::mat inv_Gamma = arma::inv_sympd(Gamma);
                     
-                    arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
-                    arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                    // arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
+                    // arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                    arma::mat A_p1 = arma::diagmat(vec_A);
                     
                     arma::vec nu_k = Dn_ii(k) * vec_alpha_ii + 
                         Dn_omega_ii(k) * vec_omega_ii + 
@@ -1306,7 +1311,7 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                     
                 } else if(k == Y_i.n_cols - 1) {
                     
-                    arma::vec vec_A = A_all_state.col(b_i(k) - 1);
+                    // arma::vec vec_A = A_all_state.col(b_i(k) - 1);
                     arma::mat A_k = arma::diagmat(vec_A);
                     
                     arma::vec nu_k = Dn_ii(k) * vec_alpha_ii + 
@@ -1347,10 +1352,12 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                     
                 } else {
                     
-                    arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-                    arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
-                    arma::mat A_k = arma::diagmat(vec_A_k);                    
-                    arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                    // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+                    // arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
+                    // arma::mat A_k = arma::diagmat(vec_A_k);                    
+                    // arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                    arma::mat A_k = arma::diagmat(vec_A);
+                    arma::mat A_p1 = arma::diagmat(vec_A);
 
                     arma::vec nu_k    = Dn_ii(k) * vec_alpha_ii + 
                         Dn_omega_ii(k) * vec_omega_ii + 
@@ -1425,8 +1432,9 @@ Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R, arma::mat c
     arma::vec vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
     
     arma::mat curr_R_sqrt = arma::sqrtmat_sympd(curr_R);
     // -------------------------------------------------------------------------
@@ -1454,26 +1462,27 @@ Rcpp::List proposal_R_cpp_new(const int nu_R, const arma::mat psi_R, arma::mat c
             
             arma::vec nu_k = Dn_i(k) * vec_alpha_i + Dn_omega_i(k) * vec_omega_i + Xn_i(k) * vec_beta;
             arma::vec y_diff_k = Y_i.col(k) - nu_k;
-            arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-            arma::mat A_k = arma::diagmat(vec_A_k);
+            // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+            // arma::mat A_k = arma::diagmat(vec_A_k);
+            arma::mat A_k = arma::diagmat(vec_A);
             
             if(k == 0) {
-                arma::mat Gamma = {{curr_R(0,0) / (1 - vec_A_k(0) * vec_A_k(0)), 
-                                    curr_R(0,1) / (1 - vec_A_k(0) * vec_A_k(1)), 
-                                    curr_R(0,2) / (1 - vec_A_k(0) * vec_A_k(2)), 
-                                    curr_R(0,3) / (1 - vec_A_k(0) * vec_A_k(3))},
-                                   {curr_R(1,0) / (1 - vec_A_k(1) * vec_A_k(0)), 
-                                    curr_R(1,1) / (1 - vec_A_k(1) * vec_A_k(1)), 
-                                    curr_R(1,2) / (1 - vec_A_k(1) * vec_A_k(2)), 
-                                    curr_R(1,3) / (1 - vec_A_k(1) * vec_A_k(3))},
-                                   {curr_R(2,0) / (1 - vec_A_k(2) * vec_A_k(0)), 
-                                    curr_R(2,1) / (1 - vec_A_k(2) * vec_A_k(1)), 
-                                    curr_R(2,2) / (1 - vec_A_k(2) * vec_A_k(2)), 
-                                    curr_R(2,3) / (1 - vec_A_k(2) * vec_A_k(3))},
-                                   {curr_R(3,0) / (1 - vec_A_k(3) * vec_A_k(0)), 
-                                    curr_R(3,1) / (1 - vec_A_k(3) * vec_A_k(1)), 
-                                    curr_R(3,2) / (1 - vec_A_k(3) * vec_A_k(2)), 
-                                    curr_R(3,3) / (1 - vec_A_k(3) * vec_A_k(3))}};
+                arma::mat Gamma = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+                                    curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+                                    curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+                                    curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                                   {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)), 
+                                    curr_R(1,1) / (1 - vec_A(1) * vec_A(1)), 
+                                    curr_R(1,2) / (1 - vec_A(1) * vec_A(2)), 
+                                    curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                                   {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)), 
+                                    curr_R(2,1) / (1 - vec_A(2) * vec_A(1)), 
+                                    curr_R(2,2) / (1 - vec_A(2) * vec_A(2)), 
+                                    curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                                   {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)), 
+                                    curr_R(3,1) / (1 - vec_A(3) * vec_A(1)), 
+                                    curr_R(3,2) / (1 - vec_A(3) * vec_A(2)), 
+                                    curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
                 
                 arma::mat inv_Gamma = arma::inv_sympd(Gamma);
                 arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_Gamma);
@@ -1677,7 +1686,8 @@ arma::vec log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i,
     arma::vec nu_k = (D_alpha.t() * alpha_i).t() + 
                         D_omega * omega_i + 
                         X_beta * vec_beta;
-    arma::vec vec_A = A_all_state.col(b_i_k - 1);
+    // arma::vec vec_A = A_all_state.col(b_i_k - 1);
+    arma::vec vec_A = A_all_state;
     
     arma::vec log_like_i_k(2, arma::fill::zeros);
     
@@ -1786,8 +1796,9 @@ double log_like_i_sub(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i,
         X_beta * vec_beta;
     nu_k = nu_k.subvec(1,2);
     
-    arma::vec vec_A = A_all_state.col(b_i_k - 1);
-
+    // arma::vec vec_A = A_all_state.col(b_i_k - 1);
+    arma::vec vec_A = A_all_state;
+    
     double log_like_i_k;
     
 
@@ -1879,8 +1890,9 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
 
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
 
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -1962,7 +1974,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                     arma::vec log_like_temp = log_like_i(k, y_i, z_i, b_i, alpha_i,
                                                          omega_i, X_beta, D_alpha,
                                                          D_omega, X_beta_1, D_alpha_1,
-                                                         D_omega_1, vec_beta, A_all_state,
+                                                         D_omega_1, vec_beta, vec_A,
                                                          R, zeta, P_init, true);
 
                     init_vals(jj) = arma::accu(log_like_temp);
@@ -2019,7 +2031,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                         arma::vec log_like_temp2 = log_like_i(k, y_i, z_i, b_i, alpha_i,
                                                               omega_i, X_beta, D_alpha,
                                                               D_omega, X_beta_1, D_alpha_1,
-                                                              D_omega_1, vec_beta, A_all_state,
+                                                              D_omega_1, vec_beta, vec_A,
                                                               R, zeta, P_init, true);
                         poss_state_like(w_ind) = arma::accu(log_like_temp2);
                         
@@ -2084,8 +2096,9 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -2220,12 +2233,12 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
                             arma::vec log_like_b_temp = log_like_i(kk, y_i, z_i, b_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             arma::vec log_like_s_temp = log_like_i(kk, y_i, z_i, s_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
 
                             if(kk <= k + states_per_step) {
@@ -2298,8 +2311,9 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -2400,7 +2414,7 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
                         arma::vec log_like_temp = log_like_i(kk, y_i, z_i, ss_jj, alpha_i, 
                                                              omega_i, X_beta, D_alpha_k, 
                                                              D_omega, X_beta_1, D_alpha_k_1,
-                                                             D_omega_1, vec_beta, A_all_state,
+                                                             D_omega_1, vec_beta, vec_A,
                                                              R, zeta, P_init, true);
                         
                         log_like_val = log_like_val + arma::accu(log_like_temp);
@@ -2486,12 +2500,12 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
                             arma::vec log_like_b_temp = log_like_i(kk, y_i, z_i, b_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             arma::vec log_like_s_temp = log_like_i(kk, y_i, z_i, s_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             
                             if(kk == k + states_per_step) {
@@ -2565,8 +2579,9 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -2667,7 +2682,7 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
                         arma::vec log_like_temp = log_like_i(kk, y_i, z_i, ss_jj, alpha_i, 
                                                              omega_i, X_beta, D_alpha_k, 
                                                              D_omega, X_beta_1, D_alpha_k_1,
-                                                             D_omega_1, vec_beta, A_all_state,
+                                                             D_omega_1, vec_beta, vec_A,
                                                              R, zeta, P_init, true);
                         
                         log_like_val = log_like_val + arma::accu(log_like_temp);
@@ -2959,8 +2974,9 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
     
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); 
     
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -3015,7 +3031,7 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
         
         arma::vec new_b_i = full_seq_update(n_i, y_i, adj_mat_i, b_i, s_i, z_i,
                                             X_i, D_omega_i, alpha_i, omega_i, 
-                                            bleed_ind_i, vec_beta, A_all_state, 
+                                            bleed_ind_i, vec_beta, vec_A, 
                                             R, zeta, P_init, clinic_rule, rbc_rule);
         b_i = new_b_i;
         
@@ -3071,8 +3087,9 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
 
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
 
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -3131,7 +3148,7 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
             arma::vec s_i(n_i, arma::fill::zeros);
             arma::vec new_b_i = full_seq_update(n_i, y_i, adj_mat_i, b_i, s_i, z_i,
                                                 X_i, D_omega_i, alpha_i, omega_i, 
-                                                bleed_ind_i, vec_beta, A_all_state, 
+                                                bleed_ind_i, vec_beta, vec_A, 
                                                 R, zeta, P_init, clinic_rule, rbc_rule);
             b_i = new_b_i;
         } else {
@@ -3203,12 +3220,12 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                             arma::vec log_like_s_temp = log_like_i(t, y_i, z_i, s_i_curr, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             arma::vec log_like_b_temp = log_like_i(t, y_i, z_i, b_i_curr, alpha_i,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             
                             like_vals_s(m) = arma::accu(log_like_s_temp);
@@ -3294,7 +3311,7 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                                 arma::vec log_like_s_temp = log_like_i(t, y_i, z_i, s_i_curr, alpha_i,
                                                                        omega_i, X_beta, D_alpha_s_k,
                                                                        D_omega, X_beta_1, D_alpha_s_k_1,
-                                                                       D_omega_1, vec_beta, A_all_state,
+                                                                       D_omega_1, vec_beta, vec_A,
                                                                        R, zeta, P_init, true);    
                                 like_vals_s(s_ind) = arma::accu(log_like_s_temp);
                                 state_vals_s(s_ind) = m;
@@ -3305,7 +3322,7 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                                 arma::vec log_like_b_temp = log_like_i(t, y_i, z_i, b_i_curr, alpha_i,
                                                                        omega_i, X_beta, D_alpha_b_k,
                                                                        D_omega, X_beta_1, D_alpha_b_k_1,
-                                                                       D_omega_1, vec_beta, A_all_state,
+                                                                       D_omega_1, vec_beta, vec_A,
                                                                        R, zeta, P_init, true);
                                 like_vals_b(b_ind) = arma::accu(log_like_b_temp);    
                                 state_vals_b(b_ind) = m;
@@ -3407,12 +3424,12 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
                             arma::vec log_like_b_temp = log_like_i(t, y_i, z_i, b_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_b_k,
                                                                    D_omega, X_beta_1, D_alpha_b_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             arma::vec log_like_s_temp = log_like_i(t, y_i, z_i, s_i, alpha_i,
                                                                    omega_i, X_beta, D_alpha_s_k,
                                                                    D_omega, X_beta_1, D_alpha_s_k_1,
-                                                                   D_omega_1, vec_beta, A_all_state,
+                                                                   D_omega_1, vec_beta, vec_A,
                                                                    R, zeta, P_init, true);
                             if(t < k + states_per_step + 1) {
                                 log_prob_diff = log_prob_diff +
@@ -3490,8 +3507,9 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
     arma::mat vec_beta = par.elem(par_index(0) - 1);
 
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
 
     arma::vec vec_R = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
@@ -3626,7 +3644,7 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
                     init_vals(jj) = log_like_i_sub(k, Y_i_new, z_i, b_i, alpha_i,
                                                    omega_i, X_beta, D_alpha,
                                                    D_omega, X_beta_1, D_alpha_1,
-                                                   D_omega_1, vec_beta, A_all_state,
+                                                   D_omega_1, vec_beta, vec_A,
                                                    R, zeta, P_init);
                 }
 
@@ -3682,7 +3700,7 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
                         poss_state_like(w_ind) = log_like_i_sub(k, Y_i_new, z_i, b_i, alpha_i,
                                                                 omega_i, X_beta, D_alpha,
                                                                 D_omega, X_beta_1, D_alpha_1,
-                                                                D_omega_1, vec_beta, A_all_state,
+                                                                D_omega_1, vec_beta, vec_A,
                                                                 R, zeta, P_init);
 
                         w_ind += 1;
@@ -3751,28 +3769,9 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
     arma::mat invR = arma::inv_sympd(R);
 
     arma::vec vec_A_total = par.elem(par_index(3) - 1);
-    // Transform to support (-1,1)
-    arma::vec vec_A_scale = { (exp(vec_A_total(0)) - 1) / (1+exp(vec_A_total(0))),
-                              (exp(vec_A_total(1)) - 1) / (1+exp(vec_A_total(1))),
-                              (exp(vec_A_total(2)) - 1) / (1+exp(vec_A_total(2))),
-                              (exp(vec_A_total(3)) - 1) / (1+exp(vec_A_total(3))),
-                              (exp(vec_A_total(4)) - 1) / (1+exp(vec_A_total(4))),
-                              (exp(vec_A_total(5)) - 1) / (1+exp(vec_A_total(5))),
-                              (exp(vec_A_total(6)) - 1) / (1+exp(vec_A_total(6))),
-                              (exp(vec_A_total(7)) - 1) / (1+exp(vec_A_total(7))),
-                              (exp(vec_A_total(8)) - 1) / (1+exp(vec_A_total(8))),
-                              (exp(vec_A_total(9)) - 1) / (1+exp(vec_A_total(9))),
-                              (exp(vec_A_total(10)) - 1) / (1+exp(vec_A_total(10))),
-                              (exp(vec_A_total(11)) - 1) / (1+exp(vec_A_total(11))),
-                              (exp(vec_A_total(12)) - 1) / (1+exp(vec_A_total(12))),
-                              (exp(vec_A_total(13)) - 1) / (1+exp(vec_A_total(13))),
-                              (exp(vec_A_total(14)) - 1) / (1+exp(vec_A_total(14))),
-                              (exp(vec_A_total(15)) - 1) / (1+exp(vec_A_total(15))),
-                              (exp(vec_A_total(16)) - 1) / (1+exp(vec_A_total(16))),
-                              (exp(vec_A_total(17)) - 1) / (1+exp(vec_A_total(17))),
-                              (exp(vec_A_total(18)) - 1) / (1+exp(vec_A_total(18))),
-                              (exp(vec_A_total(19)) - 1) / (1+exp(vec_A_total(19)))};
-    arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5); // THREE STATE
+    arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::vec vec_A_scale = exp(vec_A_total) / (1 + exp(vec_A_total));
+    // arma::mat A_all_state = arma::reshape(vec_A_scale, 4, 5);
 
     arma::vec vec_init_content = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
@@ -3808,7 +3807,7 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
             Y_i_new.col(k) = Y_i.col(k);
         } else {
             if(k == 0) {
-                arma::vec vec_A = A_all_state.col(b_i(k) - 1);
+                // arma::vec vec_A = A_all_state.col(b_i(k) - 1);
                 arma::mat Gamma = { {R(0,0) / (1 - vec_A(0) * vec_A(0)),
                                      R(0,1) / (1 - vec_A(0) * vec_A(1)),
                                      R(0,2) / (1 - vec_A(0) * vec_A(2)),
@@ -3827,8 +3826,9 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
                                         R(3,3) / (1 - vec_A(3) * vec_A(3))}};
                 arma::mat inv_Gamma = arma::inv_sympd(Gamma);
 
-                arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
-                arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                // arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
+                // arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                arma::mat A_p1 = arma::diagmat(vec_A); 
 
                 arma::vec nu_k = Dn_ii(k) * vec_alpha_ii + Dn_omega_ii(k) * vec_omega_ii + Xn_ii(k) * vec_beta;
                 arma::vec nu_k_p1 = Dn_ii(k+1) * vec_alpha_ii + Dn_omega_ii(k+1) * vec_omega_ii + Xn_ii(k+1) * vec_beta;
@@ -3868,7 +3868,7 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
                 Y_i_new.col(k) = update_value;
             } else if(k == Y_i.n_cols - 1) {
 
-                arma::vec vec_A = A_all_state.col(b_i(k) - 1);
+                // arma::vec vec_A = A_all_state.col(b_i(k) - 1);
                 arma::mat A_k = arma::diagmat(vec_A);
 
                 arma::vec nu_k = Dn_ii(k) * vec_alpha_ii + Dn_omega_ii(k) * vec_omega_ii + Xn_ii(k) * vec_beta;
@@ -3905,10 +3905,12 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
                 Y_i_new.col(k) = update_value;
             } else {
 
-                arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
-                arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
-                arma::mat A_k = arma::diagmat(vec_A_k);
-                arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                // arma::vec vec_A_k = A_all_state.col(b_i(k) - 1);
+                // arma::vec vec_A_p1 = A_all_state.col(b_i(k+1) - 1);
+                // arma::mat A_k = arma::diagmat(vec_A_k);
+                // arma::mat A_p1 = arma::diagmat(vec_A_p1);
+                arma::mat A_k = arma::diagmat(vec_A);
+                arma::mat A_p1 = arma::diagmat(vec_A);
 
                 arma::vec nu_k    = Dn_ii(k) * vec_alpha_ii + Dn_omega_ii(k) * vec_omega_ii + Xn_ii(k) * vec_beta;
                 arma::vec nu_k_m1 = Dn_ii(k-1) * vec_alpha_ii + Dn_omega_ii(k-1) * vec_omega_ii + Xn_ii(k-1) * vec_beta;

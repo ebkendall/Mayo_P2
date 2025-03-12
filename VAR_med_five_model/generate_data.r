@@ -88,12 +88,12 @@ par_index = list()
 par_index$vec_beta = 1:4
 par_index$vec_alpha_tilde = 5:24
 par_index$vec_sigma_upsilon = 25:424
-par_index$vec_A = 425:444
-par_index$vec_R = 445:460
-par_index$vec_zeta = 461:484
-par_index$vec_init = 485:488
-par_index$omega_tilde = 489:572
-par_index$vec_upsilon_omega = 573:656
+par_index$vec_A = 425:428
+par_index$vec_R = 429:444
+par_index$vec_zeta = 445:468
+par_index$vec_init = 469:472
+par_index$omega_tilde = 473:556
+par_index$vec_upsilon_omega = 557:640
 save(par_index, file = paste0('Data_sim/true_par_index.rda'))
 
 # Initializing true parameter values -------------------------------------------
@@ -110,8 +110,7 @@ pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4, 0.01, 0.01, 0.25, 0.25,
                                                   100,    1,    1,   25,   25, 
                                                     1, 0.01, 0.01, 0.25, 0.25)))
 
-pars_mean[par_index$vec_A] = c(rep(1.5, 4), rep(-1, 4), rep(0.1, 4), 
-                               rep(0, 4),rep(0.1, 4))
+pars_mean[par_index$vec_A] = rep(0, 4)
 
 pars_mean[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
 
@@ -138,10 +137,8 @@ alpha_tilde = matrix(pars_mean[par_index$vec_alpha_tilde], ncol = 4)
 
 Upsilon = matrix(pars_mean[par_index$vec_sigma_upsilon], ncol = 20)
 
-A_mat = matrix(pars_mean[par_index$vec_A], nrow = 4)
-vec_A = c(A_mat)
-correct_scale_A = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
-A_mat_scale = matrix(correct_scale_A, nrow = 4)
+vec_A = c(pars_mean[par_index$vec_A])
+A_mat_scale = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
 
 # columns: hemo, hr, map, lactate
 R = matrix(pars_mean[par_index$vec_R], ncol = 4)
@@ -280,31 +277,29 @@ for(i in 1:N){
     
     for(k in 1:n_i) {
         if(k==1)  {
-            A_state_k = A_mat_scale[,b_i[k]]
-            Gamma = matrix(c(R[1,1] / (1 - A_state_k[1] * A_state_k[1]), 
-                             R[1,2] / (1 - A_state_k[1] * A_state_k[2]),
-                             R[1,3] / (1 - A_state_k[1] * A_state_k[3]), 
-                             R[1,4] / (1 - A_state_k[1] * A_state_k[4]),
-                             R[2,1] / (1 - A_state_k[2] * A_state_k[1]), 
-                             R[2,2] / (1 - A_state_k[2] * A_state_k[2]),
-                             R[2,3] / (1 - A_state_k[2] * A_state_k[3]), 
-                             R[2,4] / (1 - A_state_k[2] * A_state_k[4]),
-                             R[3,1] / (1 - A_state_k[3] * A_state_k[1]), 
-                             R[3,2] / (1 - A_state_k[3] * A_state_k[2]),
-                             R[3,3] / (1 - A_state_k[3] * A_state_k[3]), 
-                             R[3,4] / (1 - A_state_k[3] * A_state_k[4]),
-                             R[4,1] / (1 - A_state_k[4] * A_state_k[1]), 
-                             R[4,2] / (1 - A_state_k[4] * A_state_k[2]),
-                             R[4,3] / (1 - A_state_k[4] * A_state_k[3]), 
-                             R[4,4] / (1 - A_state_k[4] * A_state_k[4])), 
+            Gamma = matrix(c(R[1,1] / (1 - A_mat_scale[1] * A_mat_scale[1]), 
+                             R[1,2] / (1 - A_mat_scale[1] * A_mat_scale[2]),
+                             R[1,3] / (1 - A_mat_scale[1] * A_mat_scale[3]), 
+                             R[1,4] / (1 - A_mat_scale[1] * A_mat_scale[4]),
+                             R[2,1] / (1 - A_mat_scale[2] * A_mat_scale[1]), 
+                             R[2,2] / (1 - A_mat_scale[2] * A_mat_scale[2]),
+                             R[2,3] / (1 - A_mat_scale[2] * A_mat_scale[3]), 
+                             R[2,4] / (1 - A_mat_scale[2] * A_mat_scale[4]),
+                             R[3,1] / (1 - A_mat_scale[3] * A_mat_scale[1]), 
+                             R[3,2] / (1 - A_mat_scale[3] * A_mat_scale[2]),
+                             R[3,3] / (1 - A_mat_scale[3] * A_mat_scale[3]), 
+                             R[3,4] / (1 - A_mat_scale[3] * A_mat_scale[4]),
+                             R[4,1] / (1 - A_mat_scale[4] * A_mat_scale[1]), 
+                             R[4,2] / (1 - A_mat_scale[4] * A_mat_scale[2]),
+                             R[4,3] / (1 - A_mat_scale[4] * A_mat_scale[3]), 
+                             R[4,4] / (1 - A_mat_scale[4] * A_mat_scale[4])), 
                            ncol = 4, byrow = T)
             mean_vecY_i_k = D_i[[k]]%*%matrix(vec_alpha_i,ncol=1) + 
                             X_i[[k]]%*%matrix(beta,ncol=1) + 
                             D_i_omega[[k]]%*%matrix(vec_omega_i,ncol=1)
             Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
         } else {
-            A_state_k = A_mat_scale[,b_i[k]]
-            A_1 = diag(A_state_k)
+            A_1 = diag(A_mat_scale)
             
             nu_k = D_i[[k]]%*%matrix(vec_alpha_i,ncol=1) + 
                    X_i[[k]]%*%matrix(beta,ncol=1) +
