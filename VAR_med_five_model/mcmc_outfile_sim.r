@@ -6,7 +6,7 @@ sampling_num = as.numeric(args[1])
 trialNum = 1
 itNum = 1
 index_seeds = c(1:3)
-states_per_step = 0
+states_per_step = 3
 steps_per_it = 1
 long_chain = T
 
@@ -25,11 +25,7 @@ labels = c("beta (n_RBC_admin): hemo", "beta (n_RBC_admin): hr",
            "intercept (map)", "slope bleeding (map)", "slope recovery (map)", "slope state 4 (map)", "slope state 5 (map)",
            "intercept (lact)", "slope bleeding (lact)", "slope recovery (lact)", "slope state 4 (lact)", "slope state 5 (lact)",
            paste0("Upsilon (", 1:20, ", ", rep(1:20, each = 20), ")"), 
-           "A1 (baseline)", "A2 (baseline)", "A3 (baseline)", "A4 (baseline)",
-           "A1 (bleed)", "A2 (bleed)", "A3 (bleed)", "A4 (bleed)",
-           "A1 (recovery)", "A2 (recovery)", "A3 (recovery)", "A4 (recovery)",
-           "A1 (state 4)", "A2 (state 4)", "A3 (state 4)", "A4 (state 4)",
-           "A1 (state 5)", "A2 (state 5)", "A3 (state 5)", "A4 (state 5)",
+           "AR (hemoglobin)", "AR (heart rate)", "AR (MAP)", "AR (lactate)",
            "Var(hemo)", "Cov(hemo, hr)", "Cov(hemo, map)", "Cov(hemo, lact)", 
            "Cov(hr, hemo)", "Var(hr)", "Cov(hr, map)", "Cov(hr, lact)",
            "Cov(map, hemo)", "Cov(map, hr)", "Var(map)", "Cov(map, lact)",
@@ -102,28 +98,28 @@ for(seed in index_seeds){
 
 stacked_chains = do.call( rbind, chain_list)
 
-# Re-calculating the Upsilon matrix
-true_gamma = NULL
-
-gamma_chain = matrix(nrow = nrow(stacked_chains), ncol = 20)
-for(i in 1:nrow(stacked_chains)) {
-    R = matrix(stacked_chains[i, par_index$vec_R], ncol = 4)
-    vec_A1 = stacked_chains[i, par_index$vec_A]
-    scale_A1 = exp(vec_A1) / (1+exp(vec_A1))
-    
-    diag_gamma = c(R[1,1] / (scale_A1[1]^2), R[2,2] / (scale_A1[2]^2),
-                   R[3,3] / (scale_A1[3]^2), R[4,4] / (scale_A1[4]^2),
-                   R[1,1] / (scale_A1[5]^2), R[2,2] / (scale_A1[6]^2),
-                   R[3,3] / (scale_A1[7]^2), R[4,4] / (scale_A1[8]^2),
-                   R[1,1] / (scale_A1[9]^2), R[2,2] / (scale_A1[10]^2),
-                   R[3,3] / (scale_A1[11]^2), R[4,4] / (scale_A1[12]^2),
-                   R[1,1] / (scale_A1[13]^2), R[2,2] / (scale_A1[14]^2),
-                   R[3,3] / (scale_A1[15]^2), R[4,4] / (scale_A1[16]^2),
-                   R[1,1] / (scale_A1[17]^2), R[2,2] / (scale_A1[18]^2),
-                   R[3,3] / (scale_A1[19]^2), R[4,4] / (scale_A1[20]^2))
-    
-    gamma_chain[i, ] = diag_gamma
-}
+# # Re-calculating the Upsilon matrix
+# true_gamma = NULL
+# 
+# gamma_chain = matrix(nrow = nrow(stacked_chains), ncol = 20)
+# for(i in 1:nrow(stacked_chains)) {
+#     R = matrix(stacked_chains[i, par_index$vec_R], ncol = 4)
+#     vec_A1 = stacked_chains[i, par_index$vec_A]
+#     scale_A1 = exp(vec_A1) / (1+exp(vec_A1))
+# 
+#     diag_gamma = c(R[1,1] / (scale_A1[1]^2), R[2,2] / (scale_A1[2]^2),
+#                    R[3,3] / (scale_A1[3]^2), R[4,4] / (scale_A1[4]^2),
+#                    R[1,1] / (scale_A1[5]^2), R[2,2] / (scale_A1[6]^2),
+#                    R[3,3] / (scale_A1[7]^2), R[4,4] / (scale_A1[8]^2),
+#                    R[1,1] / (scale_A1[9]^2), R[2,2] / (scale_A1[10]^2),
+#                    R[3,3] / (scale_A1[11]^2), R[4,4] / (scale_A1[12]^2),
+#                    R[1,1] / (scale_A1[13]^2), R[2,2] / (scale_A1[14]^2),
+#                    R[3,3] / (scale_A1[15]^2), R[4,4] / (scale_A1[16]^2),
+#                    R[1,1] / (scale_A1[17]^2), R[2,2] / (scale_A1[18]^2),
+#                    R[3,3] / (scale_A1[19]^2), R[4,4] / (scale_A1[20]^2))
+# 
+#     gamma_chain[i, ] = diag_gamma
+# }
 
 pdf(paste0('Plots/trace_', trialNum, '_samp', sampling_num, '_',
            states_per_step, '_', steps_per_it, '.pdf'))

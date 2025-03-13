@@ -267,7 +267,7 @@ void initialize_cpp(arma::imat a_mat, arma::imat a_mat_sub, int s_per_s,
     adj_mat_sub_GLOBAL = a_mat_sub;
     states_per_step_GLOBAL = s_per_s;
     
-    if(sampling_num == 5) {
+    if(sampling_num == 4 || sampling_num == 5) {
         Omega_List_GLOBAL_multi = get_Omega_list(adj_mat_GLOBAL, 2);    
         Omega_List_GLOBAL_sub_multi = get_Omega_list(adj_mat_sub_GLOBAL, 2);
     } else {
