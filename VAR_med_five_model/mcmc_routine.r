@@ -106,6 +106,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     for(a_ind in 1:length(A_chain)) {
         A_chain[[a_ind]] = matrix(nrow = length(par_index$vec_alpha_tilde), 
                                   ncol = chain_length_MASTER)
+        A_chain[[a_ind]][,1] = A[[a_chain_id[a_ind]]]
     }
 
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
@@ -374,6 +375,9 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
             index_keep = seq(1, chain_length_MASTER, by = 5)
+            for(aaa in 1:length(A_chain)) {
+                A_chain[[aaa]] = A_chain[[aaa]][,index_keep]
+            }
             mcmc_out_temp = list(chain    = chain[index_keep,], 
                                  B_chain  = B_chain[index_keep,], 
                                  hc_chain = Y[,'hemo'],#hc_chain[index_keep,], 

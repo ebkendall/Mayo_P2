@@ -6,7 +6,7 @@ sampling_num = as.numeric(args[1])
 trialNum = 1
 itNum = 1
 index_seeds = c(1:3)
-states_per_step = 3
+states_per_step = 0
 steps_per_it = 1
 long_chain = T
 
@@ -212,7 +212,7 @@ for(s in names(par_index)){
 # }
 # 
 # # Plotting the sampled alpha_i
-# a_chain_id = c(3, 86, 163, 237, 427, 521, 632, 646, 692, 713)
+# a_chain_id = c(3, 86, 163, 237, 427)
 # hist_a_chain_list = vector(mode = 'list', length = length(a_chain_id))
 # for(i in 1:length(a_chain_id)) {
 #     for(j in 1:length(index_seeds)) {
@@ -223,37 +223,36 @@ for(s in names(par_index)){
 #         }
 #     }
 # }
-
+# 
 # hist_names = c("alpha_i baseline for hemo", "alpha_i slopes for hemo",
 #                "alpha_i baseline for hr", "alpha_i slopes for hr",
 #                "alpha_i baseline for map", "alpha_i slopes for map",
 #                "alpha_i baseline for lactate", "alpha_i slopes for lactate")
-
+# 
 # for (s in 1:length(a_chain_id)) {
-    
+#     
 #     patient_a = hist_a_chain_list[[s]]
-    
+#     
 #     for(k in 1:4) {
 #         base_ind = 5*k - 4
 #         b_ind = 5*k - 3
 #         r_ind = 5*k - 2
 #         s4_ind = 5*k - 1
 #         s5_ind = 5*k
-        
+#         
 #         temp_df = data.frame("bleed" = patient_a[b_ind,],
 #                              "recovery" = patient_a[r_ind,],
 #                              "NBE" = patient_a[s4_ind, ],
 #                              "recov_NBE" = patient_a[s5_ind, ])
-        
-#         hist(patient_a[base_ind,], main = paste0(a_chain_id[s], ": ", hist_names[2*k-1]), 
+#         
+#         hist(patient_a[base_ind,], main = paste0(a_chain_id[s], ": ", hist_names[2*k-1]),
 #              col = "darkolivegreen4", breaks = floor(sqrt(ncol(patient_a))),
 #              xlab = "baseline")
-        
+#         
 #         boxplot(temp_df, col = c('firebrick1', 'yellow2', 'green', 'darkgray'),
 #                 main = hist_names[2*k], outline=FALSE)
 #         abline(h = 0, col = 'blue')
 #     }
-    
 # }
 
 dev.off()
