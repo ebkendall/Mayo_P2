@@ -15,7 +15,7 @@ states_per_step = 0
 steps_per_it = 1
 S = 5
 
-seed_list = c(1:3)
+seed_list = c(1:50)
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {

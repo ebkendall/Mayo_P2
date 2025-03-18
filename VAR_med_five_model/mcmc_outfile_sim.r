@@ -5,7 +5,7 @@ sampling_num = as.numeric(args[1])
 
 trialNum = 1
 itNum = 1
-index_seeds = c(1:3)
+index_seeds = c(1:50)
 states_per_step = 0
 steps_per_it = 1
 long_chain = T
@@ -57,8 +57,11 @@ for(a in 1:length(a_chain_list)) {
 
 ind = 0
 
+post_means = NULL
+covg = NULL
+
 for(seed in index_seeds){
-    ind = ind + 1
+    
     if(long_chain) {
         it_seq = 1:itNum
     } else {
@@ -67,36 +70,57 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         
-        file_name = paste0(dir,'mcmc_out_', seed, '_', trialNum, 'it', 
+        file_name = paste0(dir,'mcmc_out_', seed, '_', seed, 'it', 
                            it, '_samp', sampling_num, '_', states_per_step,
                            '_', steps_per_it,'_sim.rda') 
         
-        load(file_name)
-        print(paste0(ind, ": ", file_name))
-        print("accept")
-        print(mcmc_out_temp$accept)
-        print("pscale")
-        print(mcmc_out_temp$pscale)
-        
-        par_index = mcmc_out_temp$par_index
-        
-        if(it == 1) {
-            chain_list[[ind]] = mcmc_out_temp$chain[1000:2000,]
-            # for(a in 1:length(a_chain_list[[ind]])) {
-            #     a_chain_list[[ind]][[a]] = mcmc_out_temp$A_chain[[a]]
-            # }
+        if(file.exists(file_name)) {
+            load(file_name)
+            print(paste0(ind, ": ", file_name))
+            print("accept")
+            print(mcmc_out_temp$accept)
+            print("pscale")
+            print(mcmc_out_temp$pscale)
+            
+            par_index = mcmc_out_temp$par_index
+            
+            if(it == 1) {
+                ind = ind + 1
+                
+                chain_list[[ind]] = mcmc_out_temp$chain[1000:2000,]
+                # for(a in 1:length(a_chain_list[[ind]])) {
+                #     a_chain_list[[ind]][[a]] = mcmc_out_temp$A_chain[[a]]
+                # }
+            } else {
+                chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out_temp$chain)
+                # for(a in 1:length(a_chain_list[[ind]])) {
+                #     a_chain_list[[ind]][[a]] = cbind(a_chain_list[[ind]][[a]], mcmc_out_temp$A_chain[[a]])
+                # }
+            }
+            
+            post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
+            post_means = rbind(post_means, post_means_temp)
+            
+            covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
+            covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
+            covg_temp = as.numeric(true_pars <= covg_high & true_pars >= covg_low)
+            covg = rbind(covg, covg_temp)
+            
+            rm(mcmc_out_temp)    
         } else {
-            chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out_temp$chain)
-            # for(a in 1:length(a_chain_list[[ind]])) {
-            #     a_chain_list[[ind]][[a]] = cbind(a_chain_list[[ind]][[a]], mcmc_out_temp$A_chain[[a]])
-            # }
+            print("Missing!")
+            print(paste0(ind, ": ", file_name))
         }
-        
-        rm(mcmc_out_temp)
     }
 }
 
 stacked_chains = do.call( rbind, chain_list)
+
+
+upsilon_ind = matrix(1:length(par_index$vec_sigma_upsilon), ncol = 20)
+upsilon_ind[upper.tri(upsilon_ind, diag = F)] = 0
+upsilon_ind = c(upsilon_ind)
+upsilon_ind = upsilon_ind[upsilon_ind != 0]
 
 # # Re-calculating the Upsilon matrix
 # true_gamma = NULL
@@ -126,9 +150,14 @@ pdf(paste0('Plots/trace_', trialNum, '_samp', sampling_num, '_',
 par(mfrow=c(3, 2))
 lab_ind = 0
 for(s in names(par_index)){
+    
     temp_par = par_index[[s]]
+    if(s == "vec_sigma_upsilon") {
+        temp_par = temp_par[upsilon_ind]
+    }
+    
     for(r in temp_par){
-        # lab_ind = lab_ind + 1
+        print(r)
         lab_ind = r
         parMean = round( mean(stacked_chains[,r]), 4)
         parMedian = round( median(stacked_chains[,r]), 4)
@@ -136,7 +165,7 @@ for(s in names(par_index)){
         lower = quantile( stacked_chains[,r], prob=.025)
         
         title_color = "black"
-        if(s == names(par_index)[8]) {
+        if(s == "omega_tilde") {
             if(0 < lower) {
                 title_color = "red"
             }
@@ -166,6 +195,24 @@ for(s in names(par_index)){
         abline( v=lower, col='purple', lwd=2, lty=2)
         abline( v=true_pars[r], col='green', lwd=2, lty=2)
     }   
+}
+
+par(mfrow=c(3, 3))
+lab_ind = 0
+for(s in names(par_index)){
+    
+    temp_par = par_index[[s]]
+    if(s == "vec_sigma_upsilon") {
+        temp_par = temp_par[upsilon_ind]
+    }
+    
+    for(r in temp_par){
+        lab_ind = r
+        
+        boxplot(post_means[,r], main = labels[r],
+                xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)))
+        abline(h = true_pars[r], col = 'red')
+    }
 }
 # 
 # if(long_chain) {
