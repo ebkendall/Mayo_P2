@@ -80,7 +80,7 @@ par(mfrow=c(3, 2))
 for(seed in seed_list) {
     print(seed)
     if(!(seed %in% flag_ind)) {
-        load(paste0('Data_sim/use_data_', seed, '.rda'))
+        load(paste0('Data_sim/old/use_data_', seed, '.rda'))
         true_state = use_data[,'b_true']
         
         # Quick summary 
@@ -158,7 +158,7 @@ dev.off()
 print("Summary of state identification based on posterior mode: ")
 print(summary(mode_correct))
 
-print("Summary of the calibrated minimum probability")
+print("Summary of the the choice for c")
 print(summary(chosen_c$c))
 
 indiv_select_c = mean(chosen_c$c)
@@ -166,7 +166,7 @@ sens_and_spec_S2 = matrix(nrow = length(seed_list), ncol = 2)
 colnames(sens_and_spec_S2) = c("sens", "spec")
 for(seed in seed_list) {
     if(!(seed %in% flag_ind)) {
-        load(paste0('Data_sim/use_data_', seed, '.rda'))
+        load(paste0('Data_sim/old/use_data_', seed, '.rda'))
         true_state = use_data[,'b_true']
         
         post_prob_S2 = state_results[[seed]][2, ] / colSums(state_results[[seed]][1:S,])

@@ -11,6 +11,15 @@ for(df_num in 1:50) {
     N = length(unique(data_format[,"EID"]))
     EIDs = unique(data_format[,"EID"])
     
+    # Clinic Rule information ------------------------------------------------------
+    non_zero_clinic = unique(data_format[data_format[,"clinic_rule"] != 0, "EID"])
+    clinic_rbc_combos = matrix(0, ncol = 3, nrow = length(non_zero_clinic))
+    clinic_rbc_combos[,1] = non_zero_clinic
+    for(c in 1:length(non_zero_clinic)) {
+        clinic_rbc_combos[c,2:3] = c(unique(data_format[data_format[,"EID"] == non_zero_clinic[c], "RBC_rule"]),
+                                    unique(data_format[data_format[,"EID"] == non_zero_clinic[c], "clinic_rule"]))
+    }
+    
     # ------------------------------------------------------------------------------
     # Making an indicator variable about the first RBC to indicate bleed event -----
     bleed_pat = unique(data_format[data_format[,"RBC_rule"] != 0, "EID"])
@@ -127,12 +136,12 @@ for(df_num in 1:50) {
     
     pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
     
-    pars_mean[par_index$omega_tilde]= c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                                        -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                                        -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                                        -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    pars_mean[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                            -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                            -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                            -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     
-    pars_mean[par_index$vec_upsilon_omega] = rep(-4, length(par_index$vec_upsilon_omega))
+    pars_mean[par_index$vec_upsilon_omega] = rep(0, length(par_index$vec_upsilon_omega))
     
     # Parameter initialization -----------------------------------------------------
     beta = pars_mean[par_index$vec_beta]
@@ -341,6 +350,37 @@ for(df_num in 1:50) {
                             'b_true', 'RBC_ordered', 
                             'n_RBC_admin', 'RBC_rule', 'clinic_rule')
     
+    # Adding clinic rule -------------------------------------------------------
+    all_poss_combo = matrix(c(0,-1,
+                              0, 1,
+                              1, 1), nrow = 3, byrow = T)
+    subjects_2_3 = unique(use_data[use_data[,'b_true'] %in% c(2,3), "EID"])
+    subjects_2 = unique(use_data[use_data[,'b_true'] == 2, "EID"])
+    
+    for(apc in 1:nrow(all_poss_combo)) {
+        if(all_poss_combo[apc, 2] == -1) {
+            # Clinic rule = -1
+            num_rules = sum(clinic_rbc_combos[,3] == all_poss_combo[apc, 2])
+            poss_EIDs = unique(use_data[use_data[,'RBC_rule'] == 0 & 
+                                        !(use_data[,'EID'] %in% subjects_2_3), 'EID'])
+            if(num_rules > length(poss_EIDs)) {
+                clinic_assign = poss_EIDs
+            } else {
+                clinic_assign = sample(poss_EIDs, num_rules, replace = F)    
+            }
+            use_data[use_data[,"EID"] %in% clinic_assign, "clinic_rule"] = -1
+        } else {
+            # Clinic rule = 1
+            num_rules = sum(clinic_rbc_combos[,2] == all_poss_combo[apc, 1] &
+                                clinic_rbc_combos[,3] == all_poss_combo[apc, 2])
+            poss_EIDs = unique(use_data[use_data[,"RBC_rule"] == all_poss_combo[apc, 1] & 
+                                            use_data[,"EID"] %in% subjects_2, "EID"])
+            clinic_assign = sample(poss_EIDs, num_rules, replace = F)
+            
+            use_data[use_data[,"EID"] %in% clinic_assign, "clinic_rule"] = 1
+        }
+    }
+    
     save( use_data, file=paste0(Dir,'use_data_', df_num, '.rda'))
     
     print(table(use_data[,'b_true']))
@@ -350,6 +390,11 @@ for(df_num in 1:50) {
     
     print(paste0("RBC rule is found in ", length(rbc_bleed_correct), " patients"))
     print(paste0(sum(rbc_bleed_correct == 1), " were correct with the bleed event"))
+    
+    print("Clinic Rule = 1")
+    print(unique(use_data[use_data[,"clinic_rule"] == 1, "EID"]))
+    print("Clinic Rule = -1")
+    print(unique(use_data[use_data[,"clinic_rule"] == -1, "EID"]))
     
     bleed_indicator = bleed_indicator_update
     

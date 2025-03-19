@@ -5,7 +5,7 @@ sampling_num = as.numeric(args[1])
 
 trialNum = 1
 itNum = 1
-index_seeds = c(1:50)
+index_seeds = c(1:3)
 states_per_step = 0
 steps_per_it = 1
 long_chain = T
@@ -70,7 +70,7 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         
-        file_name = paste0(dir,'mcmc_out_', seed, '_', seed, 'it', 
+        file_name = paste0(dir,'mcmc_out_', trialNum, '_', seed, 'it', 
                            it, '_samp', sampling_num, '_', states_per_step,
                            '_', steps_per_it,'_sim.rda') 
         
@@ -116,6 +116,10 @@ for(seed in index_seeds){
 
 stacked_chains = do.call( rbind, chain_list)
 
+# covg_pars = colMeans(covg)
+# boxplot(covg_pars)
+# mean(covg_pars)
+# sd(covg_pars)
 
 upsilon_ind = matrix(1:length(par_index$vec_sigma_upsilon), ncol = 20)
 upsilon_ind[upper.tri(upsilon_ind, diag = F)] = 0
@@ -197,109 +201,23 @@ for(s in names(par_index)){
     }   
 }
 
-par(mfrow=c(3, 3))
-lab_ind = 0
-for(s in names(par_index)){
-    
-    temp_par = par_index[[s]]
-    if(s == "vec_sigma_upsilon") {
-        temp_par = temp_par[upsilon_ind]
-    }
-    
-    for(r in temp_par){
-        lab_ind = r
-        
-        boxplot(post_means[,r], main = labels[r],
-                xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)))
-        abline(h = true_pars[r], col = 'red')
-    }
-}
-# 
-# if(long_chain) {
-#     chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / (itNum*steps))
-# } else {
-#     chain_list_gamma = vector(mode = 'list', length = nrow(stacked_chains) / steps)   
-# }
-# for(i in 1:length(chain_list_gamma)) {
-#     if(long_chain) {
-#         max_ind = i * (itNum*steps)
-#         chain_list_gamma[[i]] = gamma_chain[(max_ind - (itNum*steps - 1)):max_ind, ]
-#     } else {
-#         max_ind = i * steps   
-#         chain_list_gamma[[i]] = gamma_chain[(max_ind - (steps - 1)):max_ind, ]
-#     }
-# }
-# 
-# for(rr in 1:ncol(gamma_chain)){
+# par(mfrow=c(3, 3))
+# lab_ind = 0
+# for(s in names(par_index)){
 #     
-#     lab_ind = rr
-#     parMean = round( mean(gamma_chain[,rr]), 4)
-#     parMedian = round( median(gamma_chain[,rr]), 4)
-#     upper = quantile( gamma_chain[,rr], prob=.975)
-#     lower = quantile( gamma_chain[,rr], prob=.025)
-#     
-#     y_limit = range(gamma_chain[,rr])
-#     
-#     plot( NULL, ylab=NA, main=additional_labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
-#           ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
-#                                       ", ", round(upper, 4), "]"))
-#     
-#     for(seed in 1:length(chain_list_gamma)) {
-#         lines( chain_list_gamma[[seed]][,rr], type='l', col=seed)
-#         # abline(h = chain_list_gamma[[seed]][1,rr], col=seed)
+#     temp_par = par_index[[s]]
+#     if(s == "vec_sigma_upsilon") {
+#         temp_par = temp_par[upsilon_ind]
 #     }
 #     
-#     x_label = paste0('Mean =',toString(parMean),' Median =',toString(parMedian))
-#     
-#     hist( gamma_chain[,rr], breaks=sqrt(nrow(gamma_chain)), ylab=NA, main=NA, freq=FALSE,
-#           xlab=x_label)
-#     abline( v=upper, col='red', lwd=2, lty=2)
-#     abline( v=lower, col='purple', lwd=2, lty=2)
-#     abline( v=true_gamma[rr], col='green', lwd=2, lty=2)
-# }
-# 
-# # Plotting the sampled alpha_i
-# a_chain_id = c(3, 86, 163, 237, 427)
-# hist_a_chain_list = vector(mode = 'list', length = length(a_chain_id))
-# for(i in 1:length(a_chain_id)) {
-#     for(j in 1:length(index_seeds)) {
-#         if(j==1) {
-#             hist_a_chain_list[[i]] = a_chain_list[[j]][[i]]
-#         } else {
-#             hist_a_chain_list[[i]] = cbind(hist_a_chain_list[[i]], a_chain_list[[j]][[i]])
-#         }
-#     }
-# }
-# 
-# hist_names = c("alpha_i baseline for hemo", "alpha_i slopes for hemo",
-#                "alpha_i baseline for hr", "alpha_i slopes for hr",
-#                "alpha_i baseline for map", "alpha_i slopes for map",
-#                "alpha_i baseline for lactate", "alpha_i slopes for lactate")
-# 
-# for (s in 1:length(a_chain_id)) {
-#     
-#     patient_a = hist_a_chain_list[[s]]
-#     
-#     for(k in 1:4) {
-#         base_ind = 5*k - 4
-#         b_ind = 5*k - 3
-#         r_ind = 5*k - 2
-#         s4_ind = 5*k - 1
-#         s5_ind = 5*k
+#     for(r in temp_par){
+#         lab_ind = r
 #         
-#         temp_df = data.frame("bleed" = patient_a[b_ind,],
-#                              "recovery" = patient_a[r_ind,],
-#                              "NBE" = patient_a[s4_ind, ],
-#                              "recov_NBE" = patient_a[s5_ind, ])
-#         
-#         hist(patient_a[base_ind,], main = paste0(a_chain_id[s], ": ", hist_names[2*k-1]),
-#              col = "darkolivegreen4", breaks = floor(sqrt(ncol(patient_a))),
-#              xlab = "baseline")
-#         
-#         boxplot(temp_df, col = c('firebrick1', 'yellow2', 'green', 'darkgray'),
-#                 main = hist_names[2*k], outline=FALSE)
-#         abline(h = 0, col = 'blue')
+#         boxplot(post_means[,r], main = labels[r],
+#                 xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)))
+#         abline(h = true_pars[r], col = 'red')
 #     }
 # }
+
 
 dev.off()

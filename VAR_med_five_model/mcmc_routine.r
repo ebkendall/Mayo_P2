@@ -16,10 +16,9 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                          df_num, sampling_num, states_per_step, steps_per_it){
     
     EIDs = as.numeric(unique(Y[,'EID']))
-    # b_true = do.call('c', B)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 15#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 12#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -30,7 +29,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                        1, 1, 0, 1, 1), nrow=5, byrow = T)
     adj_mat_sub = matrix(c(1, 0, 0, 1, 0,
                            0, 1, 0, 0, 0,
-                           1, 0, 1, 1, 0,
+                           0, 0, 1, 0, 0,
                            0, 0, 0, 1, 1,
                            1, 0, 0, 1, 1), nrow=5, byrow = T)
     initialize_cpp(adj_mat, adj_mat_sub, states_per_step, sampling_num)
@@ -180,6 +179,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 } else {
                     sps = states_per_step
                 }
+                
                 B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
                                            Dn_omega, W, bleed_indicator,n_cores,
                                            sps)
