@@ -23,10 +23,10 @@ if(sampling_num %in% c(4,5)) {
 }
 
 set.seed(seed_num)
-steps  = 10000
+steps  = 30000
 burnin =  5000
 
-simulation = T
+simulation = F
 data_format = NULL
 
 if(simulation) {
@@ -88,7 +88,7 @@ par[par_index$omega_tilde]= c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1
                               -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                               -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
-par[par_index$vec_upsilon_omega] = rep(-4, length(par_index$vec_upsilon_omega))
+par[par_index$vec_upsilon_omega] = rep(0, length(par_index$vec_upsilon_omega))
 # -----------------------------------------------------------------------------
 if(simulation) {
     load('Data_sim/true_pars.rda')

@@ -609,7 +609,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_R_content = par.elem(par_index(4) - 1);
     arma::mat R = arma::reshape(vec_R_content, 4, 4);
     
-    int nu_R = 1000;
+    int nu_R = 8;
     arma::vec scalar_vec_R = {9, 9, 9, 9};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat Psi_R = arma::diagmat(scalar_vec_R);
@@ -3648,16 +3648,15 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
                                                    R, zeta, P_init);
                 }
 
-                int selected_state = arma::index_max(init_vals) + 1;
-
-                // Double check that bleeding isn't selected when clinic_rule=-1
+                int selected_state;
+                
                 if(clinic_rule < 0) {
-                    if(selected_state == 2) {
-                        arma::uvec state_order = arma::sort_index(init_vals, "descend");
-                        // Take second largest
-                        int new_state = state_order(1)+1;
-                        selected_state = new_state;
-                    }
+                    arma::vec poss_states = {1,4,5};
+                    init_vals = {init_vals(0), init_vals(3), init_vals(4)};
+                    
+                    selected_state = poss_states(arma::index_max(init_vals));
+                } else {
+                    selected_state = arma::index_max(init_vals) + 1;    
                 }
 
                 b_i(k) = selected_state;

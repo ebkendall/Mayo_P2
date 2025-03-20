@@ -18,7 +18,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 12#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 20#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -299,7 +299,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 curr_R = matrix(par[ind_j], nrow = 4)
                 
                 # Prior for R
-                nu_R = 1000
+                nu_R = 8
                 psi_R = diag(c(9, 9, 9, 9))
                 psi_R = (nu_R - 4 - 1) * psi_R
 
@@ -393,8 +393,9 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                                   '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '_sim.rda'))
             } else {
-                save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',ind,'_', 
-                                                  trialNum, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
+                save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
+                                                  ind, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
+                                                  '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '.rda'))
             }
             # Reset the chains
