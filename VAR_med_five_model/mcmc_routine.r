@@ -100,8 +100,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     }
     
     # Keeping track of the sampled alpha_i -------------------------------------
-    A_chain = vector(mode = "list", length = 5)
     a_chain_id = c(3, 86, 163, 237, 427)
+    A_chain = vector(mode = "list", length = length(a_chain_id))
     for(a_ind in 1:length(A_chain)) {
         A_chain[[a_ind]] = matrix(nrow = length(par_index$vec_alpha_tilde), 
                                   ncol = chain_length_MASTER)
@@ -362,10 +362,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt == burnin) accept = rep( 0, n_group)
         
         B_chain[ chain_ind, ] = do.call( 'c', B)
-        # hc_chain[chain_ind, ] = Y[,'hemo']
-        # hr_chain[chain_ind, ] = Y[,'hr']
-        # bp_chain[chain_ind, ] = Y[,'map']
-        # la_chain[chain_ind, ] = Y[,'lactate']
+        if(!simulation) {
+            hc_chain[chain_ind, ] = Y[,'hemo']
+            hr_chain[chain_ind, ] = Y[,'hr']
+            bp_chain[chain_ind, ] = Y[,'map']
+            la_chain[chain_ind, ] = Y[,'lactate']
+        }
         # ----------------------------------------------------------------------
 
         if(ttt%%1==0)  cat('--->',ttt,'\n')
@@ -374,33 +376,54 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         
         if(ttt > burnin & ttt%%chain_length_MASTER==0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
+
             index_keep = seq(1, chain_length_MASTER, by = 5)
+
             for(aaa in 1:length(A_chain)) {
                 A_chain[[aaa]] = A_chain[[aaa]][,index_keep]
             }
-            mcmc_out_temp = list(chain    = chain[index_keep,], 
-                                 B_chain  = B_chain[index_keep,], 
-                                 hc_chain = Y[,'hemo'],#hc_chain[index_keep,], 
-                                 hr_chain = Y[,'hr'], #hr_chain[index_keep,],
-                                 bp_chain = Y[,'map'], #bp_chain[index_keep,], 
-                                 la_chain = Y[,'lactate'], #la_chain[index_keep,],
-                                 A_chain  = A_chain,
-                                 otype=otype, accept=accept/length(burnin:ttt), 
-                                 pscale=pscale, pcov = pcov, par_index=par_index)
+            
             if(simulation) {
+                mcmc_out_temp = list(chain    = chain[index_keep,], 
+                                     B_chain  = B_chain[index_keep,], 
+                                     hc_chain = Y[,'hemo'],
+                                     hr_chain = Y[,'hr'], 
+                                     bp_chain = Y[,'map'], 
+                                     la_chain = Y[,'lactate'], 
+                                     A_chain  = A_chain,
+                                     otype=otype, accept=accept/length(burnin:ttt), 
+                                     pscale=pscale, pcov = pcov, par_index=par_index)
+
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
                                                   ind, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
                                                   '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '_sim.rda'))
             } else {
+                mcmc_out_temp = list(chain    = chain[index_keep,], 
+                                     B_chain  = B_chain[index_keep,], 
+                                     hc_chain = hc_chain[index_keep,], 
+                                     hr_chain = hr_chain[index_keep,],
+                                     bp_chain = bp_chain[index_keep,], 
+                                     la_chain = la_chain[index_keep,],
+                                     A_chain  = A_chain,
+                                     otype=otype, accept=accept/length(burnin:ttt), 
+                                     pscale=pscale, pcov = pcov, par_index=par_index)
+
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
                                                   ind, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
                                                   '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '.rda'))
             }
+            
             # Reset the chains
             chain = matrix( NA, chain_length_MASTER, length(par)) 
             B_chain = hc_chain = hr_chain = bp_chain = la_chain = matrix( NA, chain_length_MASTER, nrow(Y))
+
+            A_chain = vector(mode = "list", length = length(a_chain_id))
+            for(a_ind in 1:length(A_chain)) {
+                A_chain[[a_ind]] = matrix(nrow = length(par_index$vec_alpha_tilde), 
+                                          ncol = chain_length_MASTER)
+            }
         }
     }
     # ---------------------------------------------------------------------------
