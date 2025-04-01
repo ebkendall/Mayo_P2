@@ -189,9 +189,11 @@ rbc_patients = rbc_patients[!(rbc_patients %in% TEST_SET)]
 rbc_clinic_both = unique(c(rbc_patients, clinical_patients))
 
 remaining_ids = EIDs_sub[!(EIDs_sub %in% c(rbc_clinic_both, TEST_SET))]
+print(paste0("Number of possible subjects: ", length(remaining_ids)))
 
 set.seed(2025)
-EIDs_FINAL = c(rbc_clinic_both, sample(remaining_ids, size = 500 - length(rbc_clinic_both),
+final_train_size = 1000
+EIDs_FINAL = c(rbc_clinic_both, sample(remaining_ids, size = final_train_size - length(rbc_clinic_both),
                       replace = F))
 EIDs_FINAL = sort(EIDs_FINAL)
 
@@ -199,7 +201,11 @@ EIDs_FINAL = sort(EIDs_FINAL)
 if(sum(TEST_SET %in% EIDs_FINAL) != 0) print("ERROR: TEST IDs are in TRAIN IDs")
 
 data_format = data_format[data_format[,"EID"] %in% EIDs_FINAL, ]
-save(data_format, file = "Data/data_format_train.rda")
+if(final_train_size == 500) {
+    save(data_format, file = "Data/data_format_train.rda")
+} else {
+    save(data_format, file = "Data/data_format_train_large.rda")
+}
 
 # ------------------------------------------------------------------------------
 # FINAL FORMATTING OF MEDICATIONS ----------------------------------------------
@@ -299,8 +305,12 @@ for(i in 1:length(Dn_omega)) {
         Dn_omega[[i]][[j]] = med_mat
     }
 }
+if(final_train_size == 500) {
+    save(Dn_omega, file = paste0('Data/Dn_omega.rda'))
+} else {
+    save(Dn_omega, file = paste0('Data/Dn_omega_large.rda'))
+}
 
-save(Dn_omega, file = paste0('Data/Dn_omega.rda'))
 
 # Understanding what the mean of Dn_omega should be
 load("Data/med_select_FINAL.rda")

@@ -23,10 +23,10 @@ if(sampling_num %in% c(4,5)) {
 }
 
 set.seed(seed_num)
-steps  = 30000
+steps  = 10000
 burnin =  5000
 
-simulation = F
+simulation = T
 data_format = NULL
 
 if(simulation) {
@@ -83,12 +83,12 @@ par[par_index$vec_zeta] = c(-4.7405, 4.5, -5.2152,   1, -3.6473,-0.5, -3.1475, -
 
 par[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
 
-par[par_index$omega_tilde]= c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                              -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                              -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                  -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                  -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                  -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
-par[par_index$vec_upsilon_omega] = rep(0, length(par_index$vec_upsilon_omega))
+par[par_index$vec_upsilon_omega] = rep(1, length(par_index$vec_upsilon_omega))
 # -----------------------------------------------------------------------------
 if(simulation) {
     load('Data_sim/true_pars.rda')

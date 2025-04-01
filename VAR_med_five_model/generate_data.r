@@ -3,8 +3,8 @@ library(mvtnorm, quietly=T)
 # Load in the existing data and save the covariate combinations
 for(df_num in 1:50) {
     print(paste0("Df ", df_num))
-    load('Data_real/data_format_train.rda')
-    load('Data_real/Dn_omega.rda')
+    load('Data_real/data_format_train_large.rda')
+    load('Data_real/Dn_omega_large.rda')
     load('Data_real/Dn_omega_names.rda')
     
     set.seed(df_num)
@@ -141,7 +141,7 @@ for(df_num in 1:50) {
                                             -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                             -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     
-    pars_mean[par_index$vec_upsilon_omega] = rep(0, length(par_index$vec_upsilon_omega))
+    pars_mean[par_index$vec_upsilon_omega] = rep(1, length(par_index$vec_upsilon_omega))
     
     # Parameter initialization -----------------------------------------------------
     beta = pars_mean[par_index$vec_beta]

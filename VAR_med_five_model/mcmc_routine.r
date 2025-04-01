@@ -18,7 +18,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 20#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 15#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -54,10 +54,15 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     pscale = rep( 0.0001, n_group)
   
     # Initialize data storage --------------------------------------------------
-    chain_length_MASTER = 10000
-    chain = matrix( 0, chain_length_MASTER, length(par)) 
-    B_chain = matrix( 0, chain_length_MASTER, nrow(Y)) 
-    hc_chain = hr_chain = bp_chain = la_chain = NULL
+    reset_step = 10000
+    chain_length_MASTER = 1000
+
+    chain = matrix(NA, reset_step, length(par)) 
+    
+    B_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+    hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+    bp_chain = la_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+
     accept = rep( 0, n_group)
     
     # Initialize design matrix -------------------------------------------------
@@ -111,16 +116,29 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
     B_chain[1, ] = do.call( 'c', B)
+    if(!simulation) {
+        hc_chain[1, ] = Y[,'hemo']
+        hr_chain[1, ] = Y[,'hr']
+        bp_chain[1, ] = Y[,'map']
+        la_chain[1, ] = Y[,'lactate']
+    }
     
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
         ttt_start_t = Sys.time()
 
         # Every 10,000 steps, save existing MCMC results -----------------------
-        if(ttt %% chain_length_MASTER == 0) {
+        chain_ind = NULL
+        chain_ttt = NULL
+        if(ttt %% reset_step == 0) {
             chain_ind = chain_length_MASTER
+            chain_ttt = reset_step
         } else {
-            chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
+            new_t = ttt - floor(ttt / reset_step) * reset_step
+            chain_ind = floor((new_t - 1)/10) + 1
+            # chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
+
+            chain_ttt = ttt %% reset_step
         }
 
         # Imputing the missing Y values ----------------------------------------
@@ -131,9 +149,9 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                             'RBC_rule', 'clinic_rule')
         }
 
-        # bbb_start_t = Sys.time()
+        # State-space update (B) -----------------------------------------------
         for(s in 1:steps_per_it) {
-            # Random sample update ---------------------------------------------
+            # Random sample update
             if(sampling_num == 1) {
                 B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
                              bleed_indicator, n_cores, states_per_step)
@@ -141,7 +159,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 Dn = B_Dn[[2]]
             }
             
-            # Almost-Gibbs update ----------------------------------------------
+            # Almost-Gibbs update
             else if(sampling_num == 2) {
                 B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
                                        Dn_omega, W, bleed_indicator, n_cores, 
@@ -150,7 +168,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 Dn = B_Dn[[2]]
             } 
             
-            # Gibbs update -----------------------------------------------------
+            # Gibbs update
             else if(sampling_num == 3) {
                 B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
                                 W, bleed_indicator, n_cores, states_per_step)
@@ -158,20 +176,15 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 Dn = B_Dn[[2]]
             }
             
-            # Full seq MH update -----------------------------------------------
+            # Full seq MH update
             else if(sampling_num == 4) {
-                # b_curr = do.call('c', B)
-                # print(paste0("before ", mean(b_true == b_curr)))
                 B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
                                  W, bleed_indicator, n_cores)
                 B = B_Dn[[1]]
                 Dn = B_Dn[[2]]
-                
-                # b_curr = do.call('c', B)
-                # print(paste0("after ", mean(b_true == b_curr)))
             }
             
-            # Almost-Gibbs efficient (b) ---------------------------------------
+            # Almost-Gibbs efficient
             else if(sampling_num == 5) {
                 
                 if(states_per_step == 0) {
@@ -187,7 +200,6 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 Dn = B_Dn[[2]]
             }
         }
-        # bbb_end_t = Sys.time() - bbb_start_t; print(bbb_end_t)
         
         # Gibbs: alpha_i -------------------------------------------------------
         A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
@@ -206,7 +218,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                       Dn_omega, W, B, n_cores)
 
         # Store current parameter updates --------------------------------------
-        chain[chain_ind,] = par
+        chain[chain_ttt,] = par
         
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(EIDs, par, par_index, A, B, Y, z, Dn, Xn,
@@ -259,35 +271,35 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                     accept[j] = accept[j] +1
                 }
 
-                chain[chain_ind,ind_j] = par[ind_j]
+                chain[chain_ttt,ind_j] = par[ind_j]
 
                 # Proposal tuning scheme ---------------------------------------
-                # During the burnin period, update the proposal covariance in each step
-                # to capture the relationships within the parameters vectors for each
-                # transition.  This helps with mixing.
+                # During the burnin period, update the proposal covariance
+                # to capture the relationships within the parameter vectors.
+                # This helps with mixing.
                 if(ttt < burnin){
-                    if(ttt == 100)  pscale[j] = 1
+                    if(chain_ttt == 100)  pscale[j] = 1
 
-                    if(100 <= ttt & ttt <= 2000){
-                        temp_chain = chain[1:ttt,ind_j]
+                    if(100 <= chain_ttt & chain_ttt <= 2000){
+                        temp_chain = chain[1:chain_ttt,ind_j]
                         pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
 
-                    } else if(2000 < ttt){
-                        temp_chain = chain[(ttt-2000):ttt,ind_j]
+                    } else if(2000 < chain_ttt){
+                        temp_chain = chain[(chain_ttt-2000):chain_ttt,ind_j]
                         pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
                     }
                     if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
 
                     # Tune the proposal covariance for each transition to achieve
                     # reasonable acceptance ratios.
-                    if(ttt %% 30 == 0){
-                        if(ttt %% 480 == 0){
+                    if(chain_ttt %% 30 == 0){
+                        if(chain_ttt %% 480 == 0){
                             accept[j] = 0
 
-                        } else if( accept[j] / (ttt %% 480) < .4 ){
+                        } else if( accept[j] / (chain_ttt %% 480) < .4 ){
                             pscale[j] = (.75^2)*pscale[j]
 
-                        } else if( accept[j] / (ttt %% 480) > .5 ){
+                        } else if( accept[j] / (chain_ttt %% 480) > .5 ){
                             pscale[j] = (1.25^2)*pscale[j]
                         }
                     }
@@ -354,7 +366,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                     accept[j] = accept[j] +1
                 }
 
-                chain[chain_ind,ind_j] = par[ind_j]
+                chain[chain_ttt,ind_j] = par[ind_j]
             }
         }
 
@@ -370,22 +382,19 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
         # ----------------------------------------------------------------------
 
-        if(ttt%%1==0)  cat('--->',ttt,'\n')
+        cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
         if(ttt%%100==0) print(accept)
+        
         ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)
         
-        if(ttt > burnin & ttt%%chain_length_MASTER==0) {
+        if(ttt > burnin & ttt%%reset_step==0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
 
-            index_keep = seq(1, chain_length_MASTER, by = 5)
-
-            for(aaa in 1:length(A_chain)) {
-                A_chain[[aaa]] = A_chain[[aaa]][,index_keep]
-            }
+            index_keep = seq(10, reset_step, by = 10)
             
             if(simulation) {
                 mcmc_out_temp = list(chain    = chain[index_keep,], 
-                                     B_chain  = B_chain[index_keep,], 
+                                     B_chain  = B_chain, 
                                      hc_chain = Y[,'hemo'],
                                      hr_chain = Y[,'hr'], 
                                      bp_chain = Y[,'map'], 
@@ -395,29 +404,32 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
-                                                  ind, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
+                                                  ind, 'it', ttt/reset_step + (max_ind - 5), 
                                                   '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '_sim.rda'))
             } else {
                 mcmc_out_temp = list(chain    = chain[index_keep,], 
-                                     B_chain  = B_chain[index_keep,], 
-                                     hc_chain = hc_chain[index_keep,], 
-                                     hr_chain = hr_chain[index_keep,],
-                                     bp_chain = bp_chain[index_keep,], 
-                                     la_chain = la_chain[index_keep,],
+                                     B_chain  = B_chain, 
+                                     hc_chain = hc_chain, 
+                                     hr_chain = hr_chain,
+                                     bp_chain = bp_chain, 
+                                     la_chain = la_chain,
                                      A_chain  = A_chain,
                                      otype=otype, accept=accept/length(burnin:ttt), 
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
-                                                  ind, 'it', ttt/chain_length_MASTER + (max_ind - 5), 
+                                                  ind, 'it', ttt/reset_step + (max_ind - 5), 
                                                   '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
                                                   '.rda'))
             }
             
             # Reset the chains
-            chain = matrix( NA, chain_length_MASTER, length(par)) 
-            B_chain = hc_chain = hr_chain = bp_chain = la_chain = matrix( NA, chain_length_MASTER, nrow(Y))
+            chain = matrix(NA, reset_step, length(par)) 
+            
+            B_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+            hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+            bp_chain = la_chain = matrix(NA, chain_length_MASTER, nrow(Y))
 
             A_chain = vector(mode = "list", length = length(a_chain_id))
             for(a_ind in 1:length(A_chain)) {

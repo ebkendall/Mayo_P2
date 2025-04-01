@@ -642,7 +642,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     
     // Upsilon omega priors ----------------------------------------------------
     arma::vec vec_up_omega_content = par.elem(par_index(8) - 1);
-    arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::zeros);
+    arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::ones);
     
     arma::vec scalar_omega(vec_up_omega_content.n_elem, arma::fill::ones);
     scalar_omega = 20 * scalar_omega;

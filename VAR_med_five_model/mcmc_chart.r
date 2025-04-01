@@ -67,11 +67,11 @@ for(s in 1:length(seed_list)) {
         #     # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
         #     # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
         # } else {
-            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[keep_ind, ])
-            # Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
-            # Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
-            # Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
-            # La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
+        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[keep_ind, ])
+        # Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
+        # Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
+        # Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
+        # La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
         # }
         rm(mcmc_out_temp)
     }    
@@ -142,7 +142,7 @@ specificity_S2 = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
 for(s in 1:(length(seed_list)+1)) {
     
     prop_sub = rep(0, length(EIDs))
-
+    
     for(j in 1:length(EIDs)) {
         sub_ind_j = which(use_data[,"EID"] == EIDs[j])
         ss_truth_j = ss_truth[sub_ind_j]
@@ -200,11 +200,13 @@ for(i in EIDs){
     t_grid = round(use_data[indices_i, 'time'] / 60, digits = 3)
     t_grid_bar = 1:length(t_grid)
     rbc_times_bar = which(use_data[use_data[,'EID']==i, 'RBC_ordered'] != 0)
-    
-    rbc_admin = c(head(use_data[use_data[,'EID']==i, "n_RBC_admin"], 1),
-                  diff(use_data[use_data[,'EID']==i, "n_RBC_admin"]))
-    rbc_admin_times_bar = which(rbc_admin != 0)
-    
+    if(simulation) {
+        rbc_admin = c(head(use_data[use_data[,'EID']==i, "n_RBC_admin"], 1),
+                      diff(use_data[use_data[,'EID']==i, "n_RBC_admin"]))
+        rbc_admin_times_bar = which(rbc_admin != 0)
+    } else {
+        rbc_admin_times_bar = which(use_data[use_data[,'EID']==i, 'RBC_admin'] != 0)   
+    }
     rbc_times = t_grid[rbc_times_bar]
     rbc_admin_times = t_grid[rbc_admin_times_bar]
     
@@ -429,13 +431,14 @@ for(i in EIDs){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1], 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
-    
+    if(simulation) {
+        rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+             ybottom = hr_map_ylim[1], 
+             xright = rect_coords$t[-1], 
+             ytop = hr_map_ylim[2],
+             col = col_vec[-nrow(rect_coords)],
+             border = NA)
+    } 
     points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
            col.main='green', col.axis='green', 
            col = 'aquamarine', pch = 16) 
