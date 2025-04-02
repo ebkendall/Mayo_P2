@@ -87,7 +87,7 @@ for(seed in index_seeds){
             if(it == 1) {
                 ind = ind + 1
                 
-                chain_list[[ind]] = mcmc_out_temp$chain[1000:2000,]
+                chain_list[[ind]] = mcmc_out_temp$chain
                 # for(a in 1:length(a_chain_list[[ind]])) {
                 #     a_chain_list[[ind]][[a]] = mcmc_out_temp$A_chain[[a]]
                 # }
@@ -150,7 +150,7 @@ upsilon_ind = upsilon_ind[upsilon_ind != 0]
 # }
 
 pdf(paste0('Plots/trace_', trialNum, '_samp', sampling_num, '_',
-           states_per_step, '_', steps_per_it, '.pdf'))
+           states_per_step, '_', steps_per_it, '_1000.pdf'))
 par(mfrow=c(3, 2))
 lab_ind = 0
 for(s in names(par_index)){

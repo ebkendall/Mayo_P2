@@ -79,25 +79,13 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         Dn = Y_B_Dn_init[[3]]
         
         impute_its = 250
-        # hemo_init = matrix(nrow = impute_its, ncol = nrow(Y))
-        # hr_init = matrix(nrow = impute_its, ncol = nrow(Y))
-        # map_init = matrix(nrow = impute_its, ncol = nrow(Y))
-        # lact_init = matrix(nrow = impute_its, ncol = nrow(Y))
         
         for(i in 1:impute_its) {
             Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
                                Dn_omega, W, B, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
-            # hemo_init[i,] = Y_temp[,'hemo']
-            # hr_init[i,] = Y_temp[,'hr']
-            # map_init[i,] = Y_temp[,'map']
-            # lact_init[i,] = Y_temp[,'lactate']
         }
-        # Y[,'hemo'] = colMeans(hemo_init)
-        # Y[,'hr'] = colMeans(hr_init)
-        # Y[,'map'] = colMeans(map_init)
-        # Y[,'lactate'] = colMeans(lact_init)
     } else {
         B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
         B = B_Dn[[1]]
