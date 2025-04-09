@@ -5,14 +5,13 @@ trialNum = 1
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 
-it_num = 1
-it_seq = 6:30
+it_seq = 3:5
 
 states_per_step = 0
 steps_per_it = 1
 S = 5
 
-seed_list = 1:3
+seed_list = 1:5
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -62,6 +61,8 @@ for(s in 1:length(seed_list)) {
         load(file_name)
         print(file_name)
         
+        par_index = mcmc_out_temp$par_index
+        
         # if(it == 1) {
         #     B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
         #     # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
@@ -69,11 +70,11 @@ for(s in 1:length(seed_list)) {
         #     # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
         #     # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
         # } else {
-        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[!is.na(mcmc_out_temp$B_chain[,1]),])
-        Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain[!is.na(mcmc_out_temp$hr_chain[,1]),])
-        Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain[!is.na(mcmc_out_temp$bp_chain[,1]),])
-        Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain[!is.na(mcmc_out_temp$hc_chain[,1]),])
-        La_chain  = rbind(La_chain, mcmc_out_temp$la_chain[!is.na(mcmc_out_temp$la_chain[,1]),])
+            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[!is.na(mcmc_out_temp$B_chain[,1]),])
+            Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain[!is.na(mcmc_out_temp$hr_chain[,1]),])
+            Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain[!is.na(mcmc_out_temp$bp_chain[,1]),])
+            Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain[!is.na(mcmc_out_temp$hc_chain[,1]),])
+            La_chain  = rbind(La_chain, mcmc_out_temp$la_chain[!is.na(mcmc_out_temp$la_chain[,1]),])
         # }
         rm(mcmc_out_temp)
     }    
@@ -119,6 +120,7 @@ all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
 load('Data_real/Dn_omega.rda')
 load('Data_real/data_format_train.rda')
 load('Data_sim/hr_map_names.rda')
+load(paste0('Model_out/post_means_samp', sampling_num, '_it', max(it_seq), '_real.rda'))
 EIDs = unique(data_format[,'EID'])
 
 # Model evaluation plots -------------------------------------------------------
@@ -129,13 +131,24 @@ for(one_chart in seed_list) {
         state_proportions[s,] = state_results[[one_chart]][s, ] / state_counts_col_sum
     }
     
-    pdf(paste0('Plots/chart_', trialNum, '_', one_chart, '_samp', sampling_num, '_',
-               states_per_step, '_', steps_per_it, '.pdf'))
+    par_means = post_means[one_chart,]
+    
+    # Choose a subset of the subjects to plot ----------------------------------
+    EID_plot = unique(c(data_format[data_format[,"RBC_rule"] != 0,"EID"],
+                        data_format[data_format[,"clinic_rule"] != 0,"EID"]))
+    EID_not_chosen_yet = EIDs[!(EIDs %in% EID_plot)]
+    set.seed(2025)
+    EID_plot = c(EID_plot, sample(x = EID_not_chosen_yet, 
+                                  size = 300 - length(EID_plot), 
+                                  replace = F))
+    
+    pdf(paste0('Plots/real_chart_', trialNum, '_', one_chart, '_samp', 
+               sampling_num, '_it', max(it_seq), '.pdf'))
     panel_dim = c(4,1)
     inset_dim = c(0,-.18)
     par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
-    for(i in EIDs){
-        if(which(EIDs == i) %% 100 == 0) print(which(EIDs == i))
+    for(i in EID_plot){
+        if(which(EID_plot == i) %% 100 == 0) print(which(EID_plot == i))
         
         indices_i = (data_format[,'EID']==i)
         n_i = sum(indices_i)
@@ -191,7 +204,7 @@ for(one_chart in seed_list) {
         grid( nx=20, NULL, col='white')
         axis( side=1, at=pb, col.axis='green', labels=t_grid)
         
-        # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+        abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
         abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
         
         
@@ -232,76 +245,76 @@ for(one_chart in seed_list) {
         grid( nx=20, NULL, col='white')
         axis( side=1, at=pb, col.axis='green', labels=t_grid)
         
-        # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+        abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
         abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
         
-        # # Medication admin plot ----------------------------------------------------
-        # med_i = Dn_omega[[which(EIDs == i)]]
-        # omega_i = omega_i_mat[[which(EIDs == i)]]
-        # med_i_mat = stacked_chains = do.call( rbind, med_i)
-        # 
-        # hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
-        # map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
-        # 
-        # hr_mean_effect = hr_med_i_mat %*% omega_i
-        # map_mean_effect = map_med_i_mat %*% omega_i
-        # 
-        # hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
-        # map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
-        # 
-        # upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-        #              -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-        #              -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-        #              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-        # 
-        # hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
-        # map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
-        # 
-        # hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
-        # hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
-        # map_upp_i  = map_med_i_mat[,map_upp_down == 1]
-        # map_down_i = map_med_i_mat[,map_upp_down == -1]
-        # 
-        # total_hr_up  = rowSums(hr_upp_i)
-        # total_hr_dn  = rowSums(hr_down_i)
-        # total_map_up = rowSums(map_upp_i)
-        # total_map_dn = rowSums(map_down_i)
-        # 
-        # hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-        #                     hr_mean_effect, map_mean_effect), 
-        #                 max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-        #                     hr_mean_effect, map_mean_effect))
-        # if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
+        # Medication admin plot ----------------------------------------------------
+        med_i = Dn_omega[[which(EIDs == i)]]
+        omega_i = par_means[par_index$omega_tilde]
+        med_i_mat = do.call( rbind, med_i)
+
+        hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
+        map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
+
+        hr_mean_effect = hr_med_i_mat %*% omega_i
+        map_mean_effect = map_med_i_mat %*% omega_i
+
+        hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
+        map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
+
+        upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                     -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                     -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                     -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+
+        hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
+        map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
+
+        hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
+        hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
+        map_upp_i  = map_med_i_mat[,map_upp_down == 1]
+        map_down_i = map_med_i_mat[,map_upp_down == -1]
+
+        total_hr_up  = rowSums(hr_upp_i)
+        total_hr_dn  = rowSums(hr_down_i)
+        total_map_up = rowSums(map_upp_i)
+        total_map_dn = rowSums(map_down_i)
+
+        hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+                            hr_mean_effect, map_mean_effect),
+                        max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+                            hr_mean_effect, map_mean_effect))
+        if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
         
         plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main='Med. admin',
              xlab='time', ylab=NA, xaxt='n', col.main='green',
              col.axis='green')
         
-        # points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
-        #        col.main='green', col.axis='green', 
-        #        col = 'aquamarine', pch = 16) 
-        # points(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
-        #        col = 'orange', pch = 16) 
-        # lines(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
-        #       lwd=2, lty = 1, col = 'aquamarine') 
-        # lines(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
-        #       lwd=2, lty = 1, col = 'orange') 
-        # 
-        # lines(x = pb, y = total_hr_up, xlab='time', ylab=NA, 
-        #       lwd=1, lty = 2, col = 'aquamarine4') 
-        # lines(x = pb, y = total_map_up, xlab='time', ylab=NA,
-        #       lwd=1, lty = 3, col = 'darkolivegreen2') 
-        # lines(x = pb, y = total_hr_dn, xlab='time', ylab=NA,
-        #       lwd=1, lty = 4, col = 'deeppink')
-        # lines(x = pb, y = total_map_dn, xlab='time', ylab=NA,
-        #       lwd=1, lty = 5, col = 'palevioletred')
-        # legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-        #         legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
-        #         col=c( 'aquamarine', 'orange'))
-        # axis( side=1, at=pb, col.axis='green', labels=t_grid)
-        # 
-        # # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
-        # abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
+        points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA,
+               col.main='green', col.axis='green',
+               col = 'aquamarine', pch = 16)
+        points(x = pb, y = map_mean_effect, xlab='time', ylab=NA,
+               col = 'orange', pch = 16)
+        lines(x = pb, y = hr_mean_effect, xlab='time', ylab=NA,
+              lwd=2, lty = 1, col = 'aquamarine')
+        lines(x = pb, y = map_mean_effect, xlab='time', ylab=NA,
+              lwd=2, lty = 1, col = 'orange')
+
+        lines(x = pb, y = total_hr_up, xlab='time', ylab=NA,
+              lwd=1, lty = 2, col = 'aquamarine4')
+        lines(x = pb, y = total_map_up, xlab='time', ylab=NA,
+              lwd=1, lty = 3, col = 'darkolivegreen2')
+        lines(x = pb, y = total_hr_dn, xlab='time', ylab=NA,
+              lwd=1, lty = 4, col = 'deeppink')
+        lines(x = pb, y = total_map_dn, xlab='time', ylab=NA,
+              lwd=1, lty = 5, col = 'palevioletred')
+        legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
+                legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5,
+                col=c( 'aquamarine', 'orange'))
+        axis( side=1, at=pb, col.axis='green', labels=t_grid)
+
+        abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+        abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
         
         # BAR PLOTS --------------------------------------------------------------
         barplot(state_proportions[,indices_i], 
@@ -320,7 +333,7 @@ for(one_chart in seed_list) {
         axis( side=2, at=0:1, col.axis='green')
         
         
-        # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+        abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
         abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     }
     dev.off()

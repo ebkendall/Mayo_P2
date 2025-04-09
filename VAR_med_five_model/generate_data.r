@@ -94,6 +94,9 @@ for(df_num in 1:50) {
     x = data_format[,c('n_RBC_admin'), drop=F]
     z = cbind(1, data_format[,c('RBC_ordered'), drop=F])
     
+    otype = !is.na(Y[, c('hemo','hr','map','lactate')])
+    colnames(otype) = c('hemo','hr','map','lactate')
+    
     # Initializing par_index -------------------------------------------------------
     par_index = list()
     par_index$vec_beta = 1:4
@@ -199,14 +202,14 @@ for(df_num in 1:50) {
         
         x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
         z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
-        new_z_i = cbind(rep(1, nrow(z_i)), rep(0, nrow(z_i)))
-        for(zz in 1:n_i) {
-            if(z_i[zz, 2] != 0) {
-                z_val = z_i[zz, 2] * exp(-0.25 * 0:(n_i - zz))
-                new_z_i[zz:nrow(new_z_i), 2] = new_z_i[zz:nrow(new_z_i), 2] + z_val
-            }
-        }
-        # new_z_i = z_i
+        # new_z_i = cbind(rep(1, nrow(z_i)), rep(0, nrow(z_i)))
+        # for(zz in 1:n_i) {
+        #     if(z_i[zz, 2] != 0) {
+        #         z_val = z_i[zz, 2] * exp(-0.25 * 0:(n_i - zz))
+        #         new_z_i[zz:nrow(new_z_i), 2] = new_z_i[zz:nrow(new_z_i), 2] + z_val
+        #     }
+        # }
+        new_z_i = z_i
         
         bleed_ind_i = bleed_indicator[Y[,'EID']==as.numeric(id_num)]
         
@@ -380,6 +383,18 @@ for(df_num in 1:50) {
             use_data[use_data[,"EID"] %in% clinic_assign, "clinic_rule"] = 1
         }
     }
+    
+    # Impose missingness like real data ----------------------------------------
+    true_vitals = use_data[,c("hemo", "hr", "map", "lactate")]
+    colnames(true_vitals) = c('hm_true', 'hr_true', 'mp_true', 'la_true')
+    use_data[!otype[,"hemo"], "hemo"] = NA
+    use_data[!otype[,"hr"], "hr"] = NA
+    use_data[!otype[,"map"], "map"] = NA
+    use_data[!otype[,"lactate"], "lactate"] = NA
+    
+    use_data = cbind(use_data, true_vitals)
+    
+    # Save and print summary of data -------------------------------------------
     
     save( use_data, file=paste0(Dir,'use_data_', df_num, '.rda'))
     

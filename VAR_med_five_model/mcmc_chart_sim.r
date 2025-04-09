@@ -13,7 +13,9 @@ states_per_step = 0
 steps_per_it = 1
 S = 5
 
-seed_list = c(1:50)
+seed_list = c(1:5)
+
+df_num = 1
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -53,7 +55,7 @@ for(s in 1:length(seed_list)) {
     seed_num = seed_list[s]
     for(it in it_seq) {
         
-        file_name = paste0('Model_out/mcmc_out_', seed_num,'_', trialNum,
+        file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
                            'it', it, '_samp', sampling_num, '_', states_per_step,
                            '_', steps_per_it,'_sim.rda')
         load(file_name)
@@ -104,9 +106,9 @@ for(i in 1:length(seed_list)) {
 all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
 
 # Load simulated data ----------------------------------------------------------
-load('Data_sim/use_data.rda')
-load('Data_sim/alpha_i_mat.rda')
-load('Data_sim/omega_i_mat.rda')
+load(paste0('Data_sim/use_data_', df_num, '.rda'))
+load(paste0('Data_sim/alpha_i_mat_', df_num, '.rda'))
+load(paste0('Data_sim/omega_i_mat_', df_num, '.rda'))
 load('Data_sim/Dn_omega_sim.rda')
 Dn_omega = Dn_omega_sim
 rm(Dn_omega_sim)
@@ -172,6 +174,15 @@ for(s in 1:(length(seed_list)+1)) {
     print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
 }
 
+# Choose a subset of the subjects to plot --------------------------------------
+EID_plot = unique(c(use_data[use_data[,"RBC_rule"] != 0,"EID"],
+                    use_data[use_data[,"clinic_rule"] != 0,"EID"]))
+EID_not_chosen_yet = EIDs[!(EIDs %in% EID_plot)]
+set.seed(2025)
+EID_plot = c(EID_plot, sample(x = EID_not_chosen_yet, 
+                              size = 200 - length(EID_plot), 
+                              replace = F))
+
 # Model evaluation plots -------------------------------------------------------
 state_proportions = NULL
 if(one_chart == 0) {
@@ -186,13 +197,14 @@ if(one_chart == 0) {
 
 load('Data_sim/hr_map_names.rda')
 
-pdf(paste0('Plots/chart_', trialNum, '_', one_chart, '_samp', sampling_num, '_',
-           states_per_step, '_', steps_per_it, '.pdf'))
+pdf(paste0('Plots/sim_chart_', trialNum, '_', one_chart, '_samp', 
+           sampling_num, '_it', max(it_seq), '.pdf'))
 panel_dim = c(4,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
-for(i in EIDs){
-    if(which(EIDs == i) %% 100 == 0) print(which(EIDs == i))
+for(i in EID_plot){
+    
+    if(which(EID_plot == i) %% 100 == 0) print(which(EID_plot == i))
     
     indices_i = (use_data[,'EID']==i)
     n_i = sum(indices_i)
@@ -336,7 +348,7 @@ for(i in EIDs){
     grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     
@@ -384,13 +396,13 @@ for(i in EIDs){
     grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # Medication admin plot ----------------------------------------------------
     med_i = Dn_omega[[which(EIDs == i)]]
     omega_i = omega_i_mat[[which(EIDs == i)]]
-    med_i_mat = stacked_chains = do.call( rbind, med_i)
+    med_i_mat = do.call( rbind, med_i)
     
     hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
     map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
@@ -459,7 +471,7 @@ for(i in EIDs){
             col=c( 'aquamarine', 'orange'))
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
-    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # BAR PLOTS --------------------------------------------------------------
@@ -479,7 +491,7 @@ for(i in EIDs){
     axis( side=2, at=0:1, col.axis='green')
     
     
-    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
 }
 dev.off()

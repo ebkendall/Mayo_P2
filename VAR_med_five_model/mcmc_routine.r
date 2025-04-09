@@ -69,7 +69,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     Xn = initialize_X(EIDs, Y, x)
     
     # Initialize Y and states --------------------------------------------------
-    if(!simulation) {
+    # if(!simulation) {
         vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
         Y_B_Dn_init = initialize_Y(EIDs, par, par_index, A, Y, z, Xn,
                                    Dn_omega, W, otype, n_cores, vital_means)
@@ -86,30 +86,36 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
-    } else {
-        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
-        B = B_Dn[[1]]
-        Dn = B_Dn[[2]]
-    }
+    # } else {
+    #     B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
+    #     B = B_Dn[[1]]
+    #     Dn = B_Dn[[2]]
+    # }
     
     # Keeping track of the sampled alpha_i -------------------------------------
-    a_chain_id = c(3, 86, 163, 237, 427)
+    a_chain_id = c(1, 86, 163, 237, 427)
+    med_check_inds = c(2, 6, 9, 12, 29, 42, 46, 74)
     A_chain = vector(mode = "list", length = length(a_chain_id))
+    W_chain = vector(mode = "list", length = length(a_chain_id))
     for(a_ind in 1:length(A_chain)) {
         A_chain[[a_ind]] = matrix(nrow = length(par_index$vec_alpha_tilde), 
                                   ncol = chain_length_MASTER)
         A_chain[[a_ind]][,1] = A[[a_chain_id[a_ind]]]
+        
+        W_chain[[a_ind]] = matrix(nrow = length(med_check_inds), 
+                                  ncol = chain_length_MASTER)
+        W_chain[[a_ind]][,1] = W[[a_chain_id[a_ind]]][med_check_inds]
     }
 
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
     B_chain[1, ] = do.call( 'c', B)
-    if(!simulation) {
+    # if(!simulation) {
         hc_chain[1, ] = Y[,'hemo']
         hr_chain[1, ] = Y[,'hr']
         bp_chain[1, ] = Y[,'map']
         la_chain[1, ] = Y[,'lactate']
-    }
+    # }
     
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
@@ -130,12 +136,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
 
         # Imputing the missing Y values ----------------------------------------
-        if(!simulation) {
+        # if(!simulation) {
             Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
                                Dn_omega, W, B, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')
-        }
+        # }
 
         # State-space update (B) -----------------------------------------------
         for(s in 1:steps_per_it) {
@@ -192,13 +198,15 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         # Gibbs: alpha_i -------------------------------------------------------
         A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
 
-        for(aaa in 1:length(a_chain_id)) {
-            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
-        }
-
         # Gibbs: omega_i -------------------------------------------------------
         W = update_omega_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, A, B, n_cores)
-
+        
+        # Store sampled alpha_i and omega_i ------------------------------------
+        for(aaa in 1:length(a_chain_id)) {
+            A_chain[[aaa]][,chain_ind] = A[[a_chain_id[aaa]]]
+            W_chain[[aaa]][,chain_ind] = W[[a_chain_id[aaa]]][med_check_inds]
+        }
+        
         # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
         par = update_alpha_tilde_cpp(EIDs, par, par_index, A, Y)
         par = update_omega_tilde_cpp(EIDs, par, par_index, W, Y)
@@ -362,12 +370,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt == burnin) accept = rep( 0, n_group)
         
         B_chain[ chain_ind, ] = do.call( 'c', B)
-        if(!simulation) {
+        # if(!simulation) {
             hc_chain[chain_ind, ] = Y[,'hemo']
             hr_chain[chain_ind, ] = Y[,'hr']
             bp_chain[chain_ind, ] = Y[,'map']
             la_chain[chain_ind, ] = Y[,'lactate']
-        }
+        # }
         # ----------------------------------------------------------------------
 
         cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
@@ -383,11 +391,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             if(simulation) {
                 mcmc_out_temp = list(chain    = chain[index_keep,], 
                                      B_chain  = B_chain, 
-                                     hc_chain = Y[,'hemo'],
-                                     hr_chain = Y[,'hr'], 
-                                     bp_chain = Y[,'map'], 
-                                     la_chain = Y[,'lactate'], 
+                                     hc_chain = hc_chain, #Y[,'hemo'],
+                                     hr_chain = hr_chain, #Y[,'hr'], 
+                                     bp_chain = bp_chain, #Y[,'map'], 
+                                     la_chain = la_chain, #Y[,'lactate'], 
                                      A_chain  = A_chain,
+                                     W_chain  = W_chain,
                                      otype=otype, accept=accept/length(burnin:ttt), 
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 
@@ -403,6 +412,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                      bp_chain = bp_chain, 
                                      la_chain = la_chain,
                                      A_chain  = A_chain,
+                                     W_chain  = W_chain,
                                      otype=otype, accept=accept/length(burnin:ttt), 
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 

@@ -1,6 +1,6 @@
 source('mcmc_routine.r')
 
-# Input will be a number 1-15 (three seeds with four sampling routines)
+# Input will be a number 1-25 (5 seeds with 5 sampling routines)
 args = commandArgs(TRUE)
 
 # df_num = as.numeric(args[1])
@@ -10,8 +10,8 @@ args = commandArgs(TRUE)
 # steps_per_it = 1
 
 seed_num = as.numeric(args[1])
-sampling_num = floor((seed_num - 1) / 3) + 1
-seed_num = seed_num - 3 * floor((seed_num - 1)/3)
+sampling_num = floor((seed_num - 1) / 5) + 1
+seed_num = seed_num - 5 * floor((seed_num - 1)/5)
 p = 2
 states_per_step = p + 1
 steps_per_it = 1
@@ -23,7 +23,7 @@ if(sampling_num %in% c(4,5)) {
 }
 
 set.seed(seed_num)
-steps  = 10000
+steps  = 20000
 burnin =  5000
 
 simulation = T
@@ -126,14 +126,14 @@ if(max_ind > 5) {
     for(ii in 1:length(EIDs)) {
         i = EIDs[ii]
         
-        if(simulation) {
-            # Initialize at the "Maximum likelihood state sequence"
-            
-            # Initialize at the "true" state sequence
-            B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
-        } else {
+        # if(simulation) {
+        #     # Initialize at the "Maximum likelihood state sequence"
+        #     
+        #     # Initialize at the "true" state sequence
+        #     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+        # } else {
             B[[ii]] = matrix(rep(1, sum(data_format[,"EID"] == i)), ncol = 1)
-        }
+        # }
     }
 }
 # -----------------------------------------------------------------------------
