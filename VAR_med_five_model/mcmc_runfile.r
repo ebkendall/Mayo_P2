@@ -23,10 +23,10 @@ if(sampling_num %in% c(4,5)) {
 }
 
 set.seed(seed_num)
-steps  = 20000
+steps  = 50000
 burnin =  5000
 
-simulation = T
+simulation = F
 data_format = NULL
 
 if(simulation) {
@@ -40,7 +40,7 @@ if(simulation) {
                  sampling_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 5
+    max_ind = 10
     if(max_ind > 5) burnin = 0
     
     load('Data_real/data_format_train.rda')
@@ -57,9 +57,19 @@ x = data_format[,c('n_RBC_admin'), drop=F]
 # Covariate on the state process
 z = cbind(1, data_format[,c('RBC_ordered'), drop=F])
 
-# Parameter initialization -----------------------------------------------------
-load('Data_sim/true_par_index.rda')
+# Indexing initialization ------------------------------------------------------
+par_index = list()
+par_index$vec_beta = 1:4
+par_index$vec_alpha_tilde = 5:24
+par_index$vec_sigma_upsilon = 25:424
+par_index$vec_A = 425:428
+par_index$vec_R = 429:444
+par_index$vec_zeta = 445:468
+par_index$vec_init = 469:472
+par_index$omega_tilde = 473:556
+par_index$vec_upsilon_omega = 557:640
 
+# Parameter initialization -----------------------------------------------------
 par = rep(0, max(par_index$vec_upsilon_omega))
 
 par[par_index$vec_beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
@@ -121,6 +131,8 @@ for(i in 1:length(EIDs)){
 
 B = list()
 if(max_ind > 5) {
+    # seed 4, samp 4
+    # seed 1, samp 5
     
 } else {
     for(ii in 1:length(EIDs)) {

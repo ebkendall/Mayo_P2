@@ -70,21 +70,25 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     
     # Initialize Y and states --------------------------------------------------
     # if(!simulation) {
-        vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
-        Y_B_Dn_init = initialize_Y(EIDs, par, par_index, A, Y, z, Xn,
-                                   Dn_omega, W, otype, n_cores, vital_means)
-        
-        Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_B_Dn_init[[1]]
-        B = Y_B_Dn_init[[2]]
-        Dn = Y_B_Dn_init[[3]]
-        
-        impute_its = 250
-        
-        for(i in 1:impute_its) {
-            Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
-                               Dn_omega, W, B, n_cores)
-            colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
-                            'RBC_rule', 'clinic_rule')    
+        if(max_ind > 5) {
+            
+        } else {
+            vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
+            Y_B_Dn_init = initialize_Y(EIDs, par, par_index, A, Y, z, Xn,
+                                       Dn_omega, W, otype, n_cores, vital_means)
+            
+            Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_B_Dn_init[[1]]
+            B = Y_B_Dn_init[[2]]
+            Dn = Y_B_Dn_init[[3]]
+            
+            impute_its = 250
+            
+            for(i in 1:impute_its) {
+                Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
+                                   Dn_omega, W, B, n_cores)
+                colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
+                                'RBC_rule', 'clinic_rule')    
+            }
         }
     # } else {
     #     B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
@@ -130,8 +134,6 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         } else {
             new_t = ttt - floor(ttt / reset_step) * reset_step
             chain_ind = floor((new_t - 1)/10) + 1
-            # chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
-
             chain_ttt = ttt %% reset_step
         }
 

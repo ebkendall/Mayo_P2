@@ -6,7 +6,7 @@ args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 one_chart = as.numeric(args[2])
 
-it_num = 1
+it_num = 2
 it_seq = 1:it_num
 
 states_per_step = 0

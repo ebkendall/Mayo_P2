@@ -3,8 +3,10 @@ library(mvtnorm, quietly=T)
 # Load in the existing data and save the covariate combinations
 for(df_num in 1:50) {
     print(paste0("Df ", df_num))
-    load('Data_real/data_format_train_large.rda')
-    load('Data_real/Dn_omega_large.rda')
+    # load('Data_real/data_format_train_large.rda')
+    # load('Data_real/Dn_omega_large.rda')
+    load('Data_real/data_format_train.rda')
+    load('Data_real/Dn_omega.rda')
     load('Data_real/Dn_omega_names.rda')
     
     set.seed(df_num)

@@ -48,11 +48,11 @@ med_check_inds = c(2, 6, 9, 12, 29, 42, 46, 74)
 
 chain_list = vector(mode = "list", length = length(index_seeds))
 a_chain_list = vector(mode = 'list', length = length(a_w_chain_id))
-# w_chain_list = vector(mode = 'list', length = length(a_w_chain_id))
+w_chain_list = vector(mode = 'list', length = length(a_w_chain_id))
 
 for(a in 1:length(a_chain_list)) {
     a_chain_list[[a]] = vector(mode = 'list', length = length(index_seeds))
-    # w_chain_list[[a]] = vector(mode = 'list', length = length(index_seeds))
+    w_chain_list[[a]] = vector(mode = 'list', length = length(index_seeds))
 }
 
 ind = 0
@@ -80,14 +80,14 @@ for(seed in index_seeds){
                 
                 for(a in 1:length(a_chain_list)) {
                     a_chain_list[[a]][[ind]] = mcmc_out_temp$A_chain[[a]]
-                    # w_chain_list[[a]][[ind]] = mcmc_out_temp$W_chain[[a]]
+                    w_chain_list[[a]][[ind]] = mcmc_out_temp$W_chain[[a]]
                 }
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out_temp$chain)
                 
                 for(a in 1:length(a_chain_list)) {
                     a_chain_list[[a]][[ind]] = cbind(a_chain_list[[a]][[ind]], mcmc_out_temp$A_chain[[a]])
-                    # w_chain_list[[a]][[ind]] = cbind(w_chain_list[[a]][[ind]], mcmc_out_temp$W_chain[[a]])
+                    w_chain_list[[a]][[ind]] = cbind(w_chain_list[[a]][[ind]], mcmc_out_temp$W_chain[[a]])
                 }
             }
             
@@ -115,10 +115,10 @@ for(seed in index_seeds){
 
 stacked_chains = do.call( rbind, chain_list)
 a_stacked_chains = vector(mode = 'list', length = length(a_w_chain_id))
-# w_stacked_chains = vector(mode = 'list', length = length(a_w_chain_id))
+w_stacked_chains = vector(mode = 'list', length = length(a_w_chain_id))
 for(a in 1:length(a_stacked_chains)) {
     a_stacked_chains[[a]] = do.call(cbind, a_chain_list[[a]])
-    # w_stacked_chains[[a]] = do.call(cbind, w_chain_list[[a]])
+    w_stacked_chains[[a]] = do.call(cbind, w_chain_list[[a]])
 }
 
 upsilon_ind = matrix(1:length(par_index$vec_sigma_upsilon), ncol = 20)
@@ -206,34 +206,34 @@ for(s in 1:length(a_w_chain_id)) {
     }
 }
 
-# # Plot the sampled omega_i -----------------------------------------------------
-# omega_i_lab = labels[par_index$omega_tilde][med_check_inds]
-# for(s in 1:length(a_w_chain_id)) {
-#     
-#     for(l in 1:length(omega_i_lab)) {
-#         parMean = round( mean(w_stacked_chains[[s]][l,]), 4)
-#         parMedian = round( median(w_stacked_chains[[s]][l,]), 4)
-#         upper = quantile(w_stacked_chains[[s]][l,], prob=.975)
-#         lower = quantile(w_stacked_chains[[s]][l,], prob=.025)
-#         y_limit = range(w_stacked_chains[[s]][l,])
-#         
-#         plot( NULL, ylab=NA, main=paste0(a_w_chain_id[s], ": ", omega_i_lab[l]), 
-#               xlim=c(1,ncol(w_chain_list[[s]][[1]])),
-#               ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
-#                                           ", ", round(upper, 4), "]"),
-#               col.main = 'black')
-#         
-#         for(seed in 1:length(w_chain_list[[s]])) {
-#             lines( w_chain_list[[s]][[seed]][l,], type='l', col=seed)
-#         }
-#         
-#         x_label = paste0('Mean =',toString(parMean),
-#                          ' Median =',toString(parMedian))
-#         
-#         hist(w_stacked_chains[[s]][l,], breaks=sqrt(ncol(w_stacked_chains[[s]])), 
-#              ylab=NA, main=NA, freq=FALSE, xlab=x_label)    
-#     }
-# }
+# Plot the sampled omega_i -----------------------------------------------------
+omega_i_lab = labels[par_index$omega_tilde][med_check_inds]
+for(s in 1:length(a_w_chain_id)) {
+
+    for(l in 1:length(omega_i_lab)) {
+        parMean = round( mean(w_stacked_chains[[s]][l,]), 4)
+        parMedian = round( median(w_stacked_chains[[s]][l,]), 4)
+        upper = quantile(w_stacked_chains[[s]][l,], prob=.975)
+        lower = quantile(w_stacked_chains[[s]][l,], prob=.025)
+        y_limit = range(w_stacked_chains[[s]][l,])
+
+        plot( NULL, ylab=NA, main=paste0(a_w_chain_id[s], ": ", omega_i_lab[l]),
+              xlim=c(1,ncol(w_chain_list[[s]][[1]])),
+              ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
+                                          ", ", round(upper, 4), "]"),
+              col.main = 'black')
+
+        for(seed in 1:length(w_chain_list[[s]])) {
+            lines( w_chain_list[[s]][[seed]][l,], type='l', col=seed)
+        }
+
+        x_label = paste0('Mean =',toString(parMean),
+                         ' Median =',toString(parMedian))
+
+        hist(w_stacked_chains[[s]][l,], breaks=sqrt(ncol(w_stacked_chains[[s]])),
+             ylab=NA, main=NA, freq=FALSE, xlab=x_label)
+    }
+}
 
 # par(mfrow=c(3, 3))
 # lab_ind = 0
