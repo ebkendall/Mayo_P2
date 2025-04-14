@@ -41,7 +41,7 @@ if(simulation) {
 } else {
     trialNum = 1
     max_ind = 10
-    if(max_ind > 5) burnin = 0
+    if(max_ind > 5) {burnin = 0}
     
     load('Data_real/data_format_train.rda')
     print(paste0('REAL: seed ', seed_num, ' samp ', 
@@ -114,39 +114,44 @@ if(simulation) {
 } else {
     load('Data_real/Dn_omega.rda')
     bleed_indicator = b_ind_fnc(data_format)
+    
+    if(max_ind > 5) {
+        # it5, samp 4: seed 4
+        # it5, samp 5: seed 1
+        if(sampling_num == 4) {
+            chosen_seed = 4
+        } else if(sampling_num == 5) {
+            chosen_seed = 1
+        }
+        
+        load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
+                    max_ind - 5, '_samp', sampling_num, '_', states_per_step,
+                    '_', steps_per_it,'.rda'))
+        par = mcmc_out_temp$chain[nrow(mcmc_out_temp$chain), ]
+        b_chain = mcmc_out_temp$B_chain[nrow(mcmc_out_temp$B_chain), ]
+        
+        rm(mcmc_out_temp)
+    } else {
+        b_chain = rep(1, nrow(data_format))
+    }
 }
 # -----------------------------------------------------------------------------
 A = list()
 W = list()
-
-for(i in 1:length(EIDs)){
-    if(simulation) {
-        A[[i]] = alpha_i_mat[[i]]
-        W[[i]] = omega_i_mat[[i]]
-    } else {
-        A[[i]] = matrix(par[par_index$vec_alpha_tilde], ncol =1)
-        W[[i]] = matrix(par[par_index$omega_tilde], ncol =1)
-    }
-}
-
 B = list()
-if(max_ind > 5) {
-    # seed 4, samp 4
-    # seed 1, samp 5
+
+for(ii in 1:length(EIDs)){
+    i = EIDs[ii]
     
-} else {
-    for(ii in 1:length(EIDs)) {
-        i = EIDs[ii]
-        
-        # if(simulation) {
-        #     # Initialize at the "Maximum likelihood state sequence"
-        #     
-        #     # Initialize at the "true" state sequence
-        #     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
-        # } else {
-            B[[ii]] = matrix(rep(1, sum(data_format[,"EID"] == i)), ncol = 1)
-        # }
+    if(simulation) {
+        A[[ii]] = alpha_i_mat[[ii]]
+        W[[ii]] = omega_i_mat[[ii]]
+    } else {
+        A[[ii]] = matrix(par[par_index$vec_alpha_tilde], ncol =1)
+        W[[ii]] = matrix(par[par_index$omega_tilde], ncol =1)
     }
+    
+    B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
 }
 # -----------------------------------------------------------------------------
 

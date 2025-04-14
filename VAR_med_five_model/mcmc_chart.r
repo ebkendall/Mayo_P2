@@ -188,16 +188,15 @@ for(one_chart in seed_list) {
              xlab='time', ylab=NA, xaxt='n', col.main='green',
              col.axis='green')
         
-        plotCI( x = pb, y=colMeans(hr_results[[one_chart]][, indices_i, drop=F]), ui=hr_upper, li=hr_lower,
-                main=title_name,
+        plotCI( x = pb, y=colMeans(hr_results[[one_chart]][, indices_i, drop=F]), 
+                ui=hr_upper, li=hr_lower, main=title_name,
                 xlab='time', ylab=NA, xaxt='n', col.main='green',
                 col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
                 xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-        plotCI( x = pb, y=colMeans(map_results[[one_chart]][, indices_i, drop=F]), ui=bp_upper, li=bp_lower,
-                main=title_name,
+        plotCI( x = pb, y=colMeans(map_results[[one_chart]][, indices_i, drop=F]), 
+                ui=bp_upper, li=bp_lower,main=title_name,
                 xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
-                col = 'orange',
-                xlim = range(pb) + c(-0.5,0.5), add = T) 
+                col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
         legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
                 legend=c( 'HR', 'MAP'), pch=15, pt.cex=1.5, 
                 col=c( 'aquamarine', 'orange'))
@@ -229,16 +228,15 @@ for(one_chart in seed_list) {
              xlab='time', ylab=NA, xaxt='n', col.main='green',
              col.axis='green')
         
-        plotCI(x = pb, y = colMeans(hemo_results[[one_chart]][, indices_i, drop=F]), ui=hc_upper, li=hc_lower,
-               main=title_name,
+        plotCI(x = pb, y = colMeans(hemo_results[[one_chart]][, indices_i, drop=F]), 
+               ui=hc_upper, li=hc_lower, main=title_name,
                xlab='time', ylab=NA, xaxt='n', col.main='green',
                col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
                xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add = T) 
-        plotCI( x = pb, y=colMeans(lact_results[[one_chart]][, indices_i, drop=F]), ui=la_upper, li=la_lower,
-                main=title_name,
-                xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
-                col = 'orange',
-                xlim = range(pb) + c(-0.5,0.5), add = T) 
+        plotCI(x = pb, y = colMeans(lact_results[[one_chart]][, indices_i, drop=F]), 
+               ui=la_upper, li=la_lower, main=title_name,
+               xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
+               col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
         legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
                 legend=c( 'hemo', 'lactate'), pch=15, pt.cex=1.5, 
                 col=c( 'aquamarine', 'orange'))

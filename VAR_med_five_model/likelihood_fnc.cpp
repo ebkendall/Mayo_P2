@@ -1671,6 +1671,52 @@ arma::field<arma::field<arma::mat>> initialize_X(const arma::vec EIDs,
 }
 
 // *** Using ***
+// [[Rcpp::export]]
+arma::field<arma::field<arma::mat>> initialize_Dn(const arma::vec EIDs,
+                                                  arma::field <arma::vec> &B) {
+    // Y key: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate, (5) RBC, (6) clinic
+    // "i" is the numeric EID number
+    // "ii" is the index of the EID
+    
+    arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
+
+    for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        // Subject-specific information ----------------------------------------
+        int i = EIDs(ii);
+        arma::vec b_i = B(ii);
+        
+        int n_i = b_i.n_elem;
+        
+        arma::field<arma::mat> Dn_temp(n_i);
+        
+        arma::vec ones(n_i, arma::fill::ones);
+        arma::vec twos(n_i, arma::fill::zeros);
+        arma::vec threes = twos; 
+        arma::vec fours = twos;
+        arma::vec fives = twos;
+        
+        twos.elem(arma::find(b_i == 2)) += 1;
+        threes.elem(arma::find(b_i == 3)) += 1;
+        fours.elem(arma::find(b_i == 4)) += 1;
+        fives.elem(arma::find(b_i == 5)) += 1;
+        
+        arma::mat bigB = arma::join_rows(ones, arma::cumsum(twos));
+        bigB = arma::join_rows(bigB, arma::cumsum(threes)); 
+        bigB = arma::join_rows(bigB, arma::cumsum(fours));
+        bigB = arma::join_rows(bigB, arma::cumsum(fives));
+        
+        arma::mat I = arma::eye(4,4);
+        for(int jj = 0; jj < n_i; jj++) {
+            Dn_temp(jj) = arma::kron(I, bigB.row(jj));
+        }
+        
+        Dn_return(ii) = Dn_temp;
+    }
+    
+    return Dn_return;
+}
+
+// *** Using ***
 arma::vec log_like_i(int k, arma::mat y_i, arma::mat z_i, arma::vec b_i, 
                      arma::mat alpha_i, arma::mat omega_i, 
                      arma::mat X_beta, arma::vec D_alpha, arma::mat D_omega, 

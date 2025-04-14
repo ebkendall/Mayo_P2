@@ -71,6 +71,32 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Initialize Y and states --------------------------------------------------
     # if(!simulation) {
         if(max_ind > 5) {
+            # it5, samp 4: seed 4
+            # it5, samp 5: seed 1
+            if(sampling_num == 4) {
+                chosen_seed = 4
+            } else if(sampling_num == 5) {
+                chosen_seed = 1
+            }
+            
+            load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
+                        max_ind - 5, '_samp', sampling_num, '_', states_per_step,
+                        '_', steps_per_it,'.rda'))
+            
+            # initialize Y
+            Y[,'hemo'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ]
+            Y[,'hr'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hr_chain), ]
+            Y[,'map'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$bp_chain), ]
+            Y[,'lactate'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$la_chain), ]
+            
+            # initialize proposal structure
+            pcov = mcmc_out_temp$pcov
+            pscale = mcmc_out_temp$pscale
+            
+            # initialize D_alpha
+            Dn = initialize_Dn(EIDs, B)
+            
+            rm(mcmc_out_temp)
             
         } else {
             vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)

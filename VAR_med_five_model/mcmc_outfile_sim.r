@@ -64,7 +64,7 @@ for(seed in index_seeds){
     
     for(it in it_seq) {
         
-        file_name = paste0(dir,'mcmc_out_', trialNum, '_', seed, 'it', 
+        file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
                            it, '_samp', sampling_num, '_', states_per_step,
                            '_', steps_per_it,'_sim.rda') 
         
@@ -126,7 +126,7 @@ upsilon_ind[upper.tri(upsilon_ind, diag = F)] = 0
 upsilon_ind = c(upsilon_ind)
 upsilon_ind = upsilon_ind[upsilon_ind != 0]
 
-pdf(paste0('Plots/sim_trace_', trialNum, '_samp', sampling_num, '_it', max(it_seq), '_1000.pdf'))
+pdf(paste0('Plots/sim_trace_', trialNum, '_samp', sampling_num, '_it', max(it_seq), '.pdf'))
 par(mfrow=c(3, 2))
 lab_ind = 0
 for(s in names(par_index)){

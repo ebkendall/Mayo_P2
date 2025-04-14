@@ -7,7 +7,7 @@ sampling_num = as.numeric(args[1])
 one_chart = as.numeric(args[2])
 
 it_num = 2
-it_seq = 1:it_num
+it_seq = 2:it_num
 
 states_per_step = 0
 steps_per_it = 1
@@ -43,6 +43,10 @@ makeTransparent = function(..., alpha=0.35) {
 
 # Load the model output -------------------------------------------------------
 state_results = vector(mode = 'list', length = length(seed_list))
+hemo_results = vector(mode = 'list', length = length(seed_list))
+hr_results = vector(mode = 'list', length = length(seed_list))
+map_results = vector(mode = 'list', length = length(seed_list))
+lact_results = vector(mode = 'list', length = length(seed_list))
 
 for(s in 1:length(seed_list)) {
     
@@ -61,20 +65,14 @@ for(s in 1:length(seed_list)) {
         load(file_name)
         print(file_name)
         
-        keep_ind = seq(1, nrow(mcmc_out_temp$B_chain), by = 5)
-        # if(it == 1) {
-        #     B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
-        #     # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
-        #     # Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
-        #     # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
-        #     # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
-        # } else {
-            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[keep_ind, ])
-            # Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
-            # Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
-            # Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
-            # La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
-        # }
+        par_index = mcmc_out_temp$par_index
+        
+        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
+        Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
+        Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
+        Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
+        La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
+        
         rm(mcmc_out_temp)
     }    
     
@@ -83,7 +81,17 @@ for(s in 1:length(seed_list)) {
         state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
     }
     state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
+    
+    hemo_results[[s]] = Hc_chain
+    hr_results[[s]] = Hr_chain
+    map_results[[s]] = Map_chain
+    lact_results[[s]] = La_chain
+    
     rm(B_chain)
+    rm(Hc_chain)
+    rm(Hr_chain)
+    rm(Map_chain)
+    rm(La_chain)
 }
 
 # Summarize data into combo and indiv results ----------------------------------
@@ -114,12 +122,11 @@ Dn_omega = Dn_omega_sim
 rm(Dn_omega_sim)
 EIDs = unique(use_data[,'EID'])
 
-ss_truth = use_data[,"b_true"]
-
-Hr_chain  = t(use_data[,"hr",drop=F])
-Map_chain = t(use_data[,"map",drop=F])
-Hc_chain  = t(use_data[,"hemo",drop=F])
-La_chain  = t(use_data[,"lactate",drop=F])
+ss_true = use_data[,"b_true"]
+hc_true = use_data[,"hm_true"]
+hr_true = use_data[,"hr_true"]
+mp_true = use_data[,"mp_true"]
+la_true = use_data[,"la_true"]
 
 # Summary stats of state identification ----------------------------------------
 print("Summary of identifying correct states with mode")
@@ -130,10 +137,10 @@ for(s in 1:(length(seed_list)+1)) {
         print("Combo")
     }
     
-    if(length(ss_truth) != length(all_seeds_state_mode[s, ])) {
+    if(length(ss_true) != length(all_seeds_state_mode[s, ])) {
         print("ERROR")
     } else {
-        print(sum(ss_truth == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
+        print(sum(ss_true == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
     }
 }
 
@@ -147,10 +154,10 @@ for(s in 1:(length(seed_list)+1)) {
 
     for(j in 1:length(EIDs)) {
         sub_ind_j = which(use_data[,"EID"] == EIDs[j])
-        ss_truth_j = ss_truth[sub_ind_j]
+        ss_true_j = ss_true[sub_ind_j]
         state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
         
-        prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
+        prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
     }
     
     if(s <= length(seed_list)) {
@@ -166,11 +173,11 @@ for(s in 1:(length(seed_list)+1)) {
     # eid_poor = EIDs[prop_sub < 0.9]
     
     # Sensitivity of state 2: Pr(predict S2 | true S2)
-    predict_at_true_S2 = all_seeds_state_mode[s, (ss_truth == 2)]
+    predict_at_true_S2 = all_seeds_state_mode[s, (ss_true == 2)]
     print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
     
     # Specificity of state 2: Pr(predict not S2 | true not S2)
-    predict_not_S2 =  all_seeds_state_mode[s, (ss_truth != 2)]
+    predict_not_S2 =  all_seeds_state_mode[s, (ss_true != 2)]
     print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
 }
 
@@ -313,12 +320,13 @@ for(i in EID_plot){
                             mean(use_data[indices_i, 'RBC_rule']))
     }
     
-    hr_upper = colQuantiles( Hr_chain[, indices_i, drop=F], probs=.975)
-    hr_lower = colQuantiles( Hr_chain[, indices_i, drop=F], probs=.025)
-    bp_upper = colQuantiles( Map_chain[, indices_i, drop=F], probs=.975)
-    bp_lower = colQuantiles( Map_chain[, indices_i, drop=F], probs=.025)
+    hr_upper = colQuantiles( hr_results[[one_chart]][, indices_i, drop=F], probs=.975)
+    hr_lower = colQuantiles( hr_results[[one_chart]][, indices_i, drop=F], probs=.025)
+    bp_upper = colQuantiles( map_results[[one_chart]][, indices_i, drop=F], probs=.975)
+    bp_lower = colQuantiles( map_results[[one_chart]][, indices_i, drop=F], probs=.025)
     
-    hr_map_ylim = c(min(hr_lower, bp_lower), max(hr_upper, bp_upper))
+    hr_map_ylim = c(min(hr_lower, bp_lower, hr_true[indices_i], mp_true[indices_i]), 
+                    max(hr_upper, bp_upper, hr_true[indices_i], mp_true[indices_i]))
     
     # Make a new plot to add the background color
     plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main=title_name,
@@ -332,20 +340,22 @@ for(i in EID_plot){
          col = col_vec[-nrow(rect_coords)],
          border = NA)
     
-    plotCI( x = pb, y=colMeans(Hr_chain[, indices_i, drop=F]), ui=hr_upper, li=hr_lower,
-            main=title_name,
+    points( x = pb, y = hr_true[indices_i], pch = 2, cex = 1, col = 'white')
+    points( x = pb, y = mp_true[indices_i], pch = 5, cex = 1, col = 'black')
+    
+    plotCI( x = pb, y=colMeans(hr_results[[one_chart]][, indices_i, drop=F]), 
+            ui=hr_upper, li=hr_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', col.main='green',
             col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
             xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-    plotCI( x = pb, y=colMeans(Map_chain[, indices_i, drop=F]), ui=bp_upper, li=bp_lower,
-            main=title_name,
+    plotCI( x = pb, y=colMeans(map_results[[one_chart]][, indices_i, drop=F]), 
+            ui=bp_upper, li=bp_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
-            col = 'orange',
-            xlim = range(pb) + c(-0.5,0.5), add = T) 
+            col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'HR', 'MAP'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
-    grid( nx=20, NULL, col='white')
+    # grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
@@ -362,12 +372,13 @@ for(i in EID_plot){
                             mean(use_data[indices_i, 'RBC_rule']))
     }
     
-    hc_upper = colQuantiles( Hc_chain[, indices_i, drop=F], probs=.975)
-    hc_lower = colQuantiles( Hc_chain[, indices_i, drop=F], probs=.025)
-    la_upper = colQuantiles( La_chain[, indices_i, drop=F], probs=.975)
-    la_lower = colQuantiles( La_chain[, indices_i, drop=F], probs=.025)
+    hc_upper = colQuantiles( hemo_results[[one_chart]][, indices_i, drop=F], probs=.975)
+    hc_lower = colQuantiles( hemo_results[[one_chart]][, indices_i, drop=F], probs=.025)
+    la_upper = colQuantiles( lact_results[[one_chart]][, indices_i, drop=F], probs=.975)
+    la_lower = colQuantiles( lact_results[[one_chart]][, indices_i, drop=F], probs=.025)
     
-    hr_map_ylim = c(min(hc_lower, la_lower), max(hc_upper, la_upper))
+    hr_map_ylim = c(min(hc_lower, la_lower, hc_true[indices_i], la_true[indices_i]), 
+                    max(hc_upper, la_upper, hc_true[indices_i], la_true[indices_i]))
     
     plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main=title_name,
          xlab='time', ylab=NA, xaxt='n', col.main='green',
@@ -380,20 +391,22 @@ for(i in EID_plot){
          col = col_vec[-nrow(rect_coords)],
          border = NA)
     
-    plotCI(x = pb, y = colMeans(Hc_chain[, indices_i, drop=F]), ui=hc_upper, li=hc_lower,
-           main=title_name,
+    points( x = pb, y = hc_true[indices_i], pch = 2, cex = 1, col = 'white')
+    points( x = pb, y = la_true[indices_i], pch = 5, cex = 1, col = 'black')
+    
+    plotCI(x = pb, y = colMeans(hemo_results[[one_chart]][, indices_i, drop=F]), 
+           ui=hc_upper, li=hc_lower, main=title_name,
            xlab='time', ylab=NA, xaxt='n', col.main='green',
            col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
            xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add = T) 
-    plotCI( x = pb, y=colMeans(La_chain[, indices_i, drop=F]), ui=la_upper, li=la_lower,
-            main=title_name,
-            xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
-            col = 'orange',
-            xlim = range(pb) + c(-0.5,0.5), add = T) 
+    plotCI(x = pb, y=colMeans(lact_results[[one_chart]][, indices_i, drop=F]),
+           ui=la_upper, li=la_lower, main=title_name,
+           xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
+           col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'hemo', 'lactate'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
-    grid( nx=20, NULL, col='white')
+    # grid( nx=20, NULL, col='white')
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
