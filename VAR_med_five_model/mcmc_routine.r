@@ -69,7 +69,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     Xn = initialize_X(EIDs, Y, x)
     
     # Initialize Y and states --------------------------------------------------
-    # if(!simulation) {
+    if(sum(c(otype) == 0) > 0) {
+        # There exists missing Y values 
         if(max_ind > 5) {
             # it5, samp 4: seed 4
             # it5, samp 5: seed 1
@@ -116,11 +117,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                 'RBC_rule', 'clinic_rule')    
             }
         }
-    # } else {
-    #     B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
-    #     B = B_Dn[[1]]
-    #     Dn = B_Dn[[2]]
-    # }
+    } else {
+        # There are NO missing Y values 
+        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
+        B = B_Dn[[1]]
+        Dn = B_Dn[[2]]
+    }
     
     # Keeping track of the sampled alpha_i -------------------------------------
     a_chain_id = c(1, 86, 163, 237, 427)
@@ -140,12 +142,10 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
     B_chain[1, ] = do.call( 'c', B)
-    # if(!simulation) {
-        hc_chain[1, ] = Y[,'hemo']
-        hr_chain[1, ] = Y[,'hr']
-        bp_chain[1, ] = Y[,'map']
-        la_chain[1, ] = Y[,'lactate']
-    # }
+    hc_chain[1, ] = Y[,'hemo']
+    hr_chain[1, ] = Y[,'hr']
+    bp_chain[1, ] = Y[,'map']
+    la_chain[1, ] = Y[,'lactate']
     
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
@@ -164,12 +164,10 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
 
         # Imputing the missing Y values ----------------------------------------
-        # if(!simulation) {
-            Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
-                               Dn_omega, W, B, n_cores)
-            colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
-                            'RBC_rule', 'clinic_rule')
-        # }
+        Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
+                           Dn_omega, W, B, n_cores)
+        colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
+                        'RBC_rule', 'clinic_rule')
 
         # State-space update (B) -----------------------------------------------
         for(s in 1:steps_per_it) {
@@ -425,7 +423,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                      la_chain = la_chain, #Y[,'lactate'], 
                                      A_chain  = A_chain,
                                      W_chain  = W_chain,
-                                     otype=otype, accept=accept/length(burnin:ttt), 
+                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
@@ -441,7 +439,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                      la_chain = la_chain,
                                      A_chain  = A_chain,
                                      W_chain  = W_chain,
-                                     otype=otype, accept=accept/length(burnin:ttt), 
+                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                      pscale=pscale, pcov = pcov, par_index=par_index)
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
