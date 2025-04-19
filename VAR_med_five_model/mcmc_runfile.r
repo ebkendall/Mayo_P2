@@ -26,7 +26,7 @@ set.seed(seed_num)
 steps  = 50000
 burnin =  5000
 
-simulation = T
+simulation = F
 data_format = NULL
 
 if(simulation) {

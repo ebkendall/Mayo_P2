@@ -5,13 +5,12 @@ trialNum = 1
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 
-it_seq = 3:5
-
-states_per_step = 0
-steps_per_it = 1
+it_seq = 1:2
 S = 5
 
-seed_list = 1:5
+# Loading parameter info -------------------------------------------------------
+load(paste0('Model_out/mcmc_results_', trialNum, '_samp', 
+            sampling_num, '_it', max(it_seq), '.rda'))
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -63,19 +62,12 @@ for(s in 1:length(seed_list)) {
         
         par_index = mcmc_out_temp$par_index
         
-        # if(it == 1) {
-        #     B_chain   = mcmc_out_temp$B_chain[1000:2000, ]
-        #     # Hr_chain  = mcmc_out_temp$hr_chain[1000:2000, ]
-        #     # Map_chain = mcmc_out_temp$bp_chain[1000:2000, ]
-        #     # Hc_chain  = mcmc_out_temp$hc_chain[1000:2000, ]
-        #     # La_chain  = mcmc_out_temp$la_chain[1000:2000, ]
-        # } else {
-            B_chain   = rbind(B_chain, mcmc_out_temp$B_chain[!is.na(mcmc_out_temp$B_chain[,1]),])
-            Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain[!is.na(mcmc_out_temp$hr_chain[,1]),])
-            Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain[!is.na(mcmc_out_temp$bp_chain[,1]),])
-            Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain[!is.na(mcmc_out_temp$hc_chain[,1]),])
-            La_chain  = rbind(La_chain, mcmc_out_temp$la_chain[!is.na(mcmc_out_temp$la_chain[,1]),])
-        # }
+        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
+        Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
+        Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
+        Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
+        La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
+        
         rm(mcmc_out_temp)
     }    
     
