@@ -23,10 +23,10 @@ if(sampling_num %in% c(4,5)) {
 }
 
 set.seed(seed_num)
-steps  = 50000
+steps  = 20000
 burnin =  5000
 
-simulation = F
+simulation = T
 data_format = NULL
 
 if(simulation) {

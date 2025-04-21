@@ -3,7 +3,7 @@ sampling_num = as.numeric(args[1])
 simulation = as.logical(as.numeric(args[2]))
 
 trialNum = 1
-it_seq = 1:2
+it_seq = 6:10
 index_seeds = c(1:5)
 states_per_step = 0
 steps_per_it = 1
@@ -15,13 +15,13 @@ S = 5
 mcmc_results = vector(mode = 'list', length = length(index_seeds))
 
 # Random effects
-a_w_chain_id = c(3, 86, 163, 237, 427)
+a_w_chain_id = c(1, 86, 163, 237, 427)
 med_check_inds = c(2, 6, 9, 12, 29, 42, 46, 74)
 rand_eff_alpha = vector(mode = 'list', length = length(a_w_chain_id))
-rand_eff_omega = vector(mode = 'list', length = length(a_w_chain_id))
+# rand_eff_omega = vector(mode = 'list', length = length(a_w_chain_id))
 for(a in 1:length(a_w_chain_id)) {
     rand_eff_alpha[[a]] = vector(mode = 'list', length = length(index_seeds))
-    rand_eff_omega[[a]] = vector(mode = 'list', length = length(index_seeds))
+    # rand_eff_omega[[a]] = vector(mode = 'list', length = length(index_seeds))
 }
 
 for(s in 1:length(index_seeds)) {
@@ -51,8 +51,8 @@ for(s in 1:length(index_seeds)) {
                                '_', steps_per_it,'.rda')
         }
         
-        load(file_name)
         print(file_name)
+        load(file_name)
         
         if(pp_ind == 1) {
             mcmc_results[[s]]$pcov_pscale[[1]] = mcmc_out_temp$pcov
@@ -70,7 +70,7 @@ for(s in 1:length(index_seeds)) {
         
         for(a in 1:length(a_w_chain_id)) {
             rand_eff_alpha[[a]][[s]] = cbind(rand_eff_alpha[[a]][[s]], mcmc_out_temp$A_chain[[a]][,ind_keep])
-            rand_eff_omega[[a]][[s]] = cbind(rand_eff_omega[[a]][[s]], mcmc_out_temp$W_chain[[a]][,ind_keep])
+            # rand_eff_omega[[a]][[s]] = cbind(rand_eff_omega[[a]][[s]], mcmc_out_temp$W_chain[[a]][,ind_keep])
         }
         
         rm(mcmc_out_temp)
@@ -100,7 +100,7 @@ if(simulation) {
 
 save(mcmc_results, file = save_file1)
 save(rand_eff_alpha, file = save_file2)
-save(rand_eff_omega, file = save_file3)
+# save(rand_eff_omega, file = save_file3)
 
 
 

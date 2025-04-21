@@ -123,14 +123,14 @@ for(df_num in 1:50) {
                                               85,  5, -5, 0, 0,
                                               75, -5,  5, 0, 0,
                                               5,  1, -1, 0, 0)
-    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4, 0.01, 0.01, 0.25, 0.25, 
-                                                        100,    1,    1,   25,   25, 
-                                                        100,    1,    1,   25,   25, 
-                                                        1, 0.01, 0.01, 0.25, 0.25)))
+    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(6.4,  0.07,  0.05,  0.002, 0.006, 
+                                                      320,    40,    50,   0.15,  0.75, 
+                                                      150,    45,    50,   0.15,  0.75, 
+                                                      3.5, 0.075, 0.085,  0.003,  0.02)))
     
     pars_mean[par_index$vec_A] = rep(0, 4)
     
-    pars_mean[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
+    pars_mean[par_index$vec_R] = c(diag(c(0.5, 25, 55, 0.2)))
     
     #    transitions:                    1->2,         1->4,         2->3,         2->4, 
     #                                    3->1,         3->2,         3->4,         4->2, 

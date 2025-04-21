@@ -1,11 +1,11 @@
 library(matrixStats)
 library(plotrix)
 
-trialNum = 1
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
 
-it_seq = 1:2
+trialNum = 1
+it_seq = 1:5
 S = 5
 
 # Loading parameter info -------------------------------------------------------
@@ -37,56 +37,16 @@ makeTransparent = function(..., alpha=0.35) {
 }
 
 # Load the model output -------------------------------------------------------
-state_results = vector(mode = 'list', length = length(seed_list))
-hemo_results = vector(mode = 'list', length = length(seed_list))
-hr_results = vector(mode = 'list', length = length(seed_list))
-map_results = vector(mode = 'list', length = length(seed_list))
-lact_results = vector(mode = 'list', length = length(seed_list))
+state_results = vector(mode = 'list', length = length(mcmc_results))
 
-for(s in 1:length(seed_list)) {
-    
-    B_chain   = NULL
-    Hr_chain  = NULL
-    Map_chain = NULL
-    Hc_chain  = NULL
-    La_chain  = NULL
-    
-    seed_num = seed_list[s]
-    for(it in it_seq) {
-        
-        file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
-                           'it', it, '_samp', sampling_num, '_', states_per_step,
-                           '_', steps_per_it,'.rda')
-        load(file_name)
-        print(file_name)
-        
-        par_index = mcmc_out_temp$par_index
-        
-        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
-        Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
-        Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
-        Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
-        La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
-        
-        rm(mcmc_out_temp)
-    }    
+for(s in 1:length(mcmc_results)) {
     
     state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
     for(jj in 1:S) {
-        state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+        state_results[[s]][jj, ] = apply(mcmc_results[[s]]$states, 2, 
+                                         function(x,jj){sum(x == jj)}, jj)
     }
-    state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
-    
-    hemo_results[[s]] = Hc_chain
-    hr_results[[s]] = Hr_chain
-    map_results[[s]] = Map_chain
-    lact_results[[s]] = La_chain
-    
-    rm(B_chain)
-    rm(Hc_chain)
-    rm(Hr_chain)
-    rm(Map_chain)
-    rm(La_chain)
+    state_results[[s]][S+1, ] = apply(mcmc_results[[s]]$states, 2, Mode)
 }
 
 # Summarize data into combo and indiv results ----------------------------------
@@ -168,10 +128,10 @@ for(one_chart in seed_list) {
                                 mean(data_format[indices_i, 'RBC_rule']))
         }
         
-        hr_upper = colQuantiles( hr_results[[one_chart]][, indices_i, drop=F], probs=.975)
-        hr_lower = colQuantiles( hr_results[[one_chart]][, indices_i, drop=F], probs=.025)
-        bp_upper = colQuantiles( map_results[[one_chart]][, indices_i, drop=F], probs=.975)
-        bp_lower = colQuantiles( map_results[[one_chart]][, indices_i, drop=F], probs=.025)
+        hr_upper = colQuantiles( mcmc_results[[one_chart]]$hr[, indices_i, drop=F], probs=.975)
+        hr_lower = colQuantiles( mcmc_results[[one_chart]]$hr[, indices_i, drop=F], probs=.025)
+        bp_upper = colQuantiles( mcmc_results[[one_chart]]$map[, indices_i, drop=F], probs=.975)
+        bp_lower = colQuantiles( mcmc_results[[one_chart]]$map[, indices_i, drop=F], probs=.025)
         
         hr_map_ylim = c(min(hr_lower, bp_lower), max(hr_upper, bp_upper))
         
@@ -180,12 +140,12 @@ for(one_chart in seed_list) {
              xlab='time', ylab=NA, xaxt='n', col.main='green',
              col.axis='green')
         
-        plotCI( x = pb, y=colMeans(hr_results[[one_chart]][, indices_i, drop=F]), 
+        plotCI( x = pb, y=colMeans(mcmc_results[[one_chart]]$hr[, indices_i, drop=F]), 
                 ui=hr_upper, li=hr_lower, main=title_name,
                 xlab='time', ylab=NA, xaxt='n', col.main='green',
                 col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
                 xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-        plotCI( x = pb, y=colMeans(map_results[[one_chart]][, indices_i, drop=F]), 
+        plotCI( x = pb, y=colMeans(mcmc_results[[one_chart]]$map[, indices_i, drop=F]), 
                 ui=bp_upper, li=bp_lower,main=title_name,
                 xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
                 col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
@@ -209,10 +169,10 @@ for(one_chart in seed_list) {
                                 mean(data_format[indices_i, 'RBC_rule']))
         }
         
-        hc_upper = colQuantiles( hemo_results[[one_chart]][, indices_i, drop=F], probs=.975)
-        hc_lower = colQuantiles( hemo_results[[one_chart]][, indices_i, drop=F], probs=.025)
-        la_upper = colQuantiles( lact_results[[one_chart]][, indices_i, drop=F], probs=.975)
-        la_lower = colQuantiles( lact_results[[one_chart]][, indices_i, drop=F], probs=.025)
+        hc_upper = colQuantiles( mcmc_results[[one_chart]]$hemo[, indices_i, drop=F], probs=.975)
+        hc_lower = colQuantiles( mcmc_results[[one_chart]]$hemo[, indices_i, drop=F], probs=.025)
+        la_upper = colQuantiles( mcmc_results[[one_chart]]$lact[, indices_i, drop=F], probs=.975)
+        la_lower = colQuantiles( mcmc_results[[one_chart]]$lact[, indices_i, drop=F], probs=.025)
         
         hr_map_ylim = c(min(hc_lower, la_lower), max(hc_upper, la_upper))
         
@@ -220,12 +180,12 @@ for(one_chart in seed_list) {
              xlab='time', ylab=NA, xaxt='n', col.main='green',
              col.axis='green')
         
-        plotCI(x = pb, y = colMeans(hemo_results[[one_chart]][, indices_i, drop=F]), 
+        plotCI(x = pb, y = colMeans(mcmc_results[[one_chart]]$hemo[, indices_i, drop=F]), 
                ui=hc_upper, li=hc_lower, main=title_name,
                xlab='time', ylab=NA, xaxt='n', col.main='green',
                col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
                xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add = T) 
-        plotCI(x = pb, y = colMeans(lact_results[[one_chart]][, indices_i, drop=F]), 
+        plotCI(x = pb, y = colMeans(mcmc_results[[one_chart]]$lact[, indices_i, drop=F]), 
                ui=la_upper, li=la_lower, main=title_name,
                xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
                col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 

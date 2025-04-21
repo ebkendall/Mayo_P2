@@ -610,7 +610,8 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::reshape(vec_R_content, 4, 4);
     
     int nu_R = 8;
-    arma::vec scalar_vec_R = {9, 9, 9, 9};
+    // arma::vec scalar_vec_R = {9, 9, 9, 9};
+    arma::vec scalar_vec_R = {0.5, 25, 55, 0.2};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat Psi_R = arma::diagmat(scalar_vec_R);
     
@@ -1051,10 +1052,14 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
     // Prior (upsilon_alpha)
     arma::uvec vec_sigma_upsilon_ind = par_index(2);
     int nu_Upsilon = 22;
-    arma::vec scalar_mult2 = {  4, 0.01, 0.01, 0.25, 0.25, 
-                              100,    1,    1,   25,   25, 
-                              100,    1,    1,   25,   25, 
-                                1, 0.01, 0.01, 0.25, 0.25};
+    // arma::vec scalar_mult2 = {  4, 0.01, 0.01, 0.25, 0.25, 
+    //                           100,    1,    1,   25,   25, 
+    //                           100,    1,    1,   25,   25, 
+    //                             1, 0.01, 0.01, 0.25, 0.25};
+    arma::vec scalar_mult2 = {6.4,  0.07,  0.05,  0.002, 0.006, 
+                              320,    40,    50,   0.15,  0.75, 
+                              150,    45,    50,   0.15,  0.75, 
+                              3.5, 0.075, 0.085,  0.003,  0.02};
     scalar_mult2 = (nu_Upsilon - 20 - 1) * scalar_mult2;
     arma::mat Psi_Upsilon = arma::diagmat(scalar_mult2);
     
@@ -1290,23 +1295,23 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                     arma::uvec ind_replace = arma::find(otype_i.col(k) == 0);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
                     
-                    // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                            new_value = arma::mvnrnd(y_i_mean, W_i, 1);
-                            update_value = Y_i_new.col(k);
-                            update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                            count_while_loop += 1;
-                            if(count_while_loop > 10000) {
-                                count_while_loop_big += 1;
-                                Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                                count_while_loop = 0;
-                            }
-                            if(count_while_loop_big > 1000) {
-                                break;
-                            }
-                    }
+                    // // Prevent negatives
+                    // int count_while_loop = 0;
+                    // int count_while_loop_big = 0;
+                    // while(arma::any(update_value <= 0)) {
+                    //         new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                    //         update_value = Y_i_new.col(k);
+                    //         update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //         count_while_loop += 1;
+                    //         if(count_while_loop > 10000) {
+                    //             count_while_loop_big += 1;
+                    //             Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //             count_while_loop = 0;
+                    //         }
+                    //         if(count_while_loop_big > 1000) {
+                    //             break;
+                    //         }
+                    // }
                     
                     Y_i_new.col(k) = update_value;
                     
@@ -1331,23 +1336,23 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                     arma::uvec ind_replace = arma::find(otype_i.col(k) == 0);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
                     
-                    // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                        new_value = arma::mvnrnd(y_i_mean, R, 1);
-                        update_value = Y_i_new.col(k);
-                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                        count_while_loop += 1;
-                        if(count_while_loop > 10000) {
-                            count_while_loop_big += 1;
-                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                            count_while_loop = 0;
-                        }
-                        if(count_while_loop_big > 1000) {
-                            break;
-                        }
-                    }
+                    // // Prevent negatives
+                    // int count_while_loop = 0;
+                    // int count_while_loop_big = 0;
+                    // while(arma::any(update_value <= 0)) {
+                    //     new_value = arma::mvnrnd(y_i_mean, R, 1);
+                    //     update_value = Y_i_new.col(k);
+                    //     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //     count_while_loop += 1;
+                    //     if(count_while_loop > 10000) {
+                    //         count_while_loop_big += 1;
+                    //         Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //         count_while_loop = 0;
+                    //     }
+                    //     if(count_while_loop_big > 1000) {
+                    //         break;
+                    //     }
+                    // }
                     
                     Y_i_new.col(k) = update_value;
                     
@@ -1386,23 +1391,23 @@ arma::mat update_Y_i_cpp( const arma::vec &EIDs, const arma::vec &par,
                     arma::uvec ind_replace = arma::find(otype_i.col(k) == 0);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
                     
-                    // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                        new_value = arma::mvnrnd(y_i_mean, W_i, 1);
-                        update_value = Y_i_new.col(k);
-                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                        count_while_loop += 1;
-                        if(count_while_loop > 10000) {
-                            count_while_loop_big += 1;
-                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                            count_while_loop = 0;
-                        }
-                        if(count_while_loop_big > 1000) {
-                            break;
-                        }
-                    }
+                    // // Prevent negatives
+                    // int count_while_loop = 0;
+                    // int count_while_loop_big = 0;
+                    // while(arma::any(update_value <= 0)) {
+                    //     new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                    //     update_value = Y_i_new.col(k);
+                    //     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //     count_while_loop += 1;
+                    //     if(count_while_loop > 10000) {
+                    //         count_while_loop_big += 1;
+                    //         Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //         count_while_loop = 0;
+                    //     }
+                    //     if(count_while_loop_big > 1000) {
+                    //         break;
+                    //     }
+                    // }
                     
                     Y_i_new.col(k) = update_value;
                 }

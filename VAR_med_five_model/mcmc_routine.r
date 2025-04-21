@@ -334,7 +334,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 
                 # Prior for R
                 nu_R = 8
-                psi_R = diag(c(9, 9, 9, 9))
+                # psi_R = diag(c(9, 9, 9, 9))
+                psi_R = diag(c(0.5, 25, 55, 0.2))
                 psi_R = (nu_R - 4 - 1) * psi_R
 
                 # Proposal
