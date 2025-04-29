@@ -1,10 +1,16 @@
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
+simulation = as.logical(as.numeric(args[2]))
 
-trialNum = 1
-
-it_seq = 1:2
-index_seeds = c(1:5)
+if(simulation) {
+    trialNum = 1
+    it_seq = 1:2
+    index_seeds = c(1:5)
+} else {
+    trialNum = 1
+    it_seq = 6:10
+    index_seeds = c(1:5)
+}
 
 states_per_step = 0
 steps_per_it = 1
@@ -84,9 +90,16 @@ post_means = NULL
 covg = NULL
 for(seed in index_seeds){
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
-                           it, '_samp', sampling_num, '_', states_per_step,
-                           '_', steps_per_it,'_sim.rda') 
+        file_name = NULL
+        if(simulation) {
+            file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
+                               it, '_samp', sampling_num, '_', states_per_step,
+                               '_', steps_per_it,'_sim.rda')
+        } else {
+            file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
+                               it, '_samp', sampling_num, '_', states_per_step,
+                               '_', steps_per_it,'.rda')
+        }
         
         if(file.exists(file_name)) {
             load(file_name)
@@ -119,21 +132,22 @@ for(seed in index_seeds){
             
             rm(mcmc_out_temp)    
         } else {
-            print("Missing!")
-            print(paste0(ind, ": ", file_name))
+            print(paste0("Missing! ", file_name))
         }
     }
     
     post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
     post_means = rbind(post_means, post_means_temp)
     
-    covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
-    covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
-    covg_temp = as.numeric(true_pars <= covg_high & true_pars >= covg_low)
-    covg = rbind(covg, covg_temp)
+    if(simulation) {
+        covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
+        covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
+        covg_temp = as.numeric(true_pars <= covg_high & true_pars >= covg_low)
+        covg = rbind(covg, covg_temp)    
+    }
 }
 
-mean_covg = colMeans(covg)
+if(simulation) {mean_covg = colMeans(covg)}
 
 stacked_chains = do.call( rbind, chain_list)
 a_stacked_chains = vector(mode = 'list', length = length(a_w_chain_id))
@@ -143,7 +157,14 @@ for(a in 1:length(a_stacked_chains)) {
     w_stacked_chains[[a]] = do.call('cbind', w_chain_list[[a]])
 }
 
-pdf(paste0('Plots/sim_trace_', trialNum, '_samp', sampling_num, '_it', max(it_seq), '.pdf'))
+pdf_file = NULL
+if(simulation) {
+    pdf_file = paste0('Plots/sim_trace_', trialNum, '_samp', sampling_num, '_it', max(it_seq), '.pdf')
+} else {
+    pdf_file = paste0('Plots/real_trace_', trialNum, '_samp', sampling_num, '_it', max(it_seq), '.pdf')
+}
+
+pdf(pdf_file)
 par(mfrow=c(3, 2))
 lab_ind = 0
 for(s in names(par_index)){
@@ -171,26 +192,39 @@ for(s in names(par_index)){
             }
         }
         
+        # Trace plots ----------------------------------------------------------
+        x_title_1 = NULL
+        if(simulation) {
+            x_title_1 = paste0("95% CI: [", round(lower, 4), ", ", round(upper, 4), "]",
+                               " Covg =", round(mean_covg[r], 3))
+        } else {
+            x_title_1 = paste0("95% CI: [", round(lower, 4), ", ", round(upper, 4), "]")
+        }
+        
         y_limit = range(stacked_chains[,r])
         plot( NULL, ylab=NA, main=labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
-              ylim=y_limit, xlab = paste0("95% CI: [", round(lower, 4),
-                                          ", ", round(upper, 4), "]",
-                                          " Covg =", round(mean_covg[r], 3)),
-              col.main = title_color)
+              ylim=y_limit, xlab = x_title_1, col.main = title_color)
         
         for(seed in 1:length(chain_list)) {
             lines( chain_list[[seed]][,r], type='l', col=seed)
         }
         
-        x_label = paste0('Mean =',toString(parMean),
-                         ' Median =',toString(parMedian),
-                         ' True =', true_pars[r])
+        # Posterior samples ----------------------------------------------------
+        x_title_2 = NULL
+        if(simulation) {
+            x_title_2 = paste0('Mean =',toString(parMean),
+                               ' Median =',toString(parMedian),
+                               ' True =', true_pars[r])    
+        } else {
+            x_title_2 = paste0('Mean =',toString(parMean),
+                               ' Median =',toString(parMedian))
+        }
         
-        hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, main=NA, freq=FALSE,
-              xlab=x_label)
+        hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, 
+              main=NA, freq=FALSE, xlab=x_title_2)
         abline( v=upper, col='red', lwd=2, lty=2)
         abline( v=lower, col='purple', lwd=2, lty=2)
-        abline( v=true_pars[r], col='green', lwd=2, lty=2)
+        if(simulation){ abline( v=true_pars[r], col='green', lwd=2, lty=2) }
     }   
 }
 
@@ -213,7 +247,6 @@ for(s in 1:length(a_w_chain_id)) {
         
         for(seed in 1:length(a_chain_list[[s]])) {
             lines( a_chain_list[[s]][[seed]][l,], type='l', col=seed)
-            # abline(h = chain_list[[seed]][1,r], col=seed)
         }
         
         x_label = paste0('Mean =',toString(parMean),

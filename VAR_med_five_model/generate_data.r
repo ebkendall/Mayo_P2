@@ -123,14 +123,14 @@ for(df_num in 1:50) {
                                               85,  5, -5, 0, 0,
                                               75, -5,  5, 0, 0,
                                               5,  1, -1, 0, 0)
-    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(6.4,  0.07,  0.05,  0.002, 0.006, 
-                                                      320,    40,    50,   0.15,  0.75, 
-                                                      150,    45,    50,   0.15,  0.75, 
-                                                      3.5, 0.075, 0.085,  0.003,  0.02)))
+    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4,  0.01,  0.01,  0.25, 0.25, 
+                                                      100,     1,     1,    25,   25, 
+                                                      100,     1,     1,    25,   25, 
+                                                        1,  0.01,  0.01,  0.25, 0.25)))
     
     pars_mean[par_index$vec_A] = rep(0, 4)
     
-    pars_mean[par_index$vec_R] = c(diag(c(0.5, 25, 55, 0.2)))
+    pars_mean[par_index$vec_R] = c(diag(c(9, 9, 9, 9)))
     
     #    transitions:                    1->2,         1->4,         2->3,         2->4, 
     #                                    3->1,         3->2,         3->4,         4->2, 
@@ -141,12 +141,12 @@ for(df_num in 1:50) {
     
     pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
     
-    pars_mean[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                                            -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                                            -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                                            -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    pars_mean[par_index$omega_tilde]= c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                        -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                        -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                        -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     
-    pars_mean[par_index$vec_upsilon_omega] = rep(1, length(par_index$vec_upsilon_omega))
+    pars_mean[par_index$vec_upsilon_omega] = rep(-4, length(par_index$vec_upsilon_omega))
     
     # Parameter initialization -----------------------------------------------------
     beta = pars_mean[par_index$vec_beta]
@@ -230,9 +230,10 @@ for(df_num in 1:50) {
         stat_dist = matrix(nrow = n_i, ncol = 5)
         for(k in 1:n_i){
             if(k==1){
-                b_i = sample(1:5, size=1, prob=P_i)
-                stat_dist[k,] = P_i
-                # print(P_i)
+                # b_i = sample(1:5, size=1, prob=P_i)
+                # stat_dist[k,] = P_i
+                b_i = 1
+                stat_dist[k,] = c(1,0,0,0,0)
             } else{
                 q1   = exp(new_z_i[k,, drop=F] %*% zeta[,  1, drop=F]) 
                 q2   = exp(new_z_i[k,, drop=F] %*% zeta[,  2, drop=F])
@@ -254,9 +255,8 @@ for(df_num in 1:50) {
                                 q10,  q11,  0, q12,  1), ncol=5, byrow=T)
                 
                 P_i = Q / rowSums(Q)
-                # Sample the latent state sequence
+                
                 stat_dist[k,] = c(stat_dist[k-1,,drop=F] %*% P_i)
-                # print(P_i[tail(b_i,1),])
                 b_i = c( b_i, sample(1:5, size=1, prob=P_i[tail(b_i,1),]))
             }
             
@@ -271,7 +271,7 @@ for(df_num in 1:50) {
         
         if(rbc_rule) {
             rbc_bleed_correct = c(rbc_bleed_correct, -1)
-            # print(paste0("bleed check: ", i, ", ", id_num))
+            
             if(2 %in% b_i) {
                 first_bleed_ind = which(bleed_ind_i == 1)
                 sim_bleed_ind = which(b_i == 2)
@@ -389,10 +389,10 @@ for(df_num in 1:50) {
     # Impose missingness like real data ----------------------------------------
     true_vitals = use_data[,c("hemo", "hr", "map", "lactate")]
     colnames(true_vitals) = c('hm_true', 'hr_true', 'mp_true', 'la_true')
-    use_data[!otype[,"hemo"], "hemo"] = NA
-    use_data[!otype[,"hr"], "hr"] = NA
-    use_data[!otype[,"map"], "map"] = NA
-    use_data[!otype[,"lactate"], "lactate"] = NA
+    # use_data[!otype[,"hemo"], "hemo"] = NA
+    # use_data[!otype[,"hr"], "hr"] = NA
+    # use_data[!otype[,"map"], "map"] = NA
+    # use_data[!otype[,"lactate"], "lactate"] = NA
     
     use_data = cbind(use_data, true_vitals)
     

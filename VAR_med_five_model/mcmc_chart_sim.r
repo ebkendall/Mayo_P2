@@ -1,20 +1,23 @@
 library(matrixStats)
 library(plotrix)
 
-trialNum = 1
 args = commandArgs(TRUE)
 sampling_num = as.numeric(args[1])
-one_chart = as.numeric(args[2])
+simulation = as.logical(as.numeric(args[2]))
+one_chart = as.numeric(args[3])
 
-it_num = 2
-it_seq = 2:it_num
+if(simulation) {
+    it_seq = 1:2
+    index_seeds = c(1:5)
+} else {
+    it_seq = 6:10
+    index_seeds = c(1:5)
+}
 
+trialNum = 1
 states_per_step = 0
 steps_per_it = 1
 S = 5
-
-seed_list = c(1:5)
-
 df_num = 1
 
 # Mode of the state sequences -------------------------------------------------
@@ -42,13 +45,13 @@ makeTransparent = function(..., alpha=0.35) {
 }
 
 # Load the model output -------------------------------------------------------
-state_results = vector(mode = 'list', length = length(seed_list))
-hemo_results = vector(mode = 'list', length = length(seed_list))
-hr_results = vector(mode = 'list', length = length(seed_list))
-map_results = vector(mode = 'list', length = length(seed_list))
-lact_results = vector(mode = 'list', length = length(seed_list))
+state_results = vector(mode = 'list', length = length(index_seeds))
+hemo_results = vector(mode = 'list', length = length(index_seeds))
+hr_results = vector(mode = 'list', length = length(index_seeds))
+map_results = vector(mode = 'list', length = length(index_seeds))
+lact_results = vector(mode = 'list', length = length(index_seeds))
 
-for(s in 1:length(seed_list)) {
+for(s in 1:length(index_seeds)) {
     
     B_chain   = NULL
     Hr_chain  = NULL
@@ -56,12 +59,20 @@ for(s in 1:length(seed_list)) {
     Hc_chain  = NULL
     La_chain  = NULL
     
-    seed_num = seed_list[s]
+    seed_num = index_seeds[s]
     for(it in it_seq) {
         
-        file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
-                           'it', it, '_samp', sampling_num, '_', states_per_step,
-                           '_', steps_per_it,'_sim.rda')
+        file_name = NULL
+        if(simulation) {
+            file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
+                               'it', it, '_samp', sampling_num, '_', states_per_step,
+                               '_', steps_per_it,'_sim.rda')
+        } else {
+            file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
+                               'it', it, '_samp', sampling_num, '_', states_per_step,
+                               '_', steps_per_it,'.rda')
+        }
+        
         load(file_name)
         print(file_name)
         
@@ -107,87 +118,101 @@ for(s in 1:S) {
     combo_counts_props[s,] = combo_counts[s, ] / combo_counts_col_sum
 }
 
-all_seeds_state_mode = matrix(nrow = length(seed_list)+1, ncol = ncol(combo_counts))
-for(i in 1:length(seed_list)) {
+all_seeds_state_mode = matrix(nrow = length(index_seeds)+1, ncol = ncol(combo_counts))
+for(i in 1:length(index_seeds)) {
     all_seeds_state_mode[i, ] = state_results[[i]][S+1,]
 }
-all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
+all_seeds_state_mode[length(index_seeds)+1, ] = apply(combo_counts, 2, which.max)
 
-# Load simulated data ----------------------------------------------------------
-load(paste0('Data_sim/use_data_', df_num, '.rda'))
-load(paste0('Data_sim/alpha_i_mat_', df_num, '.rda'))
-load(paste0('Data_sim/omega_i_mat_', df_num, '.rda'))
-load('Data_sim/Dn_omega_sim.rda')
-Dn_omega = Dn_omega_sim
-rm(Dn_omega_sim)
-EIDs = unique(use_data[,'EID'])
+# Load data --------------------------------------------------------------------
+load('Data_sim/hr_map_names.rda')
 
-ss_true = use_data[,"b_true"]
-hc_true = use_data[,"hm_true"]
-hr_true = use_data[,"hr_true"]
-mp_true = use_data[,"mp_true"]
-la_true = use_data[,"la_true"]
-
-# Summary stats of state identification ----------------------------------------
-print("Summary of identifying correct states with mode")
-for(s in 1:(length(seed_list)+1)) {
-    if(s <= length(seed_list)) {
-        print(paste0("Seed ", s))
-    } else {
-        print("Combo")
-    }
+if(simulation) {
+    load(paste0('Data_sim/use_data_', df_num, '.rda'))
+    load(paste0('Data_sim/alpha_i_mat_', df_num, '.rda'))
+    load(paste0('Data_sim/omega_i_mat_', df_num, '.rda'))
+    load('Data_sim/Dn_omega_sim.rda')
+    Dn_omega = Dn_omega_sim
+    rm(Dn_omega_sim)
     
-    if(length(ss_true) != length(all_seeds_state_mode[s, ])) {
-        print("ERROR")
-    } else {
-        print(sum(ss_true == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
-    }
+    ss_true = use_data[,"b_true"]
+    hc_true = use_data[,"hm_true"]
+    hr_true = use_data[,"hr_true"]
+    mp_true = use_data[,"mp_true"]
+    la_true = use_data[,"la_true"]    
+} else {
+    load('Data_real/data_format_train.rda')
+    load('Data_real/Dn_omega.rda')
+    load(paste0('Model_out/post_means_samp', sampling_num, '_it', max(it_seq), '_real.rda'))
+    
+    use_data = data_format
+    rm(data_format)
 }
 
-print("Average (across subject) of proportion of correct states with mode")
-mode_correctness = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
-sensitivity_S2 = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
-specificity_S2 = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
-for(s in 1:(length(seed_list)+1)) {
-    
-    prop_sub = rep(0, length(EIDs))
+EIDs = unique(use_data[,'EID'])
 
-    for(j in 1:length(EIDs)) {
-        sub_ind_j = which(use_data[,"EID"] == EIDs[j])
-        ss_true_j = ss_true[sub_ind_j]
-        state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
+# Summary stats of state identification ----------------------------------------
+if(simulation) {
+    print("Summary of identifying correct states with mode")
+    for(s in 1:(length(index_seeds)+1)) {
+        if(s <= length(index_seeds)) {
+            print(paste0("Seed ", s))
+        } else {
+            print("Combo")
+        }
         
-        prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
+        if(length(ss_true) != length(all_seeds_state_mode[s, ])) {
+            print("ERROR")
+        } else {
+            print(sum(ss_true == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
+        }
     }
     
-    if(s <= length(seed_list)) {
-        print(paste0("Seed ", s))
-    } else {
-        print("Combo")
-    }
-    
-    print(summary(prop_sub))
-    mode_correctness[,s] = prop_sub
-    
-    # eid_poor = NULL
-    # eid_poor = EIDs[prop_sub < 0.9]
-    
-    # Sensitivity of state 2: Pr(predict S2 | true S2)
-    predict_at_true_S2 = all_seeds_state_mode[s, (ss_true == 2)]
-    print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
-    
-    # Specificity of state 2: Pr(predict not S2 | true not S2)
-    predict_not_S2 =  all_seeds_state_mode[s, (ss_true != 2)]
-    print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
+    print("Average (across subject) of proportion of correct states with mode")
+    mode_correctness = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
+    sensitivity_S2 = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
+    specificity_S2 = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
+    for(s in 1:(length(index_seeds)+1)) {
+        
+        prop_sub = rep(0, length(EIDs))
+        
+        for(j in 1:length(EIDs)) {
+            sub_ind_j = which(use_data[,"EID"] == EIDs[j])
+            ss_true_j = ss_true[sub_ind_j]
+            state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
+            
+            prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
+        }
+        
+        if(s <= length(index_seeds)) {
+            print(paste0("Seed ", s))
+        } else {
+            print("Combo")
+        }
+        
+        print(summary(prop_sub))
+        mode_correctness[,s] = prop_sub
+        
+        # eid_poor = NULL
+        # eid_poor = EIDs[prop_sub < 0.9]
+        
+        # Sensitivity of state 2: Pr(predict S2 | true S2)
+        predict_at_true_S2 = all_seeds_state_mode[s, (ss_true == 2)]
+        print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
+        
+        # Specificity of state 2: Pr(predict not S2 | true not S2)
+        predict_not_S2 =  all_seeds_state_mode[s, (ss_true != 2)]
+        print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
+    }    
 }
 
 # Choose a subset of the subjects to plot --------------------------------------
+set.seed(2025)
 EID_plot = unique(c(use_data[use_data[,"RBC_rule"] != 0,"EID"],
                     use_data[use_data[,"clinic_rule"] != 0,"EID"]))
 EID_not_chosen_yet = EIDs[!(EIDs %in% EID_plot)]
-set.seed(2025)
 EID_plot = c(EID_plot, sample(x = EID_not_chosen_yet, 
-                              size = 200 - length(EID_plot), 
+                              size = 300 - length(EID_plot), 
                               replace = F))
 
 # Model evaluation plots -------------------------------------------------------
@@ -202,10 +227,16 @@ if(one_chart == 0) {
     }
 }
 
-load('Data_sim/hr_map_names.rda')
+pdf_file = NULL
+if(simulation) {
+    pdf_file = paste0('Plots/sim_chart_', trialNum, '_seed', one_chart, '_samp', 
+                      sampling_num, '_it', max(it_seq), '.pdf')
+} else {
+    pdf_file = paste0('Plots/real_chart_', trialNum, '_seed', one_chart, '_samp', 
+                      sampling_num, '_it', max(it_seq), '.pdf')
+}
 
-pdf(paste0('Plots/sim_chart_', trialNum, '_', one_chart, '_samp', 
-           sampling_num, '_it', max(it_seq), '.pdf'))
+pdf(pdf_file)
 panel_dim = c(4,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
@@ -227,83 +258,85 @@ for(i in EID_plot){
     rbc_times = t_grid[rbc_times_bar]
     rbc_admin_times = t_grid[rbc_admin_times_bar]
     
-    # Put this on the correct scale as the t_grid
-    b_i = use_data[ indices_i,'b_true']
-    to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
-    to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
-    to_s3 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==3]
-    to_s4 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==4]
-    to_s5 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==5]
-    
-    if(b_i[1] == 1) {
-        to_s1 = c(to_s1, 1)
-    } else if(b_i[1] == 2) {
-        to_s2 = c(to_s2, 1)
-    } else if(b_i[1] == 3) {
-        to_s3 = c(to_s3, 1)
-    } else if(b_i[1] == 4) {
-        to_s4 = c(to_s4, 1)
-    } else {
-        to_s5 = c(to_s5, 1)
-    }
-    
-    if(length(unique(b_i)) > 1) {
-        if(length(to_s1) > 0) {
-            rect_coords = data.frame(s = 1, t = to_s1)
+    # Change background color to the true state sequence in simulation ---------
+    if(simulation) {
+        b_i = ss_true[indices_i]
+        to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
+        to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
+        to_s3 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==3]
+        to_s4 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==4]
+        to_s5 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==5]
+        
+        if(b_i[1] == 1) {
+            to_s1 = c(to_s1, 1)
+        } else if(b_i[1] == 2) {
+            to_s2 = c(to_s2, 1)
+        } else if(b_i[1] == 3) {
+            to_s3 = c(to_s3, 1)
+        } else if(b_i[1] == 4) {
+            to_s4 = c(to_s4, 1)
+        } else {
+            to_s5 = c(to_s5, 1)
         }
         
-        if(length(to_s2) > 0) {
-            s2_coords = data.frame(s = 2, t = to_s2)
+        if(length(unique(b_i)) > 1) {
             if(length(to_s1) > 0) {
-                rect_coords = rbind(rect_coords, s2_coords)
-            } else {
-                rect_coords = s2_coords
+                rect_coords = data.frame(s = 1, t = to_s1)
             }
-        }
-        
-        if(length(to_s3) > 0) {
-            s3_coords = data.frame(s = 3, t = to_s3)
-            if(length(to_s1) > 0 || length(to_s2) > 0) {
-                rect_coords = rbind(rect_coords, s3_coords)
-            } else {
-                rect_coords = s3_coords
+            
+            if(length(to_s2) > 0) {
+                s2_coords = data.frame(s = 2, t = to_s2)
+                if(length(to_s1) > 0) {
+                    rect_coords = rbind(rect_coords, s2_coords)
+                } else {
+                    rect_coords = s2_coords
+                }
             }
-        }
-        
-        if(length(to_s4) > 0) {
-            s4_coords = data.frame(s = 4, t = to_s4)
-            if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
-                rect_coords = rbind(rect_coords, s4_coords)
-            } else {
-                rect_coords = s4_coords
+            
+            if(length(to_s3) > 0) {
+                s3_coords = data.frame(s = 3, t = to_s3)
+                if(length(to_s1) > 0 || length(to_s2) > 0) {
+                    rect_coords = rbind(rect_coords, s3_coords)
+                } else {
+                    rect_coords = s3_coords
+                }
             }
-        }
-        
-        if(length(to_s5) > 0) {
-            s5_coords = data.frame(s = 5, t = to_s5)
-            if(length(to_s1) > 0 || length(to_s2) > 0 || 
-               length(to_s3) > 0 || length(to_s4) > 0) {
-                rect_coords = rbind(rect_coords, s5_coords)
-            } else {
-                rect_coords = s5_coords
+            
+            if(length(to_s4) > 0) {
+                s4_coords = data.frame(s = 4, t = to_s4)
+                if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
+                    rect_coords = rbind(rect_coords, s4_coords)
+                } else {
+                    rect_coords = s4_coords
+                }
             }
+            
+            if(length(to_s5) > 0) {
+                s5_coords = data.frame(s = 5, t = to_s5)
+                if(length(to_s1) > 0 || length(to_s2) > 0 || 
+                   length(to_s3) > 0 || length(to_s4) > 0) {
+                    rect_coords = rbind(rect_coords, s5_coords)
+                } else {
+                    rect_coords = s5_coords
+                }
+            }
+            
+            if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
+            # Add one row for visuals
+            rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
+            rect_coords$t = rect_coords$t - 1
+            rect_coords = rect_coords[order(rect_coords$t), ]
+            col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
+                        'green', 'darkgray')[rect_coords$s]
+            col_vec = makeTransparent(col_vec, alpha = 0.35)   
+        } else {
+            rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
+            rect_coords$t = rect_coords$t - 1
+            rect_coords = rect_coords[order(rect_coords$t), ]
+            col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
+                        'green', 'darkgray')[rect_coords$s]
+            col_vec = makeTransparent(col_vec, alpha = 0.35)  
         }
-        
-        if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
-        # Add one row for visuals
-        rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
-        rect_coords$t = rect_coords$t - 1
-        rect_coords = rect_coords[order(rect_coords$t), ]
-        col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
-                    'green', 'darkgray')[rect_coords$s]
-        col_vec = makeTransparent(col_vec, alpha = 0.35)   
-    } else {
-        rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
-        rect_coords$t = rect_coords$t - 1
-        rect_coords = rect_coords[order(rect_coords$t), ]
-        col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
-                    'green', 'darkgray')[rect_coords$s]
-        col_vec = makeTransparent(col_vec, alpha = 0.35)  
     }
     
     pb = barplot(state_proportions[,indices_i], 
@@ -333,15 +366,17 @@ for(i in EID_plot){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1], 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
-    
-    points( x = pb, y = hr_true[indices_i], pch = 2, cex = 1, col = 'white')
-    points( x = pb, y = mp_true[indices_i], pch = 5, cex = 1, col = 'black')
+    if(simulation) {
+        rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+             ybottom = hr_map_ylim[1], 
+             xright = rect_coords$t[-1], 
+             ytop = hr_map_ylim[2],
+             col = col_vec[-nrow(rect_coords)],
+             border = NA)
+        
+        points( x = pb, y = hr_true[indices_i], pch = 2, cex = 1, col = 'white')
+        points( x = pb, y = mp_true[indices_i], pch = 5, cex = 1, col = 'black')    
+    }
     
     plotCI( x = pb, y=colMeans(hr_results[[one_chart]][, indices_i, drop=F]), 
             ui=hr_upper, li=hr_lower, main=title_name,
@@ -355,9 +390,8 @@ for(i in EID_plot){
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'HR', 'MAP'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
-    # grid( nx=20, NULL, col='white')
-    axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
+    axis( side=1, at=pb, col.axis='green', labels=t_grid)
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
@@ -384,15 +418,17 @@ for(i in EID_plot){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1], 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
-    
-    points( x = pb, y = hc_true[indices_i], pch = 2, cex = 1, col = 'white')
-    points( x = pb, y = la_true[indices_i], pch = 5, cex = 1, col = 'black')
+    if(simulation) {
+        rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+             ybottom = hr_map_ylim[1], 
+             xright = rect_coords$t[-1], 
+             ytop = hr_map_ylim[2],
+             col = col_vec[-nrow(rect_coords)],
+             border = NA)
+        
+        points( x = pb, y = hc_true[indices_i], pch = 2, cex = 1, col = 'white')
+        points( x = pb, y = la_true[indices_i], pch = 5, cex = 1, col = 'black')    
+    }
     
     plotCI(x = pb, y = colMeans(hemo_results[[one_chart]][, indices_i, drop=F]), 
            ui=hc_upper, li=hc_lower, main=title_name,
@@ -406,16 +442,19 @@ for(i in EID_plot){
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'hemo', 'lactate'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
-    # grid( nx=20, NULL, col='white')
-    axis( side=1, at=pb, col.axis='green', labels=t_grid)
     
+    axis( side=1, at=pb, col.axis='green', labels=t_grid)
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # Medication admin plot ----------------------------------------------------
     med_i = Dn_omega[[which(EIDs == i)]]
-    omega_i = omega_i_mat[[which(EIDs == i)]]
     med_i_mat = do.call( rbind, med_i)
+    if(simulation) {
+        omega_i = omega_i_mat[[which(EIDs == i)]]    
+    } else {
+        omega_i = par_means[par_index$omega_tilde]
+    }
     
     hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
     map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
@@ -454,12 +493,14 @@ for(i in EID_plot){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-         ybottom = hr_map_ylim[1], 
-         xright = rect_coords$t[-1], 
-         ytop = hr_map_ylim[2],
-         col = col_vec[-nrow(rect_coords)],
-         border = NA)
+    if(simulation) {
+        rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+             ybottom = hr_map_ylim[1], 
+             xright = rect_coords$t[-1], 
+             ytop = hr_map_ylim[2],
+             col = col_vec[-nrow(rect_coords)],
+             border = NA)    
+    }
     
     points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
            col.main='green', col.axis='green', 

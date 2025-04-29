@@ -40,7 +40,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     colnames(otype) = c('hemo','hr','map','lactate')
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$vec_init),
+    mpi = list(#c(par_index$vec_init),
                c(par_index$vec_zeta[seq(1,23,by=2)]), # baselines
                c(par_index$vec_zeta[seq(2,24,by=2)]), # slopes
                c(par_index$vec_A),
@@ -69,6 +69,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     Xn = initialize_X(EIDs, Y, x)
     
     # Initialize Y and states --------------------------------------------------
+    impute_step = TRUE
     if(sum(c(otype) == 0) > 0) {
         # There exists missing Y values 
         if(max_ind > 5) {
@@ -86,9 +87,9 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             
             # initialize Y
             Y[,'hemo'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ]
-            Y[,'hr'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hr_chain), ]
-            Y[,'map'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$bp_chain), ]
-            Y[,'lactate'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$la_chain), ]
+            Y[,'hr'] = mcmc_out_temp$hr_chain[nrow(mcmc_out_temp$hr_chain), ]
+            Y[,'map'] = mcmc_out_temp$bp_chain[nrow(mcmc_out_temp$bp_chain), ]
+            Y[,'lactate'] = mcmc_out_temp$la_chain[nrow(mcmc_out_temp$la_chain), ]
             
             # initialize proposal structure
             pcov = mcmc_out_temp$pcov
@@ -119,6 +120,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
     } else {
         # There are NO missing Y values 
+        print("No missingness")
+        impute_step = FALSE
         B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
         B = B_Dn[[1]]
         Dn = B_Dn[[2]]
@@ -164,10 +167,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         }
 
         # Imputing the missing Y values ----------------------------------------
-        Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype, 
-                           Dn_omega, W, B, n_cores)
-        colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
-                        'RBC_rule', 'clinic_rule')
+        if(impute_step) {
+            Y = update_Y_i_cpp(EIDs, par, par_index, A, Y, Dn, Xn, otype,
+                               Dn_omega, W, B, n_cores)
+            colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
+                            'RBC_rule', 'clinic_rule')    
+        }
 
         # State-space update (B) -----------------------------------------------
         for(s in 1:steps_per_it) {
@@ -334,8 +339,8 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 
                 # Prior for R
                 nu_R = 8
-                # psi_R = diag(c(9, 9, 9, 9))
-                psi_R = diag(c(0.5, 25, 55, 0.2))
+                psi_R = diag(c(9, 9, 9, 9))
+                # psi_R = diag(c(0.5, 25, 55, 0.2))
                 psi_R = (nu_R - 4 - 1) * psi_R
 
                 # Proposal
@@ -397,12 +402,12 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt == burnin) accept = rep( 0, n_group)
         
         B_chain[ chain_ind, ] = do.call( 'c', B)
-        # if(!simulation) {
+        if(impute_step) {
             hc_chain[chain_ind, ] = Y[,'hemo']
             hr_chain[chain_ind, ] = Y[,'hr']
             bp_chain[chain_ind, ] = Y[,'map']
             la_chain[chain_ind, ] = Y[,'lactate']
-        # }
+        }
         # ----------------------------------------------------------------------
 
         cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
@@ -413,19 +418,34 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         if(ttt > burnin & ttt%%reset_step==0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
 
-            index_keep = seq(10, reset_step, by = 10)
+            # save every 20 steps
+            index_keep = seq(20, reset_step, by = 20)
+            index_keep_2 = seq(2, chain_length_MASTER, by = 2)
             
             if(simulation) {
-                mcmc_out_temp = list(chain    = chain[index_keep,], 
-                                     B_chain  = B_chain, 
-                                     hc_chain = hc_chain, #Y[,'hemo'],
-                                     hr_chain = hr_chain, #Y[,'hr'], 
-                                     bp_chain = bp_chain, #Y[,'map'], 
-                                     la_chain = la_chain, #Y[,'lactate'], 
-                                     A_chain  = A_chain,
-                                     W_chain  = W_chain,
-                                     otype=otype, accept=accept/length((burnin+1):ttt), 
-                                     pscale=pscale, pcov = pcov, par_index=par_index)
+                if(impute_step) {
+                    mcmc_out_temp = list(chain    = chain[index_keep,], 
+                                         B_chain  = B_chain[index_keep_2,], 
+                                         hc_chain = hc_chain[index_keep_2,], 
+                                         hr_chain = hr_chain[index_keep_2,], 
+                                         bp_chain = bp_chain[index_keep_2,], 
+                                         la_chain = la_chain[index_keep_2,], 
+                                         A_chain  = A_chain,
+                                         W_chain  = W_chain,
+                                         otype=otype, accept=accept/length((burnin+1):ttt), 
+                                         pscale=pscale, pcov = pcov, par_index=par_index)    
+                } else {
+                    mcmc_out_temp = list(chain    = chain[index_keep,], 
+                                         B_chain  = B_chain[index_keep_2,], 
+                                         hc_chain = Y[,'hemo'],
+                                         hr_chain = Y[,'hr'], 
+                                         bp_chain = Y[,'map'], 
+                                         la_chain = Y[,'lactate'], 
+                                         A_chain  = A_chain,
+                                         W_chain  = W_chain,
+                                         otype=otype, accept=accept/length((burnin+1):ttt), 
+                                         pscale=pscale, pcov = pcov, par_index=par_index)
+                }
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
                                                   ind, 'it', ttt/reset_step + (max_ind - 5), 
@@ -433,11 +453,11 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                                                   '_sim.rda'))
             } else {
                 mcmc_out_temp = list(chain    = chain[index_keep,], 
-                                     B_chain  = B_chain, 
-                                     hc_chain = hc_chain, 
-                                     hr_chain = hr_chain,
-                                     bp_chain = bp_chain, 
-                                     la_chain = la_chain,
+                                     B_chain  = B_chain[index_keep_2,], 
+                                     hc_chain = hc_chain[index_keep_2,], 
+                                     hr_chain = hr_chain[index_keep_2,],
+                                     bp_chain = bp_chain[index_keep_2,], 
+                                     la_chain = la_chain[index_keep_2,],
                                      A_chain  = A_chain,
                                      W_chain  = W_chain,
                                      otype=otype, accept=accept/length((burnin+1):ttt), 

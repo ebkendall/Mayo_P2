@@ -3,24 +3,24 @@ source('mcmc_routine.r')
 # Input will be a number 1-25 (5 seeds with 5 sampling routines)
 args = commandArgs(TRUE)
 
-# df_num = as.numeric(args[1])
-# seed_num = df_num
-# sampling_num = 5
-# states_per_step = 0
-# steps_per_it = 1
-
-seed_num = as.numeric(args[1])
-sampling_num = floor((seed_num - 1) / 5) + 1
-seed_num = seed_num - 5 * floor((seed_num - 1)/5)
-p = 2
-states_per_step = p + 1
+df_num = as.numeric(args[1])
+seed_num = df_num
+sampling_num = 5
+states_per_step = 0
 steps_per_it = 1
-df_num = 1
 
-if(sampling_num %in% c(4,5)) {
-    states_per_step = 0
-    steps_per_it = p - 1
-}
+# seed_num = as.numeric(args[1])
+# sampling_num = floor((seed_num - 1) / 5) + 1
+# seed_num = seed_num - 5 * floor((seed_num - 1)/5)
+# p = 2
+# states_per_step = p + 1
+# steps_per_it = 1
+# df_num = 1
+# 
+# if(sampling_num %in% c(4,5)) {
+#     states_per_step = 0
+#     steps_per_it = p - 1
+# }
 
 set.seed(seed_num)
 steps  = 20000

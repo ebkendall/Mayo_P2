@@ -420,7 +420,8 @@ double log_f_i_cpp(const int i, const int ii, arma::vec t_pts, const arma::vec &
     arma::vec vec_init_content = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
                           exp(vec_init_content(2)), exp(vec_init_content(3))}; // THREE STATE
-    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // arma::vec P_init = init_logit / arma::accu(init_logit); 
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // ---------------------------------------------------------------------------
     
     arma::vec eids = Y.col(0);
@@ -610,8 +611,8 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::reshape(vec_R_content, 4, 4);
     
     int nu_R = 8;
-    // arma::vec scalar_vec_R = {9, 9, 9, 9};
-    arma::vec scalar_vec_R = {0.5, 25, 55, 0.2};
+    arma::vec scalar_vec_R = {9, 9, 9, 9};
+    // arma::vec scalar_vec_R = {0.5, 25, 55, 0.2};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat Psi_R = arma::diagmat(scalar_vec_R);
     
@@ -630,20 +631,21 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     arma::vec prior_zeta = dmvnorm(vec_zeta_content.t(), vec_zeta_mean, zeta_var, true);
     double prior_zeta_val = arma::as_scalar(prior_zeta);
     
-    // Initial Probability prior -----------------------------------------------
-    arma::vec vec_init_content = par.elem(par_index(6) - 1);
-    
-    arma::vec vec_init_mean = {0, 0, 0, 0}; 
-    arma::vec scalar_init(vec_init_content.n_elem, arma::fill::ones); 
-    scalar_init = 20 * scalar_init;
-    arma::mat init_var = arma::diagmat(scalar_init);
-    
-    arma::vec prior_init = dmvnorm(vec_init_content.t(), vec_init_mean, init_var, true);
-    double prior_init_val = arma::as_scalar(prior_init);
+    // // Initial Probability prior -----------------------------------------------
+    // arma::vec vec_init_content = par.elem(par_index(6) - 1);
+    // 
+    // arma::vec vec_init_mean = {0, 0, 0, 0}; 
+    // arma::vec scalar_init(vec_init_content.n_elem, arma::fill::ones); 
+    // scalar_init = 20 * scalar_init;
+    // arma::mat init_var = arma::diagmat(scalar_init);
+    // 
+    // arma::vec prior_init = dmvnorm(vec_init_content.t(), vec_init_mean, init_var, true);
+    // double prior_init_val = arma::as_scalar(prior_init);
     
     // Upsilon omega priors ----------------------------------------------------
     arma::vec vec_up_omega_content = par.elem(par_index(8) - 1);
-    arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::ones);
+    // arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::ones);
+    arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::zeros);
     
     arma::vec scalar_omega(vec_up_omega_content.n_elem, arma::fill::ones);
     scalar_omega = 20 * scalar_omega;
@@ -653,7 +655,8 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     double prior_omega_val = arma::as_scalar(prior_omega);
     
     // Full log-posterior ------------------------------------------------------
-    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val + prior_omega_val;
+    // value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val + prior_omega_val;
+    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_omega_val;
     
     return value;
 }
@@ -993,7 +996,7 @@ arma::vec update_omega_tilde_cpp( const arma::vec EIDs, arma::vec par,
                                     1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,
                                    -1,-1,-1,-1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,
                                    -1,-1,-1, 1,-1,-1,-1,-1,-1};
-    vec_omega_tilde_0 = 2 * vec_omega_tilde_0;
+    // vec_omega_tilde_0 = 2 * vec_omega_tilde_0;
     
     // Prior PRECISION (vec_alpha_tilde)
     arma::vec inv_sig_omega_vec(vec_omega_tilde_0.n_elem, arma::fill::ones);
@@ -1052,14 +1055,14 @@ arma::vec update_beta_upsilon_cpp(const arma::vec &EIDs, arma::vec par,
     // Prior (upsilon_alpha)
     arma::uvec vec_sigma_upsilon_ind = par_index(2);
     int nu_Upsilon = 22;
-    // arma::vec scalar_mult2 = {  4, 0.01, 0.01, 0.25, 0.25, 
-    //                           100,    1,    1,   25,   25, 
-    //                           100,    1,    1,   25,   25, 
-    //                             1, 0.01, 0.01, 0.25, 0.25};
-    arma::vec scalar_mult2 = {6.4,  0.07,  0.05,  0.002, 0.006, 
-                              320,    40,    50,   0.15,  0.75, 
-                              150,    45,    50,   0.15,  0.75, 
-                              3.5, 0.075, 0.085,  0.003,  0.02};
+    arma::vec scalar_mult2 = {  4, 0.01, 0.01, 0.25, 0.25,
+                              100,    1,    1,   25,   25,
+                              100,    1,    1,   25,   25,
+                                1, 0.01, 0.01, 0.25, 0.25};
+    // arma::vec scalar_mult2 = {6.4,  0.07,  0.05,  0.002, 0.006, 
+    //                           320,    40,    50,   0.15,  0.75, 
+    //                           150,    45,    50,   0.15,  0.75, 
+    //                           3.5, 0.075, 0.085,  0.003,  0.02};
     scalar_mult2 = (nu_Upsilon - 20 - 1) * scalar_mult2;
     arma::mat Psi_Upsilon = arma::diagmat(scalar_mult2);
     
@@ -1955,7 +1958,8 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))};
-    arma::vec P_init = init_logit / arma::accu(init_logit);
+    // arma::vec P_init = init_logit / arma::accu(init_logit);
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
 
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -2160,7 +2164,8 @@ Rcpp::List mh_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))}; 
-    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // arma::vec P_init = init_logit / arma::accu(init_logit); 
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
     
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -2375,7 +2380,8 @@ Rcpp::List almost_gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))}; 
-    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // arma::vec P_init = init_logit / arma::accu(init_logit); 
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
     
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -2643,7 +2649,8 @@ Rcpp::List gibbs_up(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))}; 
-    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // arma::vec P_init = init_logit / arma::accu(init_logit); 
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
     
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -3038,7 +3045,8 @@ Rcpp::List mh_up_all(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))}; 
-    arma::vec P_init = init_logit / arma::accu(init_logit); 
+    // arma::vec P_init = init_logit / arma::accu(init_logit); 
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
     
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -3151,7 +3159,8 @@ Rcpp::List almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))};
-    arma::vec P_init = init_logit / arma::accu(init_logit);
+    // arma::vec P_init = init_logit / arma::accu(init_logit);
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
 
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -3573,7 +3582,8 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_init = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init(0)), exp(vec_init(1)),
                             exp(vec_init(2)), exp(vec_init(3))};
-    arma::vec P_init = init_logit / arma::accu(init_logit);
+    // arma::vec P_init = init_logit / arma::accu(init_logit);
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
 
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -3827,8 +3837,8 @@ arma::mat small_impute_Y_i_cpp( const int i, const int ii, const arma::vec &par,
     arma::vec vec_init_content = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
                             exp(vec_init_content(2)), exp(vec_init_content(3))}; // THREE STATE
-    arma::vec P_init = init_logit / arma::accu(init_logit);
-
+    // arma::vec P_init = init_logit / arma::accu(init_logit);
+    arma::vec P_init = {1, 0, 0, 0, 0};
     // -------------------------------------------------------------------------
 
     // Subsetting the data -----------------------------------------------------
