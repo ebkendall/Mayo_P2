@@ -872,7 +872,6 @@ arma::field<arma::vec> almost_gibbs_fast_b(const arma::vec EIDs, const arma::vec
         arma::vec b_i = B(ii);
         arma::vec y_i = y.rows(sub_ind);
 
-        // for(int k = 0; k < n_i - states_per_step + 1; k++) {
         int k = 0;
         while(k < n_i - 2) {
             
