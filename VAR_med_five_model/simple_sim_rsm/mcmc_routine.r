@@ -5,23 +5,25 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, 
-                        sampling_num, states_per_step, steps_per_it){
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1){
     
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 2#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 2
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
-    adjacency_mat = matrix(c(1,1,
-                             1,1), ncol = 2, byrow = T)
-    initialize_cpp(adjacency_mat, states_per_step)
+    adjacency_mat = matrix(c(1,1,0,
+                             0,1,1,
+                             1,1,1), ncol = 3, byrow = T)
+    initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$mu), 
-               c(par_index$t_p))
+    mpi = list(c(par_index$alpha), 
+               c(par_index$zeta),
+               c(par_index$diag_R),
+               c(par_index$init))
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -34,7 +36,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
     accept = rep( 0, n_group)
     
     # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores)
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -50,42 +52,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind,
             chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
         }
         
-        for(s in 1:steps_per_it) {
-            # Random sample update ---------------------------------------------
-            if(sampling_num == 1) {
-                B_Dn = mh_up(as.numeric(EIDs), par, par_index, B, y, ids,
-                             n_cores, states_per_step)
-                B = B_Dn
-            }
-
-            # Almost-Gibbs update ----------------------------------------------
-            if(sampling_num == 2) {
-                B_Dn = almost_gibbs_up(as.numeric(EIDs), par, par_index, B, y,
-                                       ids, n_cores, states_per_step)
-                B = B_Dn
-            }
-
-            # Gibbs update -----------------------------------------------------
-            if(sampling_num == 3) {
-                B_Dn = gibbs_up(as.numeric(EIDs), par, par_index, B, y, ids,
-                                n_cores, states_per_step)
-                B = B_Dn
-            }
-            
-            # Full seq MH update -----------------------------------------------
-            if(sampling_num == 4) {
-                B_Dn = mh_up_all(as.numeric(EIDs), par, par_index, B, y, ids,
-                                 n_cores)
-                B = B_Dn
-            }
-            
-            # Almost-Gibbs efficient (b) ---------------------------------------
-            if(sampling_num == 5) {
-                B_Dn = almost_gibbs_fast_b(as.numeric(EIDs), par, par_index, B, y, ids,
-                                           n_cores, states_per_step)
-                B = B_Dn
-            }
-        }
+        # Almost-Gibbs efficient (b) ---------------------------------------
+        B_Dn = almost_gibbs_fast_b(as.numeric(EIDs), par, par_index, B, y, ids,
+                                   n_cores, states_per_step)
+        B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,

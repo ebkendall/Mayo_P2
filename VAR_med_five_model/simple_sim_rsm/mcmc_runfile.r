@@ -1,86 +1,49 @@
+source('mcmc_routine.r')
+
 # args = commandArgs(TRUE)
 # seed_num = as.numeric(args[1])
 
 seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
+set.seed(seed_num)
 
-sampling_num = NULL
-pseudo = F
-EM = F
+before_t1 = T # Do we handle the state changes before t1 or not?
 
-if(pseudo) {
-    source('mcmc_routine_pseudo.r')
-} else if(EM) {
-    source('mcmc_routine_EM.r')
-} else {
-    source('mcmc_routine.r')
-    
-    sampling_num = floor((seed_num - 1) / 3) + 1
-    seed_num = seed_num - 3 * floor((seed_num - 1)/3)
+# Load data --------------------------------------------------------------------
+load(paste0('Data/data_format', seed_num, '.rda'))
+
+y = data_format[,c("y1", "y2", "y3", "y4")]
+ids = data_format[,"id"]
+EIDs = unique(data_format[,"id"])
+
+# Parameter initialization ----------------------------------------------------
+par_index = list()
+par_index$alpha = 1:12
+par_index$zeta = 13:16
+par_index$diag_R = 17:20
+par_index$init = 21:22
+
+par = rep(0, tail(par_index$init, 1))
+par[par_index$alpha] = c( 50, -3,  3,
+                          100,  5, -5,
+                          100, -5,  5,
+                          50,  3, -3)
+par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
+par[par_index$diag_R] = c(0, 0, 0, 0)
+par[par_index$init] = c(0, 0)
+
+n_state = 3
+
+B = list()
+for(i in EIDs){
+    B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
 }
+# -----------------------------------------------------------------------------
 
-# Num. states sampled per step, Num. steps per MCMC it -------------------------
-for(p in 0:2) {
-    states_per_step = p + 1
-    steps_per_it = 1
-    
-    if(sampling_num == 4) {
-        steps_per_it = 2*states_per_step - 1
-        states_per_step = 1
-    } else if(sampling_num == 5) {
-        states_per_step = (10 * p) + 3
-    } 
-    
-    set.seed(seed_num)
-    ind = seed_num
-    
-    if(EM) {
-        load(paste0('Data/data_format', seed_num, '.rda'))
-    } else {
-        load('Data/data_format1.rda')
-    }
-    y = data_format[,"y"]
-    ids = data_format[,"id"]
-    EIDs = unique(data_format[,"id"])
-    
-    # Parameter initialization ----------------------------------------------------
+steps  = 10000
+burnin =  5000
 
-    par = c(-3, 3, -3, -3)
-    par_index = list()
-    par_index$mu = 1:2
-    par_index$t_p = 3:4
-    
-    # -----------------------------------------------------------------------------
-    
-    n_state = 2
-    zeta = par[par_index$t_p]
-    zeta = exp(zeta)
-    Q = matrix(c(      1,  zeta[1],
-                 zeta[2],        1), ncol=2, byrow=T)
-    
-    P = Q / rowSums(Q)
-    
-    init_prob = rep(1, n_state);
-    init_prob = init_prob / sum(init_prob)
-    
-    B = list()
-    for(i in EIDs){
-        B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
-    }
-    # -----------------------------------------------------------------------------
-    
-    steps  = 10000
-    burnin =  5000
-    
-    s_time = Sys.time()
-    if(pseudo) {
-        mcmc_out = mcmc_routine_pseudo(par, par_index, y, ids, steps, burnin, 
-                                       ind, sampling_num)
-    } else if(EM) {
-        mcmc_out = mcmc_routine_EM(par, par_index, B, y, ids, steps, burnin, ind)
-        save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind,'_EM.rda'))
-    } else {
-        mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, ind, 
-                                sampling_num, states_per_step, steps_per_it)
-    }
-    e_time = Sys.time() - s_time; print(e_time)    
-}
+s_time = Sys.time()
+
+mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, seed_num, before_t1)
+
+e_time = Sys.time() - s_time; print(e_time)    
