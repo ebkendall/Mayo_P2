@@ -62,22 +62,21 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         }
         
         # Sample noise for initial mean ----------------------------------------
-        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4), sigma = diag(exp(par[par_index$diag_R])))
+        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4), 
+                          sigma = diag(exp(par[par_index$diag_R])))
         
         # Almost-Gibbs efficient (b) -------------------------------------------
-        sps = sample(x = 20:50, size = 1, replace = T) # sps > 2
+        sps = sample(x = 10:50, size = 1, replace = T) # sps > 2
         B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
                                   n_cores, g_noise, before_t1, sps)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, n_cores)
+                                       y, ids, g_noise, before_t1, n_cores)
 
         if(!is.finite(log_target_prev)){
-            print("Infinite log-posterior")
-            print(paste0("value: ", log_target_prev))
-            break
+            print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
         }
 
         # Metropolis-Hastings updates ------------------------------------------
@@ -90,7 +89,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                                        sigma=pscale[[j]]*pcov[[j]])
 
             # Evaluate proposed log-likelihood -----------------------------
-            log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+            log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index, 
+                                      B, y, ids, g_noise, before_t1, n_cores)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -99,7 +99,9 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                     proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                                sigma=pcov[[j]]*pscale[j])
 
-                    log_target = log_post_cpp( as.numeric(EIDs), proposal, par_index, B, y, ids, n_cores)
+                    log_target = log_post_cpp(as.numeric(EIDs), proposal, 
+                                              par_index, B, y, ids, g_noise, 
+                                              before_t1, n_cores)
                 }
             }
 

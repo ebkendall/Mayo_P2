@@ -1,9 +1,9 @@
 source('mcmc_routine.r')
 
-# args = commandArgs(TRUE)
-# seed_num = as.numeric(args[1])
+args = commandArgs(TRUE)
+seed_num = as.numeric(args[1])
+# seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 
-seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 set.seed(seed_num)
 
 before_t1 = T # Do we handle the state changes before t1 or not?
