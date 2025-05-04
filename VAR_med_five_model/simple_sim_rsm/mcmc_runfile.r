@@ -11,7 +11,7 @@ before_t1 = T # Do we handle the state changes before t1 or not?
 # Load data --------------------------------------------------------------------
 load(paste0('Data/data_format', seed_num, '.rda'))
 
-y = data_format[,c("y1", "y2", "y3", "y4")]
+y = data_format[,c("y1", "y2", "y3", "y4"), drop = F]
 ids = data_format[,"id"]
 EIDs = unique(data_format[,"id"])
 

@@ -60,21 +60,22 @@ for(seed_num in 1:100) {
 
         # Sample the observations
         g_0 = rep(0, ncol(y_i))
+        max_t = 20
         for(k in 1:n_i) {
             mean_k = rep(0, ncol(y_i))
             if(k == 1) {
                 t_2 = 0
                 t_3 = 0
                 if(b_i[k] == 2) {
-                    t_3 = sample(0:5, size = 1)
+                    t_3 = sample(0:max_t, size = 1)
                     if(t_3 > 0) {
-                        t_2 = sample(2:5, size = 1)
+                        t_2 = sample(2:max_t, size = 1)
                     } else {
-                        t_2 = sample(1:5, size = 1)
+                        t_2 = sample(1:max_t, size = 1)
                     }
                 } else if(b_i[k] == 3) {
-                    t_2 = sample(1:5, size = 1)
-                    t_3 = sample(1:5, size = 1)
+                    t_2 = sample(1:max_t, size = 1)
+                    t_3 = sample(1:max_t, size = 1)
                 }
                 g_0 = alpha[1,] + t_2 * alpha[2, ] + t_3 * alpha[3, ]
                 mean_k = g_0

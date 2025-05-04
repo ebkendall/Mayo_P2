@@ -30,9 +30,12 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     pscale = rep(0.001, n_group)
     
     # Initialize data storage --------------------------------------------------
-    chain_length_MASTER = 10000
-    chain = matrix( 0, chain_length_MASTER, length(par)) 
-    B_chain = matrix( 0, chain_length_MASTER, length(y)) 
+    reset_step = 10000
+    chain_length_MASTER = 1000
+    
+    chain = matrix(NA, reset_step, length(par)) 
+    B_chain = matrix(NA, chain_length_MASTER, nrow(y)) 
+    
     accept = rep( 0, n_group)
     
     # Initialize states to MLE state sequences ---------------------------------
@@ -44,17 +47,27 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
+        ttt_start_t = Sys.time()
         
         # Every 10,000 steps, save existing MCMC results -----------------------
-        if(ttt %% chain_length_MASTER == 0) {
+        chain_ind = NULL
+        chain_ttt = NULL
+        if(ttt %% reset_step == 0) {
             chain_ind = chain_length_MASTER
+            chain_ttt = reset_step
         } else {
-            chain_ind = ttt - chain_length_MASTER * floor(ttt / chain_length_MASTER)
+            new_t = ttt - floor(ttt / reset_step) * reset_step
+            chain_ind = floor((new_t - 1)/10) + 1
+            chain_ttt = ttt %% reset_step
         }
         
-        # Almost-Gibbs efficient (b) ---------------------------------------
-        B_Dn = almost_gibbs_fast_b(as.numeric(EIDs), par, par_index, B, y, ids,
-                                   n_cores, states_per_step)
+        # Sample noise for initial mean ----------------------------------------
+        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4), sigma = diag(exp(par[par_index$diag_R])))
+        
+        # Almost-Gibbs efficient (b) -------------------------------------------
+        sps = sample(x = 20:50, size = 1, replace = T) # sps > 2
+        B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
+                                  n_cores, g_noise, before_t1, sps)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
@@ -103,7 +116,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                 accept[j] = accept[j] +1
             }
 
-            chain[chain_ind,ind_j] = par[ind_j]
+            chain[chain_ttt, ind_j] = par[ind_j]
 
             # Proposal tuning scheme ---------------------------------------
             # During the burnin period, update the proposal covariance in each step
@@ -113,11 +126,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                 if(ttt == 100)  pscale[j] = 1
 
                 if(100 <= ttt & ttt <= 2000){
-                    temp_chain = chain[1:ttt,ind_j]
+                    temp_chain = chain[1:chain_ttt,ind_j]
                     pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
 
                 } else if(2000 < ttt){
-                    temp_chain = chain[(ttt-2000):ttt,ind_j]
+                    temp_chain = chain[(chain_ttt-2000):chain_ttt,ind_j]
                     pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
                 }
                 if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
@@ -145,23 +158,26 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         B_chain[ chain_ind, ] = do.call( 'c', B)
         # ----------------------------------------------------------------------
         
-        if(ttt%%1==0)  print(paste0('--->',ttt))
+        cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
         if(ttt%%100==0) print(accept)
         
-        if(ttt > burnin & ttt%%chain_length_MASTER==0) {
+        ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)
+        
+        if(ttt > burnin & ttt%%reset_step == 0) {
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
-            index_keep = seq(1, chain_length_MASTER, by = 5)
+            
+            index_keep = seq(10, reset_step, by = 10)
+            
             mcmc_out = list( chain    = chain[index_keep,], 
-                             B_chain  = B_chain[index_keep,], 
+                             B_chain  = B_chain, 
                              accept=accept/length(burnin:ttt), 
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
-            save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind,'_', 'it', 
-                                         ttt/chain_length_MASTER, '_samp', sampling_num, 
-                                         '_', states_per_step, '_', steps_per_it,'.rda'))
+            save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind, '_', as.numeric(before_t1) ,'.rda'))
+            
             # Reset the chains
-            chain = matrix( NA, chain_length_MASTER, length(par)) 
-            B_chain = matrix( NA, chain_length_MASTER, length(y))
+            chain = matrix(NA, reset_step, length(par)) 
+            B_chain = matrix(NA, chain_length_MASTER, nrow(y)) 
         }
     }
     # ---------------------------------------------------------------------------
