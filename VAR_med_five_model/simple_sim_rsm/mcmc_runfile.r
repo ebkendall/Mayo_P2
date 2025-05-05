@@ -24,8 +24,8 @@ par_index$init = 21:22
 
 par = rep(0, tail(par_index$init, 1))
 par[par_index$alpha] = c( 50, -3,  3,
-                          100,  5, -5,
-                          100, -5,  5,
+                         100,  5, -5,
+                         100, -5,  5,
                           50,  3, -3)
 par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
 par[par_index$diag_R] = c(0, 0, 0, 0)

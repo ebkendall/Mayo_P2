@@ -20,10 +20,12 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$alpha), 
-               c(par_index$zeta),
-               c(par_index$diag_R),
-               c(par_index$init))
+    mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
+               c(par_index$alpha[c(2,5,8,11)]),
+               c(par_index$alpha[c(3,6,9,12)]),
+               c(par_index$zeta))
+               # c(par_index$diag_R),
+               # c(par_index$init))
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -38,8 +40,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     
     accept = rep( 0, n_group)
     
-    # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
+    # # Initialize states to MLE state sequences ---------------------------------
+    # B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -62,14 +64,14 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         }
         
         # Sample noise for initial mean ----------------------------------------
-        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4), 
+        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4),
                           sigma = diag(exp(par[par_index$diag_R])))
-        
-        # Almost-Gibbs efficient (b) -------------------------------------------
-        sps = sample(x = 10:50, size = 1, replace = T) # sps > 2
-        B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
-                                  n_cores, g_noise, before_t1, sps)
-        B = B_Dn
+
+        # # Almost-Gibbs efficient (b) -------------------------------------------
+        # sps = sample(x = 10:50, size = 1, replace = T) # sps > 2
+        # B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
+        #                           n_cores, g_noise, before_t1, sps)
+        # B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
@@ -128,11 +130,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                 if(ttt == 100)  pscale[j] = 1
 
                 if(100 <= ttt & ttt <= 2000){
-                    temp_chain = chain[1:chain_ttt,ind_j]
+                    temp_chain = chain[1:ttt,ind_j]
                     pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
 
                 } else if(2000 < ttt){
-                    temp_chain = chain[(chain_ttt-2000):chain_ttt,ind_j]
+                    temp_chain = chain[(ttt-2000):ttt,ind_j]
                     pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
                 }
                 if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
@@ -161,7 +163,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         # ----------------------------------------------------------------------
         
         cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
-        if(ttt%%100==0) print(accept)
+        if(ttt%%100==0) {
+            print(accept) 
+            print(pscale)
+            for(i in 1:length(pcov)) print(diag(pcov[[i]]))
+        }
         
         ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)
         

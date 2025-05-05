@@ -116,6 +116,6 @@ for(seed_num in 1:100) {
     change_states = c(nTrans_sim[1,2], nTrans_sim[2,3], nTrans_sim[3,1], nTrans_sim[3,2])
     print("All observed transitions: ")
     print(nTrans_sim)
-    cat('Simulated data set transition fequencies               = ', change_states / sum(change_states),'\n')
-    cat('Simulated data set transition counts                   = ', change_states,'\n')
+    cat('Transition fequencies = ', change_states / sum(change_states),'\n')
+    cat('Transition counts     = ', change_states,'\n')
 }

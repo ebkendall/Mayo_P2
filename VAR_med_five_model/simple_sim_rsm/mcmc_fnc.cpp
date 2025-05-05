@@ -320,7 +320,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
 
         arma::vec b_i = B(ii);
         arma::mat y_i = y.rows(sub_ind);
-        
+
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
         g_0.row(0) = alpha.row(0);
         g_0.row(1) = y_i.row(0) + g_noise.row(ii);
@@ -329,7 +329,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         arma::vec twos(b_i.n_elem, arma::fill::zeros);
         arma::vec threes(b_i.n_elem, arma::fill::zeros);
         twos.elem(arma::find(b_i == 2)) += 1;
-        threes.elem(arma::find(b_i == 2)) += 1;
+        threes.elem(arma::find(b_i == 3)) += 1;
 
         for(int jj = 0; jj < n_i; jj++) {
 
@@ -391,7 +391,10 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                                      g_noise, before_t1, n_cores);
 
     // Prior densities
-    arma::vec prior_mean(par.n_elem, arma::fill::zeros);
+    arma::vec prior_mean = {50, -3,  3, 100,  5, -5, 100, -5,  5, 50,  3, -3,
+                            -2, -1, -1.5, -1.5,
+                            0, 0, 0, 0,
+                            0, 0};
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
     prior_var_diag = 100 * prior_var_diag;
@@ -567,9 +570,7 @@ arma::vec full_seq_update(int n_i, arma::mat y_i, arma::imat adj_mat_i,
 
     double diff_check = arma::accu(log(all_like_vals_s)) - arma::accu(log(all_like_vals_b));
     double min_log = log(arma::randu(arma::distr_param(0,1)));
-    if(diff_check > min_log){
-        b_i = s_i;
-    }
+    if(diff_check > min_log){ b_i = s_i; }
 
     return b_i;
 }
@@ -613,7 +614,7 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
         arma::mat y_i = y.rows(sub_ind);
         
         arma::imat adj_mat_i = adj_mat_GLOBAL;
-        
+
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
         g_0.row(0) = alpha.row(0);
         g_0.row(1) = y_i.row(0) + g_noise.row(ii);
@@ -900,8 +901,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     arma::mat P = Q.each_col() / q_row_sums;
 
     // Find the MLE state sequence given the current parameters ----------------
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         // Subject-specific information ----------------------------------------
@@ -919,7 +918,8 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
         g_0.row(2) = g_0.row(1);
         
         for (int k = 0; k < n_i; k++) {
-            if(k == 0) {
+            
+            if(k == 0) {    
                 arma::vec init_vals(adj_mat_GLOBAL.n_cols, arma::fill::zeros);
                 
                 // Consider all possible initial states
@@ -946,7 +946,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
 
                 b_i(k) = arma::index_max(init_vals) + 1;
             } else {
-                // All others
                 int prev_state = b_i(k-1);
                 arma::vec poss_next_state(arma::accu(adj_mat_GLOBAL.row(prev_state-1)), arma::fill::zeros);
                 arma::vec poss_state_like(arma::accu(adj_mat_GLOBAL.row(prev_state-1)), arma::fill::zeros);
@@ -999,9 +998,29 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
 
 // [[Rcpp::export]]
 void test_fnc() {
-    // Rcpp::Rcout << Omega_List_GLOBAL_multi << std::endl;
-    // Rcpp::Rcout << adj_mat_GLOBAL << std::endl;
-    // 
+    Rcpp::Rcout << "() -> () -> 1" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(0) << std::endl;
+    Rcpp::Rcout << "() -> () -> 2" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(1) << std::endl;
+    Rcpp::Rcout << "() -> () -> 3" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(2) << std::endl;
+    
+    for(int i = 0; i < 3; i++){
+        for(int j = 0; j < 3; j++){
+            Rcpp::Rcout << i + 1 << " -> () -> () -> " << j + 1 << std::endl;
+            Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(i, j) << std::endl;
+        } 
+    }
+    
+    Rcpp::Rcout << "1 -> () -> ()" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(0) << std::endl;
+    Rcpp::Rcout << "2 -> () -> ()" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(1) << std::endl;
+    Rcpp::Rcout << "3 -> () -> ()" << std::endl;
+    Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(2) << std::endl;
+    
+    Rcpp::Rcout << adj_mat_GLOBAL << std::endl;
+
     // Rcpp::Rcout << Omega_List_GLOBAL_multi(1) << std::endl;
     // Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(0, 1) << std::endl;
     
@@ -1013,18 +1032,18 @@ void test_fnc() {
     // Rcpp::Rcout << test2.min() << std::endl;
     // Rcpp::Rcout << test2.index_min() << std::endl;
     
-    int n_i = 10;
-    int states_per_step = 4;
-    for (int k = 0; k < n_i - states_per_step + 1; k++) {
-        
-        double log_prob_diff = 0;
-        double log_like_diff = 0;
-        
-        for(int kk = k + states_per_step; kk < n_i; kk++) {
-            Rcpp::Rcout << "(k, kk) = (" << k << ", " << kk << ")" << std::endl;
-        }
-        double diff_check = log_prob_diff + log_like_diff;
-        double min_log = log(arma::randu(arma::distr_param(0,1)));
-        if(diff_check > min_log){Rcpp::Rcout << "accept" << std::endl;}
-    }
+    // int n_i = 10;
+    // int states_per_step = 4;
+    // for (int k = 0; k < n_i - states_per_step + 1; k++) {
+    //     
+    //     double log_prob_diff = 0;
+    //     double log_like_diff = 0;
+    //     
+    //     for(int kk = k + states_per_step; kk < n_i; kk++) {
+    //         Rcpp::Rcout << "(k, kk) = (" << k << ", " << kk << ")" << std::endl;
+    //     }
+    //     double diff_check = log_prob_diff + log_like_diff;
+    //     double min_log = log(arma::randu(arma::distr_param(0,1)));
+    //     if(diff_check > min_log){Rcpp::Rcout << "accept" << std::endl;}
+    // }
 }
