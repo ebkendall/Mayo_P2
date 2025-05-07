@@ -35,7 +35,8 @@ labels = c("baseline y1", "S2 slope y1", "S3 slope y1",
 chain_list = vector(mode = "list", length = length(index_seeds))
 
 ind = 0
-
+post_means_mat = NULL
+covg = NULL
 for(seed in index_seeds){
     
     it_seq = 1:it_num
@@ -53,13 +54,21 @@ for(seed in index_seeds){
         par_index = mcmc_out$par_index
         
         if(it == 1) {
-            chain_list[[ind]] = mcmc_out$chain
+            chain_list[[ind]] = mcmc_out$chain[500:1000, ]
         } else {
             chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
         }
         
         rm(mcmc_out)
     }
+    
+    post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
+    post_means_mat = rbind(post_means_mat, post_means_temp)
+    
+    covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
+    covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
+    covg_temp = as.numeric(true_par <= covg_high & true_par >= covg_low)
+    covg = rbind(covg, covg_temp)    
 }
 
 # # Compute the OG Gelman-Rubin stat. for testing convergence --------------------
@@ -127,7 +136,7 @@ pdf_title = paste0('Plots/trace_plot_', before_t1, '.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0
-for(s in names(par_index)){
+for(s in names(par_index)[1]){
     temp_par = par_index[[s]]
     for(r in temp_par){
         # lab_ind = lab_ind + 1
@@ -152,13 +161,25 @@ for(s in names(par_index)){
                          ' True =', round(true_par[r], 3))
         
         hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, freq=FALSE,
-              xlab=x_label)
+              xlab=x_label, main = "")
         abline( v=upper, col='red', lwd=2, lty=2)
         abline( v=lower, col='purple', lwd=2, lty=2)
         abline( v=true_par[r], col='green', lwd=2, lty=2)
     }   
 }
 
+par(mfrow=c(3, 3))
+lab_ind = 0
+for(s in names(par_index)[1]){
+    temp_par = par_index[[s]]
+    for(r in temp_par){
+        lab_ind = r
+        boxplot(post_means_mat[,r], main = labels[r],
+                xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)),
+                ylab = paste0('truth = ', true_par[r]))
+        abline(h = true_par[r], col = 'red')
+    }
+}
 
 dev.off()
 
@@ -166,3 +187,6 @@ dev.off()
 #                                           ", ", round(GR_univ[r,2], digits = 4),"), (",
 #                                           round(GR_mult[1], digits = 3),", ",
 #                                           round(GR_mult[2], digits = 3),")")
+
+
+

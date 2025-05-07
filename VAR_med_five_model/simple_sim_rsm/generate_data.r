@@ -16,7 +16,7 @@ par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
 par[par_index$diag_R] = c(0, 0, 0, 0)
 par[par_index$init] = c(0, 0)
 
-N = 500
+N = 1000
 n_state = 3
 
 # Defining parameter objects ---------------------------------------------------
@@ -45,27 +45,37 @@ for(seed_num in 1:100) {
     }
     data_format = NULL
     for(i in 1:N) {
+        m_i = rpois(n = 1, lambda = 150)
         n_i = rpois(n = 1, lambda = 100)
-        b_i = rep(NA, n_i)
-        y_i = matrix(nrow = n_i, ncol = 4)
+
+        # Ensure m_i >= n_i
+        while(m_i < n_i) {
+            m_i = rpois(n = 1, lambda = 150)
+            n_i = rpois(n = 1, lambda = 100)
+        }
+
+        big_b_i = rep(NA, m_i)
+        b_i     = rep(NA, n_i)
+        y_i     = matrix(nrow = n_i, ncol = 4)
         
         # Sample the latent states
-        for(k in 1:n_i) {
-            if(k == 1) {
-                b_i[k] = sample(1:n_state, size = 1, prob = init_prob)
-            } else {
-                b_i[k] = sample(1:n_state, size = 1, prob=P[b_i[k-1],])
-            }
+        big_b_i[1] = 1
+        for(k in 2:m_i) {
+            big_b_i[k] = sample(1:n_state, size = 1, prob=P[big_b_i[k-1],])
         }
+
+        # Take the last n_i steps
+        b_i = tail(big_b_i, n_i)
 
         # Sample the observations
         g_0 = rep(0, ncol(y_i))
+        t_2 = 0
+        t_3 = 0
         max_t = 20
         for(k in 1:n_i) {
+            # Mean structure that allows for transitions before initial time ---
             mean_k = rep(0, ncol(y_i))
             if(k == 1) {
-                t_2 = 0
-                t_3 = 0
                 if(b_i[k] == 2) {
                     t_3 = sample(0:max_t, size = 1)
                     if(t_3 > 0) {
@@ -82,6 +92,9 @@ for(seed_num in 1:100) {
             } else {
                 mean_k = g_0 + sum(b_i[2:k] == 2) * alpha[2, ] + sum(b_i[2:k] == 3) * alpha[3, ]
             }
+            
+            # # Mean structure like in real data analysis ------------------------
+            # mean_k = alpha[1,] + sum(b_i[1:k] == 2) * alpha[2, ] + sum(b_i[1:k] == 3) * alpha[3, ]
             
             y_i[k, ] = rmvnorm(n = 1, mean = mean_k, sigma = R)
         }

@@ -22,8 +22,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
                c(par_index$alpha[c(2,5,8,11)]),
-               c(par_index$alpha[c(3,6,9,12)]),
-               c(par_index$zeta))
+               c(par_index$alpha[c(3,6,9,12)]))
+               # c(par_index$zeta),
                # c(par_index$diag_R),
                # c(par_index$init))
     
@@ -156,6 +156,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
             # --------------------------------------------------------------
         }
 
+        chain[chain_ttt, ] = par
+        
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)
         
