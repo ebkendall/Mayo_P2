@@ -10,7 +10,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 2
+    n_cores = 4
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -22,10 +22,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
                c(par_index$alpha[c(2,5,8,11)]),
-               c(par_index$alpha[c(3,6,9,12)]))
-               # c(par_index$zeta),
-               # c(par_index$diag_R),
-               # c(par_index$init))
+               c(par_index$alpha[c(3,6,9,12)]),
+               c(par_index$zeta),
+               c(par_index$diag_R),
+               c(par_index$init))
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -64,8 +64,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         }
         
         # Sample noise for initial mean ----------------------------------------
-        g_noise = rmvnorm(length(EIDs), mean = rep(0, 4),
-                          sigma = diag(exp(par[par_index$diag_R])))
+        g_noise = list()
+        for(gg in 1:2) {
+            g_noise[[gg]] = rmvnorm(length(EIDs), mean = rep(0, 4), 
+                                   sigma = diag(exp(par[par_index$diag_R])))
+        }
 
         # # Almost-Gibbs efficient (b) -------------------------------------------
         # sps = sample(x = 10:50, size = 1, replace = T) # sps > 2
@@ -87,8 +90,13 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
             ind_j = mpi[[j]]
             proposal = par
 
-            proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+            if(length(ind_j) > 1) {
+                proposal[ind_j] = rmvnorm(n=1, mean=par[ind_j],
                                        sigma=pscale[[j]]*pcov[[j]])
+            } else {
+                proposal[ind_j] = rnorm(n=1, mean=par[ind_j], 
+                                        sd=sqrt(pscale[[j]]*pcov[[j]]))
+            }
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index, 
@@ -98,8 +106,14 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                 while(!is.finite(log_target)){
                     print('bad proposal')
                     proposal = par
-                    proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-                                               sigma=pcov[[j]]*pscale[j])
+
+                    if(length(ind_j) > 1) {
+                        proposal[ind_j] = rmvnorm(n=1, mean=par[ind_j],
+                                            sigma=pscale[[j]]*pcov[[j]])
+                    } else {
+                        proposal[ind_j] = rnorm(n=1, mean=par[ind_j], 
+                                                sd=sqrt(pscale[[j]]*pcov[[j]]))
+                    }
 
                     log_target = log_post_cpp(as.numeric(EIDs), proposal, 
                                               par_index, B, y, ids, g_noise, 
@@ -131,11 +145,19 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
 
                 if(100 <= ttt & ttt <= 2000){
                     temp_chain = chain[1:ttt,ind_j]
-                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                    if(length(ind_j) > 1) {
+                        pcov[[j]] = cov(temp_chain[!duplicated(temp_chain),, drop=F])
+                    } else {
+                        pcov[[j]] = var(temp_chain[!duplicated(temp_chain)])
+                    }
 
                 } else if(2000 < ttt){
                     temp_chain = chain[(ttt-2000):ttt,ind_j]
-                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                    if(length(ind_j) > 1) {
+                        pcov[[j]] = cov(temp_chain[!duplicated(temp_chain),, drop=F])
+                    } else {
+                        pcov[[j]] = var(temp_chain[!duplicated(temp_chain)])
+                    }
                 }
                 if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
 
@@ -168,7 +190,6 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         if(ttt%%100==0) {
             print(accept) 
             print(pscale)
-            for(i in 1:length(pcov)) print(diag(pcov[[i]]))
         }
         
         ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)

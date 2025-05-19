@@ -7,24 +7,22 @@ par_index$zeta = 13:16
 par_index$diag_R = 17:20
 par_index$init = 21:22
 
-par = rep(0, tail(par_index$init, 1))
+par = rep(0, max(do.call('c', par_index)))
 par[par_index$alpha] = c( 50, -3,  3,
                          100,  5, -5,
                          100, -5,  5,
                           50,  3, -3)
 par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-par[par_index$diag_R] = c(0, 0, 0, 0)
+par[par_index$diag_R] = c(1, 1, 1, 1)
 par[par_index$init] = c(0, 0)
 
-N = 1000
+N = 500
 n_state = 3
 
 # Defining parameter objects ---------------------------------------------------
 alpha = matrix(par[par_index$alpha], nrow = 3)
 zeta = par[par_index$zeta]
 R = diag(exp(par[par_index$diag_R]))
-logit_prob = c(1, exp(par[par_index$init]))
-init_prob = logit_prob / sum(logit_prob)
 
 qz = exp(zeta)
 Q = matrix(c(    1, qz[1],     0,
@@ -32,6 +30,10 @@ Q = matrix(c(    1, qz[1],     0,
              qz[3], qz[4],     1), ncol=3, byrow=T)
 
 P = Q / rowSums(Q)
+
+init_logit = c(0, par[par_index$init])
+init_logit = exp(init_logit)
+init_prob = init_logit / sum(init_logit)
 
 # Simulate multiple datasets ---------------------------------------------------
 for(seed_num in 1:100) {
@@ -43,6 +45,7 @@ for(seed_num in 1:100) {
         pdf("Plots/sim_data.pdf")
         par(mfrow=c(2,1))
     }
+
     data_format = NULL
     for(i in 1:N) {
         m_i = rpois(n = 1, lambda = 150)
@@ -58,43 +61,31 @@ for(seed_num in 1:100) {
         b_i     = rep(NA, n_i)
         y_i     = matrix(nrow = n_i, ncol = 4)
         
-        # Sample the latent states
+        # Sample a long string of latent states
         big_b_i[1] = 1
         for(k in 2:m_i) {
             big_b_i[k] = sample(1:n_state, size = 1, prob=P[big_b_i[k-1],])
         }
 
-        # Take the last n_i steps
+        # Select n_i of the states for the true latent state sequence
         b_i = tail(big_b_i, n_i)
+        before_b_i = big_b_i[1:(m_i - n_i + 1)]
+        if(b_i[1] == 1) {
+            b_i = head(big_b_i, n_i)
+            before_b_i = 1
+        }
 
         # Sample the observations
-        g_0 = rep(0, ncol(y_i))
-        t_2 = 0
-        t_3 = 0
-        max_t = 20
+        t_2 = sum(before_b_i == 2)
+        t_3 = sum(before_b_i == 3)
+        g_0 = alpha[1,] + t_2 * alpha[2, ] + t_3 * alpha[3, ]
         for(k in 1:n_i) {
-            # Mean structure that allows for transitions before initial time ---
-            mean_k = rep(0, ncol(y_i))
+            mean_k = NULL
             if(k == 1) {
-                if(b_i[k] == 2) {
-                    t_3 = sample(0:max_t, size = 1)
-                    if(t_3 > 0) {
-                        t_2 = sample(2:max_t, size = 1)
-                    } else {
-                        t_2 = sample(1:max_t, size = 1)
-                    }
-                } else if(b_i[k] == 3) {
-                    t_2 = sample(1:max_t, size = 1)
-                    t_3 = sample(1:max_t, size = 1)
-                }
-                g_0 = alpha[1,] + t_2 * alpha[2, ] + t_3 * alpha[3, ]
                 mean_k = g_0
             } else {
                 mean_k = g_0 + sum(b_i[2:k] == 2) * alpha[2, ] + sum(b_i[2:k] == 3) * alpha[3, ]
             }
-            
-            # # Mean structure like in real data analysis ------------------------
-            # mean_k = alpha[1,] + sum(b_i[1:k] == 2) * alpha[2, ] + sum(b_i[1:k] == 3) * alpha[3, ]
             
             y_i[k, ] = rmvnorm(n = 1, mean = mean_k, sigma = R)
         }

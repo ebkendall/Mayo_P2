@@ -9,7 +9,7 @@ par_index = list()
 par_index$alpha = 1:12
 par_index$zeta = 13:16
 par_index$diag_R = 17:20
-par_index$init = 21:22
+par_index$init = 21
 
 true_par = rep(0, tail(par_index$init, 1))
 true_par[par_index$alpha] = c( 50, -3,  3,
@@ -17,8 +17,8 @@ true_par[par_index$alpha] = c( 50, -3,  3,
                               100, -5,  5,
                                50,  3, -3)
 true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-true_par[par_index$diag_R] = c(0, 0, 0, 0)
-true_par[par_index$init] = c(0, 0)
+true_par[par_index$diag_R] = c(1, 1, 1, 1)
+true_par[par_index$init] = 0
 
 labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
            "baseline y2", "S2 slope y2", "S3 slope y2",
@@ -27,7 +27,7 @@ labels = c("baseline y1", "S2 slope y1", "S3 slope y1",
            "logit baseline 1 -> 2", "logit baseline 2 -> 3",
            "logit baseline 3 -> 1", "logit baseline 3 -> 2",
            "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
-           "logit init S2", "logit init S3") 
+           "logit init S1") 
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms
@@ -40,35 +40,45 @@ covg = NULL
 for(seed in index_seeds){
     
     it_seq = 1:it_num
-    ind = ind + 1
+    covg_val = FALSE
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',ind, '_', before_t1,'.rda')
-        load(file_name)
-        print(paste0(ind, ": ", file_name))
-        print("accept")
-        print(mcmc_out$accept)
-        print("pscale")
-        print(mcmc_out$pscale)
-        
-        par_index = mcmc_out$par_index
-        
-        if(it == 1) {
-            chain_list[[ind]] = mcmc_out$chain[500:1000, ]
+        file_name = paste0('Model_out/mcmc_out_',seed, '_', before_t1,'.rda')
+        if(file.exists(file_name)) {
+            load(file_name)
+            print(paste0(seed, ": ", file_name))
+            print("accept")
+            print(mcmc_out$accept)
+            print("pscale")
+            print(mcmc_out$pscale)
+            
+            par_index = mcmc_out$par_index
+            
+            if(it == 1) {
+                ind = ind + 1
+                chain_list[[ind]] = mcmc_out$chain[200:1000, ]
+            } else {
+                chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
+            }
+            
+            rm(mcmc_out)
+            
+            covg_val = TRUE
         } else {
-            chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
+            print(paste0("Missing! ", file_name))
         }
         
-        rm(mcmc_out)
     }
     
-    post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
-    post_means_mat = rbind(post_means_mat, post_means_temp)
-    
-    covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
-    covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
-    covg_temp = as.numeric(true_par <= covg_high & true_par >= covg_low)
-    covg = rbind(covg, covg_temp)    
+    if(covg_val) {
+        post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
+        post_means_mat = rbind(post_means_mat, post_means_temp)
+        
+        covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
+        covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
+        covg_temp = as.numeric(true_par <= covg_high & true_par >= covg_low)
+        covg = rbind(covg, covg_temp)    
+    }
 }
 
 # # Compute the OG Gelman-Rubin stat. for testing convergence --------------------
@@ -136,7 +146,7 @@ pdf_title = paste0('Plots/trace_plot_', before_t1, '.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0
-for(s in names(par_index)[1]){
+for(s in names(par_index)){
     temp_par = par_index[[s]]
     for(r in temp_par){
         # lab_ind = lab_ind + 1
@@ -156,21 +166,28 @@ for(s in names(par_index)[1]){
         
         for(seed in 1:length(chain_list)) { lines( chain_list[[seed]][,r], type='l', col=seed) }
         
-        x_label = paste0('Mean =',toString(parMean),
-                         ' Median =',toString(parMedian),
-                         ' True =', round(true_par[r], 3))
+        if(s %in% c("init", "noise")) {
+            x_label = paste0('Mean =',toString(parMean),
+                             ' Median =',toString(parMedian))
+        } else {
+            x_label = paste0('Mean =',toString(parMean),
+                             ' Median =',toString(parMedian),
+                             ' True =', round(true_par[r], 3))    
+        }
         
         hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, freq=FALSE,
               xlab=x_label, main = "")
         abline( v=upper, col='red', lwd=2, lty=2)
         abline( v=lower, col='purple', lwd=2, lty=2)
-        abline( v=true_par[r], col='green', lwd=2, lty=2)
+        if(!(s %in% c("init", "noise"))) {
+            abline( v=true_par[r], col='green', lwd=2, lty=2)
+        }
     }   
 }
 
 par(mfrow=c(3, 3))
 lab_ind = 0
-for(s in names(par_index)[1]){
+for(s in names(par_index)){
     temp_par = par_index[[s]]
     for(r in temp_par){
         lab_ind = r
