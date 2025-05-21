@@ -23,7 +23,7 @@ steps_per_it = 1
 # }
 
 set.seed(seed_num)
-steps  = 20000
+steps  = 10000
 burnin =  5000
 
 simulation = T
@@ -74,8 +74,8 @@ par = rep(0, max(par_index$vec_upsilon_omega))
 
 par[par_index$vec_beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
 par[par_index$vec_alpha_tilde] = c( 9, -1,  1, 0, 0,
-                                    85,  5, -5, 0, 0,
-                                    75, -5,  5, 0, 0,
+                                   85,  5, -5, 0, 0,
+                                   75, -5,  5, 0, 0,
                                     5,  1, -1, 0, 0)
 par[par_index$vec_sigma_upsilon] = c(diag(c(  4, 0.01, 0.01, 0.25, 0.25, 
                                               100,    1,    1,   25,   25, 

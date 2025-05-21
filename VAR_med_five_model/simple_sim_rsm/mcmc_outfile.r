@@ -2,14 +2,14 @@ args = commandArgs(TRUE)
 before_t1 = as.numeric(args[1])
 
 index_seeds = c(1:100)
-it_num = 1
+it_num = 2
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
 par_index$alpha = 1:12
 par_index$zeta = 13:16
 par_index$diag_R = 17:20
-par_index$init = 21
+par_index$init = 21:22
 
 true_par = rep(0, tail(par_index$init, 1))
 true_par[par_index$alpha] = c( 50, -3,  3,
@@ -18,7 +18,7 @@ true_par[par_index$alpha] = c( 50, -3,  3,
                                50,  3, -3)
 true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
 true_par[par_index$diag_R] = c(1, 1, 1, 1)
-true_par[par_index$init] = 0
+true_par[par_index$init] = c(0, 0)
 
 labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
            "baseline y2", "S2 slope y2", "S3 slope y2",
@@ -27,7 +27,7 @@ labels = c("baseline y1", "S2 slope y1", "S3 slope y1",
            "logit baseline 1 -> 2", "logit baseline 2 -> 3",
            "logit baseline 3 -> 1", "logit baseline 3 -> 2",
            "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
-           "logit init S1") 
+           "logit init S2", "logit init S3") 
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms
@@ -43,7 +43,7 @@ for(seed in index_seeds){
     covg_val = FALSE
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed, '_', before_t1,'.rda')
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', before_t1,'.rda')
         if(file.exists(file_name)) {
             load(file_name)
             print(paste0(seed, ": ", file_name))
@@ -56,7 +56,7 @@ for(seed in index_seeds){
             
             if(it == 1) {
                 ind = ind + 1
-                chain_list[[ind]] = mcmc_out$chain[200:1000, ]
+                chain_list[[ind]] = mcmc_out$chain[500:1000, ]
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
             }

@@ -7,21 +7,28 @@ simulation = as.logical(as.numeric(args[2]))
 one_chart = as.numeric(args[3])
 
 if(simulation) {
-    it_seq = 1:2
-    index_seeds = c(1:5)
+    it_seq = 1:1
+    if(one_chart != 0) {
+        index_seeds = one_chart
+        df_num = one_chart
+    } else {
+        index_seeds = c(1:5)
+        df_num = 1  
+    }
 } else {
     it_seq = 6:10
-    index_seeds = c(1:5)
+    if(one_chart != 0) {
+        index_seeds = one_chart
+    } else {
+        index_seeds = c(1:5)
+    }
+    df_num = 1
 }
 
 trialNum = 1
 states_per_step = 0
 steps_per_it = 1
 S = 5
-df_num = 1
-if(one_chart != 0) {
-    index_seeds = one_chart
-}
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {

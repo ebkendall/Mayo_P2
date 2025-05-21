@@ -204,7 +204,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                              accept=accept/length(burnin:ttt), 
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
-            save(mcmc_out, file = paste0('Model_out/mcmc_out_',ind, '_', as.numeric(before_t1) ,'.rda'))
+            save(mcmc_out, file = paste0('Model_out/mcmc_out_', ind, '_it_', ttt/reset_step,
+                                         '_', as.numeric(before_t1), '.rda'))
             
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 

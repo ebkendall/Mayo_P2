@@ -3,10 +3,10 @@ library(mvtnorm, quietly=T)
 # Load in the existing data and save the covariate combinations
 for(df_num in 1:50) {
     print(paste0("Df ", df_num))
-    # load('Data_real/data_format_train_large.rda')
-    # load('Data_real/Dn_omega_large.rda')
-    load('Data_real/data_format_train.rda')
-    load('Data_real/Dn_omega.rda')
+    load('Data_real/data_format_train_large.rda')
+    load('Data_real/Dn_omega_large.rda')
+    # load('Data_real/data_format_train.rda')
+    # load('Data_real/Dn_omega.rda')
     load('Data_real/Dn_omega_names.rda')
     
     set.seed(df_num)
@@ -120,13 +120,13 @@ for(df_num in 1:50) {
     pars_mean[par_index$vec_beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
     
     pars_mean[par_index$vec_alpha_tilde] = c( 9, -1,  1, 0, 0,
-                                              85,  5, -5, 0, 0,
-                                              75, -5,  5, 0, 0,
+                                             85,  5, -5, 0, 0,
+                                             75, -5,  5, 0, 0,
                                               5,  1, -1, 0, 0)
-    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4,  0.01,  0.01,  0.25, 0.25, 
-                                                      100,     1,     1,    25,   25, 
-                                                      100,     1,     1,    25,   25, 
-                                                        1,  0.01,  0.01,  0.25, 0.25)))
+    pars_mean[par_index$vec_sigma_upsilon] = c(diag(c(  4,  0.01,  0.01,  1,  1, 
+                                                      100,     1,     1, 25, 25, 
+                                                      100,     1,     1, 25, 25, 
+                                                        1,  0.01,  0.01,  1,  1)))
     
     pars_mean[par_index$vec_A] = rep(0, 4)
     
@@ -141,12 +141,12 @@ for(df_num in 1:50) {
     
     pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
     
-    pars_mean[par_index$omega_tilde]= c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                                        -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                                        -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                                        -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    pars_mean[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                            -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                            -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                            -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     
-    pars_mean[par_index$vec_upsilon_omega] = rep(-4, length(par_index$vec_upsilon_omega))
+    pars_mean[par_index$vec_upsilon_omega] = rep(1, length(par_index$vec_upsilon_omega))
     
     # Parameter initialization -----------------------------------------------------
     beta = pars_mean[par_index$vec_beta]
@@ -187,8 +187,9 @@ for(df_num in 1:50) {
     Dir = 'Data_sim/'
     
     use_data = NULL
-    
     rbc_bleed_correct = NULL
+    initial_state_vec = NULL
+
     for(i in 1:N){
         
         id_num = EIDs[i]
@@ -204,14 +205,6 @@ for(df_num in 1:50) {
         
         x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
         z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
-        # new_z_i = cbind(rep(1, nrow(z_i)), rep(0, nrow(z_i)))
-        # for(zz in 1:n_i) {
-        #     if(z_i[zz, 2] != 0) {
-        #         z_val = z_i[zz, 2] * exp(-0.25 * 0:(n_i - zz))
-        #         new_z_i[zz:nrow(new_z_i), 2] = new_z_i[zz:nrow(new_z_i), 2] + z_val
-        #     }
-        # }
-        new_z_i = z_i
         
         bleed_ind_i = bleed_indicator[Y[,'EID']==as.numeric(id_num)]
         
@@ -235,18 +228,18 @@ for(df_num in 1:50) {
                 b_i = 1
                 stat_dist[k,] = c(1,0,0,0,0)
             } else{
-                q1   = exp(new_z_i[k,, drop=F] %*% zeta[,  1, drop=F]) 
-                q2   = exp(new_z_i[k,, drop=F] %*% zeta[,  2, drop=F])
-                q3   = exp(new_z_i[k,, drop=F] %*% zeta[,  3, drop=F])
-                q4   = exp(new_z_i[k,, drop=F] %*% zeta[,  4, drop=F])
-                q5   = exp(new_z_i[k,, drop=F] %*% zeta[,  5, drop=F]) 
-                q6   = exp(new_z_i[k,, drop=F] %*% zeta[,  6, drop=F])
-                q7   = exp(new_z_i[k,, drop=F] %*% zeta[,  7, drop=F])
-                q8   = exp(new_z_i[k,, drop=F] %*% zeta[,  8, drop=F])
-                q9   = exp(new_z_i[k,, drop=F] %*% zeta[,  9, drop=F]) 
-                q10  = exp(new_z_i[k,, drop=F] %*% zeta[,  10, drop=F])
-                q11  = exp(new_z_i[k,, drop=F] %*% zeta[,  11, drop=F])
-                q12  = exp(new_z_i[k,, drop=F] %*% zeta[,  12, drop=F])
+                q1   = exp(z_i[k,, drop=F] %*% zeta[,  1, drop=F]) 
+                q2   = exp(z_i[k,, drop=F] %*% zeta[,  2, drop=F])
+                q3   = exp(z_i[k,, drop=F] %*% zeta[,  3, drop=F])
+                q4   = exp(z_i[k,, drop=F] %*% zeta[,  4, drop=F])
+                q5   = exp(z_i[k,, drop=F] %*% zeta[,  5, drop=F]) 
+                q6   = exp(z_i[k,, drop=F] %*% zeta[,  6, drop=F])
+                q7   = exp(z_i[k,, drop=F] %*% zeta[,  7, drop=F])
+                q8   = exp(z_i[k,, drop=F] %*% zeta[,  8, drop=F])
+                q9   = exp(z_i[k,, drop=F] %*% zeta[,  9, drop=F]) 
+                q10  = exp(z_i[k,, drop=F] %*% zeta[,  10, drop=F])
+                q11  = exp(z_i[k,, drop=F] %*% zeta[,  11, drop=F])
+                q12  = exp(z_i[k,, drop=F] %*% zeta[,  12, drop=F])
                 
                 Q = matrix(c(   1,   q1,  0,  q2,  0,
                                 0,    1, q3,  q4,  0,
@@ -346,9 +339,10 @@ for(df_num in 1:50) {
         }
         
         use_data = rbind( use_data, cbind( id_num, t_i, Y_i, b_i, 
-                                           new_z_i[,2],
+                                           z_i[,2],
                                            x_i[,1], 
                                            rules))
+        initial_state_vec = c(initial_state_vec, b_i[1])
     }
     use_data = matrix(as.numeric(use_data), ncol = ncol(use_data))
     colnames(use_data) = c( 'EID', 'time', 'hemo', 'hr', 'map','lactate', 
@@ -421,6 +415,9 @@ for(df_num in 1:50) {
     if(df_num == 1) {
         save(Dn_omega_sim, file = paste0(Dir,'Dn_omega_sim.rda'))    
     }
+
+    print("Initial state distribution")
+    print(table(initial_state_vec))
 }
 
 # # Visualize the noise --------------------------------------------------------
