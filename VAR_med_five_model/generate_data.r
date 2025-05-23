@@ -3,15 +3,16 @@ library(mvtnorm, quietly=T)
 # Load in the existing data and save the covariate combinations
 for(df_num in 1:50) {
     print(paste0("Df ", df_num))
-    load('Data_real/data_format_train_large.rda')
-    load('Data_real/Dn_omega_large.rda')
-    # load('Data_real/data_format_train.rda')
-    # load('Data_real/Dn_omega.rda')
+    # load('Data_real/data_format_train_large.rda')
+    # load('Data_real/Dn_omega_large.rda')
+    load('Data_real/data_format_train.rda')
+    load('Data_real/Dn_omega.rda')
     load('Data_real/Dn_omega_names.rda')
     
     set.seed(df_num)
     N = length(unique(data_format[,"EID"]))
     EIDs = unique(data_format[,"EID"])
+    n_state = 5
     
     # Clinic Rule information ------------------------------------------------------
     non_zero_clinic = unique(data_format[data_format[,"clinic_rule"] != 0, "EID"])
@@ -202,6 +203,7 @@ for(df_num in 1:50) {
         if(rbc_rule) correct_bleed = F
         
         n_i = sum(Y[,'EID']==as.numeric(id_num))
+        m_i = n_i + rpois(n = 1, lambda = 50)
         
         x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
         z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
@@ -218,28 +220,23 @@ for(df_num in 1:50) {
             print(paste0("issue n_i: ", i))
         }
         
-        P_i = exp(init_logit) / sum(exp(init_logit))
-        b_i = NULL
-        stat_dist = matrix(nrow = n_i, ncol = 5)
-        for(k in 1:n_i){
-            if(k==1){
-                # b_i = sample(1:5, size=1, prob=P_i)
-                # stat_dist[k,] = P_i
-                b_i = 1
-                stat_dist[k,] = c(1,0,0,0,0)
-            } else{
-                q1   = exp(z_i[k,, drop=F] %*% zeta[,  1, drop=F]) 
-                q2   = exp(z_i[k,, drop=F] %*% zeta[,  2, drop=F])
-                q3   = exp(z_i[k,, drop=F] %*% zeta[,  3, drop=F])
-                q4   = exp(z_i[k,, drop=F] %*% zeta[,  4, drop=F])
-                q5   = exp(z_i[k,, drop=F] %*% zeta[,  5, drop=F]) 
-                q6   = exp(z_i[k,, drop=F] %*% zeta[,  6, drop=F])
-                q7   = exp(z_i[k,, drop=F] %*% zeta[,  7, drop=F])
-                q8   = exp(z_i[k,, drop=F] %*% zeta[,  8, drop=F])
-                q9   = exp(z_i[k,, drop=F] %*% zeta[,  9, drop=F]) 
-                q10  = exp(z_i[k,, drop=F] %*% zeta[,  10, drop=F])
-                q11  = exp(z_i[k,, drop=F] %*% zeta[,  11, drop=F])
-                q12  = exp(z_i[k,, drop=F] %*% zeta[,  12, drop=F])
+        # Sample a long string of states ---------------------------------------
+        big_b_i = rep(NA, m_i)
+        big_b_i[1] = 1
+        for(k in 2:m_i) {
+            if(k <= m_i - n_i) {
+                q1   = exp(zeta[1, 1]) 
+                q2   = exp(zeta[1, 2])
+                q3   = exp(zeta[1, 3])
+                q4   = exp(zeta[1, 4])
+                q5   = exp(zeta[1, 5]) 
+                q6   = exp(zeta[1, 6])
+                q7   = exp(zeta[1, 7])
+                q8   = exp(zeta[1, 8])
+                q9   = exp(zeta[1, 9]) 
+                q10  = exp(zeta[1, 10])
+                q11  = exp(zeta[1, 11])
+                q12  = exp(zeta[1, 12])
                 
                 Q = matrix(c(   1,   q1,  0,  q2,  0,
                                 0,    1, q3,  q4,  0,
@@ -249,19 +246,61 @@ for(df_num in 1:50) {
                 
                 P_i = Q / rowSums(Q)
                 
-                stat_dist[k,] = c(stat_dist[k-1,,drop=F] %*% P_i)
-                b_i = c( b_i, sample(1:5, size=1, prob=P_i[tail(b_i,1),]))
+                big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
+            } else {
+                q1   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  1, drop=F]) 
+                q2   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  2, drop=F])
+                q3   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  3, drop=F])
+                q4   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  4, drop=F])
+                q5   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  5, drop=F]) 
+                q6   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  6, drop=F])
+                q7   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  7, drop=F])
+                q8   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  8, drop=F])
+                q9   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  9, drop=F]) 
+                q10  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  10, drop=F])
+                q11  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  11, drop=F])
+                q12  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  12, drop=F])
+                
+                Q = matrix(c(   1,   q1,  0,  q2,  0,
+                                0,    1, q3,  q4,  0,
+                               q5,   q6,  1,  q7,  0,
+                                0,   q8,  0,   1, q9,
+                              q10,  q11,  0, q12,  1), ncol=5, byrow=T)
+                
+                P_i = Q / rowSums(Q)
+                
+                big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
             }
-            
-            D_i_temp = matrix(c( 1, sum(b_i[1:k]==2), sum(b_i[1:k]==3), 
-                                 sum(b_i[1:k]==4), sum(b_i[1:k]==5)), 
-                              nrow = 1, ncol = 5)
+        }
+
+        # Select n_i of the states for the true latent state sequence ----------
+        b_i = tail(big_b_i, n_i)
+        before_b_i = big_b_i[1:(m_i - n_i + 1)]
+        if(b_i[1] == 1) {
+            before_b_i = 1
+        }
+
+        # Format the design matrices for mean structure ------------------------
+        for(k in 1:n_i) {
+            if(k == 1) {
+                D_i_temp = matrix(c(1, sum(before_b_i==2), sum(before_b_i==3), 
+                                       sum(before_b_i==4), sum(before_b_i==5)), 
+                                      nrow = 1, ncol = 5)
+            } else {
+                D_i_temp = matrix(c(1, sum(before_b_i==2) + sum(b_i[2:k]==2), 
+                                       sum(before_b_i==3) + sum(b_i[2:k]==3), 
+                                       sum(before_b_i==4) + sum(b_i[2:k]==4), 
+                                       sum(before_b_i==5) + sum(b_i[2:k]==5)), 
+                                  nrow = 1, ncol = 5)
+            }
+
             D_i[[k]] = diag(4) %x% D_i_temp
-            
+                
             x_i_temp = matrix(c(x_i[k,]), ncol = 1)
             X_i[[k]] = diag(4) %x% x_i[k,]
         }
         
+        # Double check RBC rule ------------------------------------------------
         if(rbc_rule) {
             rbc_bleed_correct = c(rbc_bleed_correct, -1)
             
@@ -274,13 +313,11 @@ for(df_num in 1:50) {
                 } 
             } 
         }
-        # ----------------------------------------------------------------------
         
         # Generate realizations of hc, hr, bp, and lact ------------------------
         Y_i = matrix(nrow = n_i, ncol = 4)
         
         vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
-        
         vec_omega_i = rmvnorm( n=1, mean=c(omega), sigma=diag(upsilon_omega))
         
         alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
@@ -305,18 +342,20 @@ for(df_num in 1:50) {
                                  R[4,3] / (1 - A_mat_scale[4] * A_mat_scale[3]), 
                                  R[4,4] / (1 - A_mat_scale[4] * A_mat_scale[4])), 
                                ncol = 4, byrow = T)
+                
                 mean_vecY_i_k = D_i[[k]]%*%matrix(vec_alpha_i,ncol=1) + 
                     X_i[[k]]%*%matrix(beta,ncol=1) + 
                     D_i_omega[[k]]%*%matrix(vec_omega_i,ncol=1)
+                
                 Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
             } else {
                 A_1 = diag(A_mat_scale)
                 
                 nu_k = D_i[[k]]%*%matrix(vec_alpha_i,ncol=1) + 
-                    X_i[[k]]%*%matrix(beta,ncol=1) +
+                    X_i[[k]]%*%matrix(beta,ncol=1) + 
                     D_i_omega[[k]]%*%matrix(vec_omega_i,ncol=1)
                 nu_k_1 = D_i[[k-1]]%*%matrix(vec_alpha_i,ncol=1) + 
-                    X_i[[k-1]]%*%matrix(beta,ncol=1) +
+                    X_i[[k-1]]%*%matrix(beta,ncol=1) + 
                     D_i_omega[[k-1]]%*%matrix(vec_omega_i,ncol=1)
                 diff_vec = c(Y_i[k-1,] - nu_k_1)
                 
@@ -329,13 +368,11 @@ for(df_num in 1:50) {
         
         t_i = Y[ Y[,'EID']==as.numeric(id_num), 'time', drop=F]
         
-        # Removing clinic_rule temporarily
         rules = Y[ Y[,'EID']==as.numeric(id_num), c('RBC_rule'), drop=F]
         rules = cbind(rules, 0)
         
         if((1 %in% rules[,1]) & !(correct_bleed)) {
             rules[,1] = 0
-            # print("Bleed rule is changed to 0")
         }
         
         use_data = rbind( use_data, cbind( id_num, t_i, Y_i, b_i, 
@@ -390,22 +427,38 @@ for(df_num in 1:50) {
     
     use_data = cbind(use_data, true_vitals)
     
-    # Save and print summary of data -------------------------------------------
-    
+    # Save ---------------------------------------------------------------------
     save( use_data, file=paste0(Dir,'use_data_', df_num, '.rda'))
     
-    print(table(use_data[,'b_true']))
-    cat('\n','Proption of occurances in each state:','\n')
-    print(table(use_data[,'b_true'])/dim(use_data)[1])
-    cat('\n')
+    # Print transition frequencies for the simulated data set ------------------
+    nTrans_sim = matrix(0, nrow = n_state, ncol = n_state)
+    for(i in unique(use_data[,"EID"])){
+        subject <- data_format[data_format[,"EID"]==i,,drop=FALSE]
+        for(k in 2:nrow(subject)) {
+            nTrans_sim[subject[k-1, "b_true"], subject[k, "b_true"]] = 
+                nTrans_sim[subject[k-1, "b_true"], subject[k, "b_true"]] + 1 
+        }
+    }
     
+    change_states = c(nTrans_sim[1,2], nTrans_sim[1,4], nTrans_sim[2,3], nTrans_sim[2,4], 
+                      nTrans_sim[3,1], nTrans_sim[3,2], nTrans_sim[3,4], nTrans_sim[4,2],
+                      nTrans_sim[4,5], nTrans_sim[5,1], nTrans_sim[5,2], nTrans_sim[5,4])
+    print("All observed transitions: ")
+    print(nTrans_sim)
+    cat('Transition fequencies = ', change_states / sum(change_states),'\n')
+    cat('Transition counts     = ', change_states,'\n')
+    
+    # Print summaries ----------------------------------------------------------
     print(paste0("RBC rule is found in ", length(rbc_bleed_correct), " patients"))
     print(paste0(sum(rbc_bleed_correct == 1), " were correct with the bleed event"))
     
-    print("Clinic Rule = 1")
-    print(unique(use_data[use_data[,"clinic_rule"] == 1, "EID"]))
-    print("Clinic Rule = -1")
-    print(unique(use_data[use_data[,"clinic_rule"] == -1, "EID"]))
+    print(paste0("Clinic Rule = (1, -1): ", "(", 
+          length(unique(use_data[use_data[,"clinic_rule"] == 1, "EID"])),
+          ", ", length(unique(use_data[use_data[,"clinic_rule"] == -1, "EID"])),
+          ")"))
+    
+    print("Initial state distribution")
+    print(table(initial_state_vec))
     
     bleed_indicator = bleed_indicator_update
     
@@ -415,9 +468,6 @@ for(df_num in 1:50) {
     if(df_num == 1) {
         save(Dn_omega_sim, file = paste0(Dir,'Dn_omega_sim.rda'))    
     }
-
-    print("Initial state distribution")
-    print(table(initial_state_vec))
 }
 
 # # Visualize the noise --------------------------------------------------------
