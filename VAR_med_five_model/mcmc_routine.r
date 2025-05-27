@@ -18,7 +18,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 10#strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -40,7 +40,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
     colnames(otype) = c('hemo','hr','map','lactate')
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(#c(par_index$vec_init),
+    mpi = list(c(par_index$vec_init),
                c(par_index$vec_zeta[seq(1,23,by=2)]), # baselines
                c(par_index$vec_zeta[seq(2,24,by=2)]), # slopes
                c(par_index$vec_A),

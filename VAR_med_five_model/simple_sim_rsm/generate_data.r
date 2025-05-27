@@ -13,10 +13,10 @@ par[par_index$alpha] = c( 50, -3,  3,
                          100, -5,  5,
                           50,  3, -3)
 par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-par[par_index$diag_R] = c(1, 1, 1, 1)
+par[par_index$diag_R] = c(2, 2, 2, 2)
 par[par_index$init] = c(0, 0)
 
-N = 1000
+N = 500
 n_state = 3
 
 # Defining parameter objects ---------------------------------------------------
@@ -71,7 +71,6 @@ for(seed_num in 1:100) {
         b_i = tail(big_b_i, n_i)
         before_b_i = big_b_i[1:(m_i - n_i + 1)]
         if(b_i[1] == 1) {
-            b_i = head(big_b_i, n_i)
             before_b_i = 1
         }
 

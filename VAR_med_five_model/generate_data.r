@@ -1,6 +1,5 @@
 library(mvtnorm, quietly=T)
 
-# Load in the existing data and save the covariate combinations
 for(df_num in 1:50) {
     print(paste0("Df ", df_num))
     # load('Data_real/data_format_train_large.rda')
@@ -14,7 +13,7 @@ for(df_num in 1:50) {
     EIDs = unique(data_format[,"EID"])
     n_state = 5
     
-    # Clinic Rule information ------------------------------------------------------
+    # Clinic Rule information --------------------------------------------------
     non_zero_clinic = unique(data_format[data_format[,"clinic_rule"] != 0, "EID"])
     clinic_rbc_combos = matrix(0, ncol = 3, nrow = length(non_zero_clinic))
     clinic_rbc_combos[,1] = non_zero_clinic
@@ -23,8 +22,8 @@ for(df_num in 1:50) {
                                     unique(data_format[data_format[,"EID"] == non_zero_clinic[c], "clinic_rule"]))
     }
     
-    # ------------------------------------------------------------------------------
-    # Making an indicator variable about the first RBC to indicate bleed event -----
+    # --------------------------------------------------------------------------
+    # Making an indicator variable about the first RBC to indicate bleed event -
     bleed_pat = unique(data_format[data_format[,"RBC_rule"] != 0, "EID"])
     bleed_indicator = rep(0, nrow(data_format))
     for(i in 1:length(bleed_pat)) {
@@ -89,7 +88,7 @@ for(df_num in 1:50) {
         }
         
     }
-    # ------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     
     data_format = cbind(data_format, bleed_indicator)
     
@@ -100,7 +99,7 @@ for(df_num in 1:50) {
     otype = !is.na(Y[, c('hemo','hr','map','lactate')])
     colnames(otype) = c('hemo','hr','map','lactate')
     
-    # Initializing par_index -------------------------------------------------------
+    # Initializing par_index ---------------------------------------------------
     par_index = list()
     par_index$vec_beta = 1:4
     par_index$vec_alpha_tilde = 5:24
@@ -115,7 +114,7 @@ for(df_num in 1:50) {
         save(par_index, file = paste0('Data_sim/true_par_index.rda'))    
     }
     
-    # Initializing true parameter values -------------------------------------------
+    # Initializing true parameter values ---------------------------------------
     pars_mean = rep(0, tail(par_index$vec_upsilon_omega, 1))
     
     pars_mean[par_index$vec_beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
@@ -136,9 +135,9 @@ for(df_num in 1:50) {
     #    transitions:                    1->2,         1->4,         2->3,         2->4, 
     #                                    3->1,         3->2,         3->4,         4->2, 
     #                                    4->5,         5->1,         5->2,         5->4
-    pars_mean[par_index$vec_zeta] = c(-4.7405, 4.5, -5.2152,   1, -3.6473,-0.5, -3.1475, -0.2, 
-                                      -6.4459,  -1, -3.9404,   2, -4.2151,   1, -4.1778, 2.5, 
-                                      -3.0523,   0, -6.4459,-0.2, -4.2404, 3.5, -4.2151,   1)
+    pars_mean[par_index$vec_zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
+                                      -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778, 1.5, 
+                                      -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,   1)
     
     pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
     
@@ -149,7 +148,7 @@ for(df_num in 1:50) {
     
     pars_mean[par_index$vec_upsilon_omega] = rep(1, length(par_index$vec_upsilon_omega))
     
-    # Parameter initialization -----------------------------------------------------
+    # Parameter initialization -------------------------------------------------
     beta = pars_mean[par_index$vec_beta]
     
     alpha_tilde = matrix(pars_mean[par_index$vec_alpha_tilde], ncol = 4)
@@ -178,7 +177,7 @@ for(df_num in 1:50) {
     if(df_num == 1) {
         save(true_pars, file = 'Data_sim/true_pars.rda')
     }
-    # -----------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     
     alpha_i_mat = vector(mode = "list", length = N)
     omega_i_mat = vector(mode = "list", length = N)
@@ -364,7 +363,7 @@ for(df_num in 1:50) {
                 Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = R)
             }
         }
-        # ---------------------------------------------------------------------------
+        # ----------------------------------------------------------------------
         
         t_i = Y[ Y[,'EID']==as.numeric(id_num), 'time', drop=F]
         
@@ -427,13 +426,10 @@ for(df_num in 1:50) {
     
     use_data = cbind(use_data, true_vitals)
     
-    # Save ---------------------------------------------------------------------
-    save( use_data, file=paste0(Dir,'use_data_', df_num, '.rda'))
-    
     # Print transition frequencies for the simulated data set ------------------
     nTrans_sim = matrix(0, nrow = n_state, ncol = n_state)
     for(i in unique(use_data[,"EID"])){
-        subject <- data_format[data_format[,"EID"]==i,,drop=FALSE]
+        subject <- use_data[use_data[,"EID"]==i,,drop=FALSE]
         for(k in 2:nrow(subject)) {
             nTrans_sim[subject[k-1, "b_true"], subject[k, "b_true"]] = 
                 nTrans_sim[subject[k-1, "b_true"], subject[k, "b_true"]] + 1 
@@ -445,12 +441,10 @@ for(df_num in 1:50) {
                       nTrans_sim[4,5], nTrans_sim[5,1], nTrans_sim[5,2], nTrans_sim[5,4])
     print("All observed transitions: ")
     print(nTrans_sim)
-    cat('Transition fequencies = ', change_states / sum(change_states),'\n')
-    cat('Transition counts     = ', change_states,'\n')
     
     # Print summaries ----------------------------------------------------------
-    print(paste0("RBC rule is found in ", length(rbc_bleed_correct), " patients"))
-    print(paste0(sum(rbc_bleed_correct == 1), " were correct with the bleed event"))
+    print(paste0(sum(rbc_bleed_correct == 1), " of ", length(rbc_bleed_correct), 
+                 " RBC rules were correct with the bleed event"))
     
     print(paste0("Clinic Rule = (1, -1): ", "(", 
           length(unique(use_data[use_data[,"clinic_rule"] == 1, "EID"])),
@@ -459,12 +453,18 @@ for(df_num in 1:50) {
     
     print("Initial state distribution")
     print(table(initial_state_vec))
+    cat('\n')
     
-    bleed_indicator = bleed_indicator_update
+    # Save ---------------------------------------------------------------------
+    save(use_data, file=paste0(Dir,'use_data_', df_num, '.rda'))
     
     save(alpha_i_mat, file = paste0(Dir,'alpha_i_mat_', df_num, '.rda'))
+    
     save(omega_i_mat, file = paste0(Dir,'omega_i_mat_', df_num, '.rda'))
+    
+    bleed_indicator = bleed_indicator_update
     save(bleed_indicator, file = paste0(Dir,'bleed_indicator_sim_', df_num, '.rda'))
+    
     if(df_num == 1) {
         save(Dn_omega_sim, file = paste0(Dir,'Dn_omega_sim.rda'))    
     }
@@ -475,20 +475,20 @@ for(df_num in 1:50) {
 # simulation = T
 # 
 # makeTransparent = function(..., alpha=0.35) {
-#     
+# 
 #     if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
-#     
-#     alpha = floor(255*alpha)  
+# 
+#     alpha = floor(255*alpha)
 #     newColor = col2rgb(col=unlist(list(...)), alpha=FALSE)
-#     
+# 
 #     .makeTransparent = function(col, alpha) {
 #         rgb(red=col[1], green=col[2], blue=col[3], alpha=alpha, maxColorValue=255)
 #     }
-#     
+# 
 #     newColor = apply(newColor, 2, .makeTransparent, alpha=alpha)
-#     
+# 
 #     return(newColor)
-#     
+# 
 # }
 # 
 # # New patients -----------------------------------------------------------------
@@ -498,7 +498,7 @@ for(df_num in 1:50) {
 # panels = c(3, 1)
 # inset_dim = c(0,-.18)
 # par(mfrow=panels, mar=c(2,4,2,4), bg='black', fg='green')
-# for(i in EIDs){
+# for(i in EIDs[1:100]){
 #     # print(which(EIDs == i))
 #     indices_i = (use_data[,'EID']==i)
 #     n_i = sum(indices_i)
@@ -514,7 +514,7 @@ for(df_num in 1:50) {
 #         to_s3 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==3]
 #         to_s4 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==4]
 #         to_s5 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==5]
-#         
+# 
 #         if(b_i[1] == 1) {
 #             to_s1 = c(to_s1, 1)
 #         } else if(b_i[1] == 2) {
@@ -526,12 +526,12 @@ for(df_num in 1:50) {
 #         } else {
 #             to_s5 = c(to_s5, 1)
 #         }
-#         
+# 
 #         if(length(unique(b_i)) > 1) {
 #             if(length(to_s1) > 0) {
 #                 rect_coords = data.frame(s = 1, t = to_s1)
 #             }
-#             
+# 
 #             if(length(to_s2) > 0) {
 #                 s2_coords = data.frame(s = 2, t = to_s2)
 #                 if(length(to_s1) > 0) {
@@ -540,7 +540,7 @@ for(df_num in 1:50) {
 #                     rect_coords = s2_coords
 #                 }
 #             }
-#             
+# 
 #             if(length(to_s3) > 0) {
 #                 s3_coords = data.frame(s = 3, t = to_s3)
 #                 if(length(to_s1) > 0 || length(to_s2) > 0) {
@@ -549,7 +549,7 @@ for(df_num in 1:50) {
 #                     rect_coords = s3_coords
 #                 }
 #             }
-#             
+# 
 #             if(length(to_s4) > 0) {
 #                 s4_coords = data.frame(s = 4, t = to_s4)
 #                 if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
@@ -558,7 +558,7 @@ for(df_num in 1:50) {
 #                     rect_coords = s4_coords
 #                 }
 #             }
-#             
+# 
 #             if(length(to_s5) > 0) {
 #                 s5_coords = data.frame(s = 5, t = to_s5)
 #                 if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0 || length(to_s4) > 0) {
@@ -567,131 +567,132 @@ for(df_num in 1:50) {
 #                     rect_coords = s5_coords
 #                 }
 #             }
-#             
+# 
 #             if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
 #             # Add one row for visuals
 #             rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
 #             rect_coords$t = rect_coords$t - 1
 #             rect_coords = rect_coords[order(rect_coords$t), ]
 #             col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray')[rect_coords$s]
-#             col_vec = makeTransparent(col_vec, alpha = 0.35)   
+#             col_vec = makeTransparent(col_vec, alpha = 0.35)
 #         } else {
 #             rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
 #             rect_coords$t = rect_coords$t - 1
 #             rect_coords = rect_coords[order(rect_coords$t), ]
 #             col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray')[rect_coords$s]
-#             col_vec = makeTransparent(col_vec, alpha = 0.35)  
+#             col_vec = makeTransparent(col_vec, alpha = 0.35)
 #         }
 #     }
 #     # HEART RATE & MAP ---------------------------------------------------------
-#     hr_map_ylim = c(min(c(use_data[indices_i, 'hr'], use_data[indices_i, 'map'])), 
+#     hr_map_ylim = c(min(c(use_data[indices_i, 'hr'], use_data[indices_i, 'map'])),
 #                     max(c(use_data[indices_i, 'hr'], use_data[indices_i, 'map'])))
-#     
+# 
 #     plot(1:n_i, use_data[indices_i, 'hr'], xlab='time', ylab=NA, ylim = hr_map_ylim,
 #          main=paste0('HR and MAP: ', i, ', RBC Rule = ', mean(use_data[indices_i, 'RBC_rule'])),
-#          col.main='green', col.axis='green', pch=20, cex=1)
+#          col.main='green', col.axis='green', pch=20, cex=1, xaxt = 'n')
 #     points(1:n_i, use_data[indices_i, 'map'], col = 'orange')
-#     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
-#          ybottom = hr_map_ylim[1], 
-#          xright = rect_coords$t[-1]-0.5, 
+#     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5,
+#          ybottom = hr_map_ylim[1],
+#          xright = rect_coords$t[-1]-0.5,
 #          ytop = hr_map_ylim[2],
 #          col = col_vec[-nrow(rect_coords)],
 #          border = NA)
 #     grid( nx=20, NULL, col='white')
-#     # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
+#     abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
 #     abline(v = rbc_admin_times, col = 'grey', lwd = 1)
+#     xtick<-0:n_i
+#     axis(side=1, at=xtick, labels = FALSE, col = 'green')
+#     axis(side=1, at=t_grid, labels = t_grid, col = 'pink', col.axis = 'green')
 # 
 #     # HEMO & Lactate -----------------------------------------------------------
-#     hemo_lact_ylim = c(min(c(use_data[indices_i, 'hemo'], use_data[indices_i, 'lactate'])), 
+#     hemo_lact_ylim = c(min(c(use_data[indices_i, 'hemo'], use_data[indices_i, 'lactate'])),
 #                        max(c(use_data[indices_i, 'hemo'], use_data[indices_i, 'lactate'])))
-#     
+# 
 #     plot(1:n_i, use_data[indices_i, 'hemo'], xlab='time', ylab=NA, ylim = hemo_lact_ylim,
 #          main=paste0('hemo: ', i), col.main='green', col.axis='green', pch=20, cex=1)
 #     points(1:n_i, use_data[indices_i, 'lactate'], col = 'orange')
-#     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5, 
-#          ybottom = hemo_lact_ylim[1], 
-#          xright = rect_coords$t[-1]-0.5, 
+#     rect(xleft = rect_coords$t[-nrow(rect_coords)]-0.5,
+#          ybottom = hemo_lact_ylim[1],
+#          xright = rect_coords$t[-1]-0.5,
 #          ytop = hemo_lact_ylim[2],
 #          col = col_vec[-nrow(rect_coords)],
 #          border = NA)
 #     grid( nx=20, NULL, col='white')
-#     # abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
+#     abline(v = rbc_times, col = 'darkorchid2', lwd = 1)
 #     abline(v = rbc_admin_times, col = 'grey', lwd = 1)
-#     
+# 
 #     # Medication ---------------------------------------------------------------
 #     med_i = Dn_omega_sim[[which(EIDs == i)]]
 #     omega_i = omega_i_mat[[which(EIDs == i)]]
 #     med_i_mat = stacked_chains = do.call( rbind, med_i)
-#     
+# 
 #     hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
 #     map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
-#     
+# 
 #     hr_mean_effect = hr_med_i_mat %*% omega_i
 #     map_mean_effect = map_med_i_mat %*% omega_i
-#     
+# 
 #     hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
 #     map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
-#     
+# 
 #     upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
 #                  -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
 #                  -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
 #                  -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-#     
+# 
 #     hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
 #     map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
-#     
+# 
 #     hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
 #     hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
 #     map_upp_i  = map_med_i_mat[,map_upp_down == 1]
 #     map_down_i = map_med_i_mat[,map_upp_down == -1]
-#     
+# 
 #     total_hr_up  = rowSums(hr_upp_i)
 #     total_hr_dn  = rowSums(hr_down_i)
 #     total_map_up = rowSums(map_upp_i)
 #     total_map_dn = rowSums(map_down_i)
-#     
+# 
 #     hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-#                         hr_mean_effect, map_mean_effect), 
+#                         hr_mean_effect, map_mean_effect),
 #                     max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
 #                         hr_mean_effect, map_mean_effect))
 #     if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
-#     
+# 
 #     plot(NULL, xlim=c(0.5,n_i+0.5), ylim=hr_map_ylim, main='Med. admin',
 #          xlab='time', ylab=NA, col.main='green',
 #          col.axis='green')
-#     
+# 
 #     if(simulation) {
-#         rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-#              ybottom = hr_map_ylim[1], 
-#              xright = rect_coords$t[-1], 
+#         rect(xleft = rect_coords$t[-nrow(rect_coords)],
+#              ybottom = hr_map_ylim[1],
+#              xright = rect_coords$t[-1],
 #              ytop = hr_map_ylim[2],
 #              col = col_vec[-nrow(rect_coords)],
 #              border = NA)
-#     } 
-#     points(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA, 
-#            col.main='green', col.axis='green', 
-#            col = 'aquamarine', pch = 16) 
-#     points(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA, 
-#            col = 'orange', pch = 16) 
-#     lines(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA, 
-#           lwd=2, lty = 1, col = 'aquamarine') 
-#     lines(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA, 
-#           lwd=2, lty = 1, col = 'orange') 
-#     
-#     lines(x = 1:n_i, y = total_hr_up, xlab='time', ylab=NA, 
-#           lwd=1, lty = 2, col = 'aquamarine4') 
+#     }
+#     points(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA,
+#            col.main='green', col.axis='green',
+#            col = 'aquamarine', pch = 16)
+#     points(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA,
+#            col = 'orange', pch = 16)
+#     lines(x = 1:n_i, y = hr_mean_effect, xlab='time', ylab=NA,
+#           lwd=2, lty = 1, col = 'aquamarine')
+#     lines(x = 1:n_i, y = map_mean_effect, xlab='time', ylab=NA,
+#           lwd=2, lty = 1, col = 'orange')
+# 
+#     lines(x = 1:n_i, y = total_hr_up, xlab='time', ylab=NA,
+#           lwd=1, lty = 2, col = 'aquamarine4')
 #     lines(x = 1:n_i, y = total_map_up, xlab='time', ylab=NA,
-#           lwd=1, lty = 3, col = 'darkolivegreen2') 
+#           lwd=1, lty = 3, col = 'darkolivegreen2')
 #     lines(x = 1:n_i, y = total_hr_dn, xlab='time', ylab=NA,
 #           lwd=1, lty = 4, col = 'deeppink')
 #     lines(x = 1:n_i, y = total_map_dn, xlab='time', ylab=NA,
 #           lwd=1, lty = 5, col = 'palevioletred')
 #     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-#             legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
+#             legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5,
 #             col=c( 'aquamarine', 'orange'))
 #     
-#     # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
-#     abline(v = rbc_admin_times-0.5, col = 'grey', lwd = 1)
 # 
 # }
 # dev.off()

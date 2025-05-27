@@ -40,8 +40,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     
     accept = rep( 0, n_group)
     
-    # # Initialize states to MLE state sequences ---------------------------------
-    # B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
+    # Initialize states to MLE state sequences ---------------------------------
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -70,11 +70,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                                    sigma = diag(exp(par[par_index$diag_R])))
         }
 
-        # # Almost-Gibbs efficient (b) -------------------------------------------
-        # sps = sample(x = 10:50, size = 1, replace = T) # sps > 2
-        # B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
-        #                           n_cores, g_noise, before_t1, sps)
-        # B = B_Dn
+        # Almost-Gibbs efficient (b) -------------------------------------------
+        sps = sample(x = 5:50, size = 1, replace = T) # sps > 2
+        B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
+                                  n_cores, g_noise, before_t1, sps)
+        B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
@@ -167,10 +167,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                     if(ttt %% 480 == 0){
                         accept[j] = 0
 
-                    } else if( accept[j] / (ttt %% 480) < .45 ){
+                    } else if( accept[j] / (ttt %% 480) < .4 ){
                         pscale[j] = (.5^2)*pscale[j]
 
-                    } else if( accept[j] / (ttt %% 480) > .55 ){
+                    } else if( accept[j] / (ttt %% 480) > .5 ){
                         pscale[j] = (1.5^2)*pscale[j]
                     }
                 }

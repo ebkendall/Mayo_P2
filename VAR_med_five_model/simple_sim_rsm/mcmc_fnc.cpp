@@ -399,7 +399,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     // Prior densities
     arma::vec prior_mean = {50, -3,  3, 100,  5, -5, 100, -5,  5, 50,  3, -3,
                             -2, -1, -1.5, -1.5,
-                            0, 0, 0, 0,
+                            2, 2, 2, 2,
                             0, 0};
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);

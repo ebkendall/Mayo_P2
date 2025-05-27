@@ -28,7 +28,7 @@ for(bt1 in c(1,0)) {
                              100, -5,  5,
                               50,  3, -3)
     par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-    par[par_index$diag_R] = c(1, 1, 1, 1)
+    par[par_index$diag_R] = c(2, 2, 2, 2)
     par[par_index$init] = c(0, 0)
 
     n_state = 3
@@ -39,8 +39,8 @@ for(bt1 in c(1,0)) {
     }
     # -----------------------------------------------------------------------------
 
-    steps  = 20000
-    burnin =  5000
+    steps  = 10000
+    burnin =  2000
 
     s_time = Sys.time()
 

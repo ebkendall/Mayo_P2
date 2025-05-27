@@ -2,7 +2,7 @@ args = commandArgs(TRUE)
 before_t1 = as.numeric(args[1])
 
 index_seeds = c(1:100)
-it_num = 2
+it_num = 1
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -49,14 +49,12 @@ for(seed in index_seeds){
             print(paste0(seed, ": ", file_name))
             print("accept")
             print(mcmc_out$accept)
-            print("pscale")
-            print(mcmc_out$pscale)
             
             par_index = mcmc_out$par_index
             
             if(it == 1) {
                 ind = ind + 1
-                chain_list[[ind]] = mcmc_out$chain[500:1000, ]
+                chain_list[[ind]] = mcmc_out$chain[200:1000, ]
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
             }
