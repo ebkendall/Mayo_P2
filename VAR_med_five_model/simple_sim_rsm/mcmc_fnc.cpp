@@ -661,11 +661,11 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
 
                         for(int m = 0; m < adj_mat_i.n_cols; m++) {
                             
-                            arma::vec mean_b;
                             arma::vec mean_s;
+                            arma::vec mean_b;
                             if(before_t1) {
-                                mean_b = g_0.row(m).t();
                                 mean_s = g_0.row(m).t();
+                                mean_b = g_0.row(m).t();
                             } else {
                                 // Computations for mean of candidate (s_i) ------------
                                 arma::vec s_temp = s_i.subvec(0, t);

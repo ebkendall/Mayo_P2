@@ -3,7 +3,8 @@ source('mcmc_routine.r')
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 
-for(bt1 in c(1,0)) {
+# for(bt1 in c(1,0)) {
+    bt1 = 1
     set.seed(seed_num)
 
     before_t1 = as.logical(bt1) # Do we handle the state changes before t1 or not?
@@ -47,4 +48,4 @@ for(bt1 in c(1,0)) {
     mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, seed_num, before_t1)
 
     e_time = Sys.time() - s_time; print(e_time)    
-}
+# }

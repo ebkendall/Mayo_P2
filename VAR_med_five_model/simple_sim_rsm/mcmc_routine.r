@@ -20,11 +20,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
-               c(par_index$alpha[c(2,5,8,11)]),
-               c(par_index$alpha[c(3,6,9,12)]),
-               c(par_index$zeta),
-               c(par_index$diag_R),
+    mpi = list(#c(par_index$alpha[c(1,4,7,10)]), 
+               #c(par_index$alpha[c(2,5,8,11)]),
+               #c(par_index$alpha[c(3,6,9,12)]),
+               #c(par_index$zeta),
+               #c(par_index$diag_R),
                c(par_index$init))
     
     n_group = length(mpi)
@@ -94,12 +94,12 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                 proposal[ind_j] = rmvnorm(n=1, mean=par[ind_j],
                                        sigma=pscale[[j]]*pcov[[j]])
             } else {
-                proposal[ind_j] = rnorm(n=1, mean=par[ind_j], 
+                proposal[ind_j] = rnorm(n=1, mean=par[ind_j],
                                         sd=sqrt(pscale[[j]]*pcov[[j]]))
             }
 
             # Evaluate proposed log-likelihood -----------------------------
-            log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index, 
+            log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
                                       B, y, ids, g_noise, before_t1, n_cores)
 
             if(ttt < burnin){
@@ -111,12 +111,12 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                         proposal[ind_j] = rmvnorm(n=1, mean=par[ind_j],
                                             sigma=pscale[[j]]*pcov[[j]])
                     } else {
-                        proposal[ind_j] = rnorm(n=1, mean=par[ind_j], 
+                        proposal[ind_j] = rnorm(n=1, mean=par[ind_j],
                                                 sd=sqrt(pscale[[j]]*pcov[[j]]))
                     }
 
-                    log_target = log_post_cpp(as.numeric(EIDs), proposal, 
-                                              par_index, B, y, ids, g_noise, 
+                    log_target = log_post_cpp(as.numeric(EIDs), proposal,
+                                              par_index, B, y, ids, g_noise,
                                               before_t1, n_cores)
                 }
             }
