@@ -1,7 +1,7 @@
 args = commandArgs(TRUE)
 before_t1 = as.numeric(args[1])
 
-index_seeds = c(1:100)
+index_seeds = c(2:100)
 it_num = 1
 
 # Parameter initialization -----------------------------------------------------

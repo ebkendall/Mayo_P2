@@ -1,15 +1,9 @@
-library(matrixStats)
-library(plotrix)
-
 args = commandArgs(TRUE)
-sampling_num = as.numeric(args[1])
+before_t1 = as.numeric(args[1])
+
+index_seeds = c(1:10)
 it_num = 1
-states_per_step = 3
-steps_per_it = 1
-S = 2
-
-
-seed_list = c(1:3)
+S = 3
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -18,64 +12,81 @@ Mode <- function(x) {
 }
 
 # Load the model output -------------------------------------------------------
-it_seq = 1:it_num
+state_results = vector(mode = 'list', length = length(index_seeds))
 
-state_results = vector(mode = 'list', length = length(seed_list))
-
-for(s in 1:length(seed_list)) {
-    B_chain = NULL
-    seed_num = seed_list[s]
-    for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed_num,'_', 'it',
-                           it, '_samp', sampling_num,
-                           '_', states_per_step, '_', steps_per_it,'.rda')
-        load(file_name)
-        print(file_name)
-        
-        if(it == 1) {
-            B_chain   = mcmc_out$B_chain[1000:2000, ]
-        } else {
-            B_chain   = rbind(B_chain, mcmc_out$B_chain)
-        }
-        rm(mcmc_out)
-    }    
+ind = 0
+for(seed in index_seeds){
     
-    state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
-    for(jj in 1:S) {
-        state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+    it_seq = 1:it_num
+    
+    for(it in it_seq) {
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', before_t1,'.rda')
+        if(file.exists(file_name)) {
+            load(file_name)
+            print(paste0(seed, ": ", file_name))
+            
+            par_index = mcmc_out$par_index
+            
+            if(it == 1) {
+                ind = ind + 1
+                B_chain = mcmc_out$B_chain[200:1000, ]
+            } else {
+                B_chain = rbind(B_chain, mcmc_out_temp$B_chain)
+            }
+            
+            rm(mcmc_out)
+        } else {
+            print(paste0("Missing! ", file_name))
+        }
     }
-    state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
+    
+    state_results[[seed]] = matrix(nrow = S+1, ncol = ncol(B_chain))
+    for(jj in 1:S) {
+        state_results[[seed]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+    }
+    state_results[[seed]][S+1, ] = apply(B_chain, 2, Mode)
+    
     rm(B_chain)
 }
 
-combo_counts = state_results[[1]]
-for(i in 2:length(state_results)) {
-    combo_counts = combo_counts + state_results[[i]]
+# Summary stats of state identification ----------------------------------------
+for(seed in index_seeds) {
+    
+    load(paste0('Data/data_format', seed, '.rda'))
+    ss_true = data_format[,"state"]
+    
+    if(length(ss_true) != length(state_results[[seed]][S+1, ])) {
+        print(paste0("ERROR (seed ", seed, ")"))
+    } else {
+        prop_all = sum(ss_true == state_results[[seed]][S+1, ]) / length(state_results[[seed]][S+1, ])
+        print(paste0("Across all subjects (seed ", seed, ") = ", prop_all))
+    }
+    
+    EIDs = unique(data_format[,"id"])
+    
+    prop_sub = rep(0, length(EIDs))
+    
+    for(j in 1:length(EIDs)) {
+        sub_ind_j = which(data_format[,"id"] == EIDs[j])
+        ss_true_j = ss_true[sub_ind_j]
+        state_seq_mode_j = state_results[[seed]][S+1, sub_ind_j]
+        
+        prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
+    }
+    
+    print(paste0("Subject specific (seed ", seed, ")"))
+    print(summary(prop_sub))
+    
+    # Sensitivity of state 2: Pr(predict S2 | true S2)
+    predict_at_true_S2 = state_results[[seed]][S+1, (ss_true == 2)]
+    print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
+    
+    # Specificity of state 2: Pr(predict not S2 | true not S2)
+    predict_not_S2 =  state_results[[seed]][S+1, (ss_true != 2)]
+    print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
 }
-combo_counts[S+1, ] = apply(combo_counts[1:S,], 2, which.max)
 
-combo_counts_col_sum = colSums(combo_counts[1:S,])
-combo_counts_props = matrix(nrow = S, ncol = ncol(combo_counts))
-for(s in 1:S) {
-    combo_counts_props[s,] = combo_counts[s, ] / combo_counts_col_sum
-}
-
-all_seeds_state_mode = matrix(nrow = length(seed_list)+1, ncol = ncol(combo_counts))
-for(i in 1:length(seed_list)) {
-    all_seeds_state_mode[i, ] = state_results[[i]][S+1,]
-}
-all_seeds_state_mode[length(seed_list)+1, ] = apply(combo_counts, 2, which.max)
-
-load('Data/data_format1.rda')
-y = data_format[,"y"]
-ids = data_format[,"id"]
-EIDs = unique(data_format[,"id"])
-ss_truth = data_format[,"state"]
-#  ----------------------------------------------------------------------------
-# state_seq_mode = apply(B_chain, 2, Mode)
-# ------------------------------------------------------------------------------
-# Function to change transparency of colors # ----------------------------------
-# ------------------------------------------------------------------------------
+# Plot Chart Plots for Seed 1 data ---------------------------------------------
 makeTransparent = function(..., alpha=0.35) {
     
     if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
@@ -93,81 +104,42 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
+seed_focus = 2
+load(paste0('Data/data_format', seed_focus, '.rda'))
+EIDs = unique(data_format[,"id"])
 
-print("Summary of identifying correct states with mode")
-for(s in 1:(length(seed_list)+1)) {
-    if(s <= length(seed_list)) {
-        print(paste0("Seed ", s))
-    } else {
-        print("Combo")
-    }
-    
-    if(length(ss_truth) != length(all_seeds_state_mode[s, ])) {
-        print("ERROR")
-    } else {
-        print(sum(ss_truth == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
-    }
-}
-
-print("Average (across subject) of proportion of correct states with mode")
-mode_correctness = matrix(nrow = length(EIDs), ncol = length(seed_list)+1)
-for(s in 1:(length(seed_list)+1)) {
-    prop_sub = rep(0, length(EIDs))
-    for(j in 1:length(EIDs)) {
-        sub_ind_j = which(data_format[,"id"] == EIDs[j])
-        ss_truth_j = ss_truth[sub_ind_j]
-        state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
-        
-        prop_sub[j] = sum(ss_truth_j == state_seq_mode_j) / length(state_seq_mode_j)
-    }
-
-    if(s <= length(seed_list)) {
-        print(paste0("Seed ", s))
-    } else {
-        print("Combo")
-    }
-    
-    print(summary(prop_sub))
-    mode_correctness[,s] = prop_sub
-    
-    eid_poor = NULL
-    eid_poor = EIDs[prop_sub < 0.9]
-    # print("EIDs with < 90% of correct state identification")
-    # print(eid_poor)    
-}
-
-# ------------------------------------------------------------------------------
-# Model evaluation plots -------------------------------------------------------
-# ------------------------------------------------------------------------------
-pdf_title = paste0('Plots/chart_samp',  sampling_num, '_', states_per_step, 
-                   '_', steps_per_it, '.pdf')
+pdf_title = paste0('Plots/chart_plot_', before_t1, '.pdf')
 pdf(pdf_title)
-panel_dim = c(4,1)
+panel_dim = c(3,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
-for(i in EIDs){
+eid_plot = sample(EIDs, size = 25)
+for(i in eid_plot){
     
     indices_i = (data_format[,'id']==i)
     n_i = sum(indices_i)
-
+    
     t_grid = t_grid_bar = 1:n_i
-
+    
     # Put this on the correct scale as the t_grid
     b_i = data_format[ indices_i,'state']
     to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
     to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
-
+    to_s3 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==3]
+    
     if(b_i[1] == 1) {
         to_s1 = c(to_s1, 1)
     } else if(b_i[1] == 2) {
         to_s2 = c(to_s2, 1)
+    } else {
+        to_s3 = c(to_s3, 1)
     }
-
+    
     if(length(unique(b_i)) > 1) {
         if(length(to_s1) > 0) {
             rect_coords = data.frame(s = 1, t = to_s1)
         }
-
+        
         if(length(to_s2) > 0) {
             s2_coords = data.frame(s = 2, t = to_s2)
             if(length(to_s1) > 0) {
@@ -176,16 +148,16 @@ for(i in EIDs){
                 rect_coords = s2_coords
             }
         }
-
-        # if(length(to_s3) > 0) {
-        #     s3_coords = data.frame(s = 3, t = to_s3)
-        #     if(length(to_s1) > 0 || length(to_s2) > 0) {
-        #         rect_coords = rbind(rect_coords, s3_coords)
-        #     } else {
-        #         rect_coords = s3_coords
-        #     }
-        # }
-        # 
+        
+        if(length(to_s3) > 0) {
+            s3_coords = data.frame(s = 3, t = to_s3)
+            if(length(to_s1) > 0 || length(to_s2) > 0) {
+                rect_coords = rbind(rect_coords, s3_coords)
+            } else {
+                rect_coords = s3_coords
+            }
+        }
+        
         # if(length(to_s4) > 0) {
         #     s4_coords = data.frame(s = 4, t = to_s4)
         #     if(length(to_s1) > 0 || length(to_s2) > 0 || length(to_s3) > 0) {
@@ -204,71 +176,69 @@ for(i in EIDs){
         #         rect_coords = s5_coords
         #     }
         # }
-
+        
         if(!(n_i %in% rect_coords$t)) rect_coords = rbind(rect_coords, c(b_i[n_i], n_i))
         # Add one row for visuals
         rect_coords = rbind(rect_coords, c(b_i[n_i], n_i+1))
         rect_coords$t = rect_coords$t - 1
         rect_coords = rect_coords[order(rect_coords$t), ]
-        col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
+        col_vec = c('dodgerblue', 'firebrick1', 'yellow')[rect_coords$s]
         col_vec = makeTransparent(col_vec, alpha = 0.35)
     } else {
         rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
         rect_coords$t = rect_coords$t - 1
         rect_coords = rect_coords[order(rect_coords$t), ]
-        col_vec = c('dodgerblue', 'firebrick1')[rect_coords$s]
+        col_vec = c('dodgerblue', 'firebrick1', 'yellow')[rect_coords$s]
         col_vec = makeTransparent(col_vec, alpha = 0.35)
     }
     
     
-    pb = barplot(combo_counts_props[,indices_i], col=c( 'dodgerblue', 'firebrick1'),
+    pb = barplot(state_results[[seed_focus]][1:S, indices_i], 
+                 col=c( 'dodgerblue', 'firebrick1', 'yellow'),
                  xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F)
-
+    
     # TRUE STATE SEQ -----------------------------------------------------------
-    plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=c(min(data_format[indices_i,"y"]),
-                                                    max(data_format[indices_i,"y"])), 
+    plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=c(min(data_format[indices_i,c("y2", "y3")]),
+                                                    max(data_format[indices_i,c("y2", "y3")])), 
+         main=paste0("EID = ", i, " truth"), xlab='time', ylab=NA, xaxt='n', 
+         col.main='green', col.axis='green')
+    
+    # Vitals 2 & 3 -------------------------------------------------------------
+    rect(xleft = rect_coords$t[-nrow(rect_coords)], 
+         ybottom = min(data_format[indices_i,c("y2", "y3")]), 
+         xright = rect_coords$t[-1], 
+         ytop = max(data_format[indices_i,c("y2", "y3")]),
+         col = col_vec[-nrow(rect_coords)],
+         border = NA)
+    points(t_grid, data_format[indices_i,"y2"], col = 'white')
+    points(t_grid, data_format[indices_i,"y3"], col = 'purple')
+    
+    # Vitals 1 & 4 -------------------------------------------------------------
+    plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=c(min(data_format[indices_i,c("y1", "y4")]),
+                                                    max(data_format[indices_i,c("y1", "y4")])), 
          main=paste0("EID = ", i, " truth"), xlab='time', ylab=NA, xaxt='n', 
          col.main='green', col.axis='green')
     
     rect(xleft = rect_coords$t[-nrow(rect_coords)], 
-         ybottom = min(data_format[indices_i,"y"]), 
+         ybottom = min(data_format[indices_i,c("y1", "y4")]), 
          xright = rect_coords$t[-1], 
-         ytop = max(data_format[indices_i,"y"]),
+         ytop = max(data_format[indices_i,c("y1", "y4")]),
          col = col_vec[-nrow(rect_coords)],
          border = NA)
-    points(t_grid, data_format[indices_i,"y"])
+    points(t_grid, data_format[indices_i,"y1"], col = 'white')
+    points(t_grid, data_format[indices_i,"y4"], col = 'purple')
     
     # BAR PLOTS --------------------------------------------------------------
-    barplot(combo_counts_props[,indices_i], col=c( 'dodgerblue', 'firebrick1'),
+    barplot(state_results[[seed_focus]][1:S, indices_i],
+            col=c( 'dodgerblue', 'firebrick1', 'yellow'),
             xlab='time', space=0, col.main='green', border=NA,
             xlim=range(pb) + c(-0.5,0.5), main = paste0("EID = ", i, " fit"))
     grid( nx=20, NULL, col='white')
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-            legend=c( 'Baseline', 'State 2'),
+            legend=c( 'Baseline', 'State 2', 'State 3'),
             pch=15, pt.cex=1.5,
-            col=c( 'dodgerblue', 'firebrick1'))
+            col=c( 'dodgerblue', 'firebrick1', 'yellow'))
     axis( side=1, at=t_grid_bar-0.5, col.axis='green', labels = t_grid)
     axis( side=2, at=0:1, col.axis='green')
-}
-# dev.off()
-
-
-# pdf_title = paste0('trace_plot_par_fix_samp', sampling_num, '_', states_per_step, 
-#                    '_', steps_per_it,'.pdf')
-# pdf(pdf_title)
-par(mfrow=c(2,2))
-for(i in 1:(length(seed_list)+1)) {
-    plot_title = NULL
-    if(i <= length(seed_list)) {
-        plot_title = paste0("Seed ", i)
-    } else {
-        plot_title = "Combo"
-    }
-
-    boxplot(mode_correctness[,i], main = plot_title, ylab = "percent accurate",
-            col.main='green')
-    abline(h = sum(ss_truth == all_seeds_state_mode[i, ]) / length(all_seeds_state_mode[i, ]), col = 'red')
-    axis( side=1, col.axis='green')
-    axis( side=2, col.axis='green')
 }
 dev.off()

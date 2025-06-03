@@ -324,7 +324,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
         g_0.row(0) = alpha.row(0);
         g_0.row(1) = y_i.row(0) + g_noise(0).row(ii);
-        g_0.row(2) = y_i.row(0) + g_noise(1).row(ii);
+        g_0.row(2) = y_i.row(0) + g_noise(0).row(ii);
         
         arma::vec twos(b_i.n_elem, arma::fill::zeros);
         arma::vec threes(b_i.n_elem, arma::fill::zeros);
@@ -340,11 +340,6 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
             if(jj == 0) {
                 
                 like_comp_transition = like_comp_transition + log(init_prob(curr_b - 1));
-                // if(curr_b == 1) {
-                //     like_comp_transition = like_comp_transition + log(init_prob(0));
-                // } else {
-                //     like_comp_transition = like_comp_transition + log(init_prob(1));
-                // }
                 
                 if(before_t1) {
                     mean_b = g_0.row(curr_b - 1).t();
@@ -472,13 +467,6 @@ arma::vec full_seq_update(int n_i, arma::mat y_i, arma::imat adj_mat_i,
 
                 like_vals_s(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_s);
                 like_vals_b(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_b);
-                // if(m == 0) {
-                //     like_vals_s(m) = log(init_prob(0)) + arma::as_scalar(log_y_pdf_s);
-                //     like_vals_b(m) = log(init_prob(0)) + arma::as_scalar(log_y_pdf_b);
-                // } else {
-                //     like_vals_s(m) = log(init_prob(1)) + arma::as_scalar(log_y_pdf_s);
-                //     like_vals_b(m) = log(init_prob(1)) + arma::as_scalar(log_y_pdf_b);
-                // }
             }
 
             ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
@@ -631,7 +619,7 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
         g_0.row(0) = alpha.row(0);
         g_0.row(1) = y_i.row(0) + g_noise(0).row(ii);
-        g_0.row(2) = y_i.row(0) + g_noise(1).row(ii);
+        g_0.row(2) = y_i.row(0) + g_noise(0).row(ii);
 
         if(states_per_step >= n_i) {
             arma::vec s_i(n_i, arma::fill::zeros);
@@ -697,14 +685,6 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
                             
                             like_vals_s(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_s);
                             like_vals_b(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_b);
-                            
-                            // if(m == 0) {
-                            //     like_vals_s(m) = log(init_prob(0)) + arma::as_scalar(log_y_pdf_s);
-                            //     like_vals_b(m) = log(init_prob(0)) + arma::as_scalar(log_y_pdf_b);
-                            // } else {
-                            //     like_vals_s(m) = log(init_prob(1)) + arma::as_scalar(log_y_pdf_s);
-                            //     like_vals_b(m) = log(init_prob(1)) + arma::as_scalar(log_y_pdf_b);
-                            // }
                         }
 
                         ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
@@ -936,7 +916,8 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
         g_0.row(0) = alpha.row(0);
         g_0.row(1) = rmvnorm(1, y_i.row(0).t(), R);
-        g_0.row(2) = rmvnorm(1, y_i.row(0).t(), R);
+        g_0.row(2) = g_0.row(1);
+        // g_0.row(2) = rmvnorm(1, y_i.row(0).t(), R);
         
         for (int k = 0; k < n_i; k++) {
             
@@ -963,11 +944,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
 
                     arma::vec log_y_pdf = dmvnorm(y_i.row(k), mean_b, R, true);
                     init_vals(jj) = log(init_prob(jj)) + arma::as_scalar(log_y_pdf);
-                    // if(jj == 0) {
-                    //     init_vals(jj) = log(init_prob(0)) + arma::as_scalar(log_y_pdf);
-                    // } else {
-                    //     init_vals(jj) = log(init_prob(1)) + arma::as_scalar(log_y_pdf);
-                    // }
                 }
 
                 b_i(k) = arma::index_max(init_vals) + 1;

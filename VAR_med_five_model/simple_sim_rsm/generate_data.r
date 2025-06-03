@@ -13,7 +13,7 @@ par[par_index$alpha] = c( 50, -3,  3,
                          100, -5,  5,
                           50,  3, -3)
 par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-par[par_index$diag_R] = c(2, 2, 2, 2)
+par[par_index$diag_R] = c(0, 0, 0, 0)
 par[par_index$init] = c(0, 0)
 
 N = 500
@@ -36,7 +36,9 @@ init_logit = exp(init_logit)
 init_prob = init_logit / sum(init_logit)
 
 # Simulate multiple datasets ---------------------------------------------------
-for(seed_num in 1:100) {
+args = commandArgs(TRUE)
+seed_num = as.numeric(args[1])
+# for(seed_num in 1:100) {
     
     print(paste0("Data set number: ", seed_num))
     set.seed(seed_num)
@@ -121,4 +123,4 @@ for(seed_num in 1:100) {
     print(nTrans_sim)
     cat('Transition fequencies = ', change_states / sum(change_states),'\n')
     cat('Transition counts     = ', change_states,'\n')
-}
+# }

@@ -29,7 +29,7 @@ seed_num = as.numeric(args[1])
                              100, -5,  5,
                               50,  3, -3)
     par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-    par[par_index$diag_R] = c(2, 2, 2, 2)
+    par[par_index$diag_R] = c(0, 0, 0, 0)
     par[par_index$init] = c(0, 0)
 
     n_state = 3

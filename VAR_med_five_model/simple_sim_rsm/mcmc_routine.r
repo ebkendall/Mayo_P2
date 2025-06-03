@@ -20,11 +20,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(#c(par_index$alpha[c(1,4,7,10)]), 
-               #c(par_index$alpha[c(2,5,8,11)]),
-               #c(par_index$alpha[c(3,6,9,12)]),
-               #c(par_index$zeta),
-               #c(par_index$diag_R),
+    mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
+               c(par_index$alpha[c(2,5,8,11)]),
+               c(par_index$alpha[c(3,6,9,12)]),
+               c(par_index$zeta),
+               c(par_index$diag_R),
                c(par_index$init))
     
     n_group = length(mpi)
@@ -65,7 +65,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
         
         # Sample noise for initial mean ----------------------------------------
         g_noise = list()
-        for(gg in 1:2) {
+        for(gg in 1:1) {
             g_noise[[gg]] = rmvnorm(length(EIDs), mean = rep(0, 4), 
                                    sigma = diag(exp(par[par_index$diag_R])))
         }
@@ -212,7 +212,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
             B_chain = matrix(NA, chain_length_MASTER, nrow(y)) 
         }
     }
-    # ---------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     
     return(list( chain=chain, B_chain=B_chain, accept=accept/(steps-burnin), 
                  pscale=pscale, pcov = pcov, par_index=par_index))
