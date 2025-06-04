@@ -290,7 +290,12 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
 
     // Parameter initialization ------------------------------------------------
-    arma::mat alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);
+    arma::mat alpha;
+    if(before_t1) {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 2, 4);    
+    } else {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);    
+    }
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
 
@@ -322,9 +327,10 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         arma::mat y_i = y.rows(sub_ind);
 
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
-        g_0.row(0) = alpha.row(0);
-        g_0.row(1) = y_i.row(0) + g_noise(0).row(ii);
-        g_0.row(2) = y_i.row(0) + g_noise(0).row(ii);
+        // g_0.row(0) = alpha.row(0);
+        g_0.row(0) = y_i.row(0) + g_noise(0).row(ii);
+        g_0.row(1) = g_0.row(0);
+        g_0.row(2) = g_0.row(0);
         
         arma::vec twos(b_i.n_elem, arma::fill::zeros);
         arma::vec threes(b_i.n_elem, arma::fill::zeros);
@@ -358,8 +364,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                     arma::vec twos_jj = twos.subvec(1, jj);
                     arma::vec threes_jj = threes.subvec(1, jj);
                     
-                    mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_jj) * alpha.row(1).t() + 
-                        arma::accu(threes_jj) * alpha.row(2).t();
+                    mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_jj) * alpha.row(0).t() + 
+                        arma::accu(threes_jj) * alpha.row(1).t();
                 } else {
                     arma::vec twos_jj = twos.subvec(0, jj);
                     arma::vec threes_jj = threes.subvec(0, jj);
@@ -392,10 +398,18 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                                      g_noise, before_t1, n_cores);
 
     // Prior densities
-    arma::vec prior_mean = {50, -3,  3, 100,  5, -5, 100, -5,  5, 50,  3, -3,
-                            -2, -1, -1.5, -1.5,
-                            2, 2, 2, 2,
-                            0, 0};
+    arma::vec prior_mean;
+    if(before_t1) {
+        prior_mean = {-3, 3, 5, -5, -5, 5, 3, -3,
+                      -2, -1, -1.5, -1.5,
+                       0, 0, 0, 0,
+                       0, 0};
+    } else {
+        prior_mean = {50, -3,  3, 100,  5, -5, 100, -5,  5, 50,  3, -3,
+                      -2, -1, -1.5, -1.5,
+                       0, 0, 0, 0,
+                       0, 0};    
+    }
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
     prior_var_diag = 100 * prior_var_diag;
@@ -498,8 +512,8 @@ arma::vec full_seq_update(int n_i, arma::mat y_i, arma::imat adj_mat_i,
                         twos_s.elem(arma::find(s_temp == 2)) += 1;
                         threes_s.elem(arma::find(s_temp == 3)) += 1;
                         
-                        mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(1).t() + 
-                            arma::accu(threes_s) * alpha.row(2).t();
+                        mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(0).t() + 
+                            arma::accu(threes_s) * alpha.row(1).t();
                     } else {
                         arma::vec s_temp = s_i.subvec(0, k); // start = 0
                         s_temp(k) = m+1;
@@ -531,8 +545,8 @@ arma::vec full_seq_update(int n_i, arma::mat y_i, arma::imat adj_mat_i,
                         twos_b.elem(arma::find(b_temp == 2)) += 1;
                         threes_b.elem(arma::find(b_temp == 3)) += 1;
                         
-                        mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(1).t() + 
-                            arma::accu(threes_b) * alpha.row(2).t();
+                        mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(0).t() + 
+                            arma::accu(threes_b) * alpha.row(1).t();
                     } else {
                         arma::vec b_temp = b_i.subvec(0, k); // start = 0
                         b_temp(k) = m+1;
@@ -588,7 +602,12 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
     arma::field<arma::vec> B_return(EIDs.n_elem);
 
     // Parameter initialization ------------------------------------------------
-    arma::mat alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);
+    arma::mat alpha;
+    if(before_t1) {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 2, 4);    
+    } else {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);    
+    }
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
 
@@ -617,9 +636,9 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
         arma::imat adj_mat_i = adj_mat_GLOBAL;
 
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
-        g_0.row(0) = alpha.row(0);
-        g_0.row(1) = y_i.row(0) + g_noise(0).row(ii);
-        g_0.row(2) = y_i.row(0) + g_noise(0).row(ii);
+        g_0.row(0) = y_i.row(0) + g_noise(0).row(ii);
+        g_0.row(1) = g_0.row(0);
+        g_0.row(2) = g_0.row(0);
 
         if(states_per_step >= n_i) {
             arma::vec s_i(n_i, arma::fill::zeros);
@@ -716,8 +735,8 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
                                     twos_s.elem(arma::find(s_temp == 2)) += 1;
                                     threes_s.elem(arma::find(s_temp == 3)) += 1;
                                     
-                                    mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(1).t() + 
-                                        arma::accu(threes_s) * alpha.row(2).t();
+                                    mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(0).t() + 
+                                        arma::accu(threes_s) * alpha.row(1).t();
                                 } else {
                                     arma::vec s_temp = s_i.subvec(0, t); // start = 0
                                     s_temp(t) = m+1;
@@ -749,8 +768,8 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
                                     twos_b.elem(arma::find(b_temp == 2)) += 1;
                                     threes_b.elem(arma::find(b_temp == 3)) += 1;
                                     
-                                    mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(1).t() + 
-                                        arma::accu(threes_b) * alpha.row(2).t();
+                                    mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(0).t() + 
+                                        arma::accu(threes_b) * alpha.row(1).t();
                                 } else {
                                     arma::vec b_temp = b_i.subvec(0, t); // start = 0
                                     b_temp(t) = m+1;
@@ -815,8 +834,8 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
                             twos_s.elem(arma::find(s_temp == 2)) += 1;
                             threes_s.elem(arma::find(s_temp == 3)) += 1;
                             
-                            mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(1).t() + 
-                                arma::accu(threes_s) * alpha.row(2).t();
+                            mean_s = g_0.row(s_i(0)-1).t() + arma::accu(twos_s) * alpha.row(0).t() + 
+                                arma::accu(threes_s) * alpha.row(1).t();
                             
                             arma::vec b_temp = b_i.subvec(1, t); // start = 1
                             arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
@@ -824,8 +843,8 @@ arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec 
                             twos_b.elem(arma::find(b_temp == 2)) += 1;
                             threes_b.elem(arma::find(b_temp == 3)) += 1;
                             
-                            mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(1).t() + 
-                                arma::accu(threes_b) * alpha.row(2).t();
+                            mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos_b) * alpha.row(0).t() + 
+                                arma::accu(threes_b) * alpha.row(1).t();
                         } else {
                             arma::vec s_temp = s_i.subvec(0, t); // start = 0
                             arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
@@ -887,7 +906,12 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     arma::field<arma::vec> B_mle(EIDs.n_elem);
 
     // Parameter initialization ------------------------------------------------
-    arma::mat alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);
+    arma::mat alpha;
+    if(before_t1) {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 2, 4);    
+    } else {
+        alpha = arma::reshape(par.elem(par_index(0) - 1), 3, 4);    
+    }
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
 
@@ -914,10 +938,9 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
 
         // Looping through subject state space ---------------------------------
         arma::mat g_0(3, y_i.n_cols, arma::fill::zeros);
-        g_0.row(0) = alpha.row(0);
-        g_0.row(1) = rmvnorm(1, y_i.row(0).t(), R);
-        g_0.row(2) = g_0.row(1);
-        // g_0.row(2) = rmvnorm(1, y_i.row(0).t(), R);
+        g_0.row(0) = rmvnorm(1, y_i.row(0).t(), R);
+        g_0.row(1) = g_0.row(0);
+        g_0.row(2) = g_0.row(0);
         
         for (int k = 0; k < n_i; k++) {
             
@@ -965,8 +988,8 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
                             twos.elem(arma::find(b_sub == 2)) += 1;
                             threes.elem(arma::find(b_sub == 3)) += 1;
                             
-                            mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos) * alpha.row(1).t() + 
-                                arma::accu(threes) * alpha.row(2).t();
+                            mean_b = g_0.row(b_i(0)-1).t() + arma::accu(twos) * alpha.row(0).t() + 
+                                arma::accu(threes) * alpha.row(1).t();
                         } else {
                             arma::vec b_sub = b_i.subvec(0, k); // start = 0
                             arma::vec twos(b_sub.n_elem, arma::fill::zeros);

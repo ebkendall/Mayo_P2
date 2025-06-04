@@ -5,29 +5,55 @@ index_seeds = c(2:100)
 it_num = 1
 
 # Parameter initialization -----------------------------------------------------
-par_index = list()
-par_index$alpha = 1:12
-par_index$zeta = 13:16
-par_index$diag_R = 17:20
-par_index$init = 21:22
-
-true_par = rep(0, tail(par_index$init, 1))
-true_par[par_index$alpha] = c( 50, -3,  3,
-                              100,  5, -5,
-                              100, -5,  5,
-                               50,  3, -3)
-true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-true_par[par_index$diag_R] = c(1, 1, 1, 1)
-true_par[par_index$init] = c(0, 0)
-
-labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
-           "baseline y2", "S2 slope y2", "S3 slope y2",
-           "baseline y3", "S2 slope y3", "S3 slope y3",
-           "baseline y4", "S2 slope y4", "S3 slope y4",
-           "logit baseline 1 -> 2", "logit baseline 2 -> 3",
-           "logit baseline 3 -> 1", "logit baseline 3 -> 2",
-           "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
-           "logit init S2", "logit init S3") 
+if(before_t1) {
+    par_index = list()
+    par_index$alpha = 1:8
+    par_index$zeta = 9:12
+    par_index$diag_R = 13:16
+    par_index$init = 17:18
+    
+    true_par = rep(0, tail(par_index$init, 1))
+    true_par[par_index$alpha] = c(-3,  3,
+                             5, -5,
+                             -5,  5,
+                             3, -3)
+    true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
+    true_par[par_index$diag_R] = c(0, 0, 0, 0)
+    true_par[par_index$init] = c(0, 0)
+    
+    labels = c("S2 slope y1", "S3 slope y1",  
+               "S2 slope y2", "S3 slope y2",
+               "S2 slope y3", "S3 slope y3",
+               "S2 slope y4", "S3 slope y4",
+               "logit baseline 1 -> 2", "logit baseline 2 -> 3",
+               "logit baseline 3 -> 1", "logit baseline 3 -> 2",
+               "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
+               "logit init S2", "logit init S3") 
+} else {
+    par_index = list()
+    par_index$alpha = 1:12
+    par_index$zeta = 13:16
+    par_index$diag_R = 17:20
+    par_index$init = 21:22
+    
+    true_par = rep(0, tail(par_index$init, 1))
+    true_par[par_index$alpha] = c( 50, -3,  3,
+                                   100,  5, -5,
+                                   100, -5,  5,
+                                   50,  3, -3)
+    true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
+    true_par[par_index$diag_R] = c(0, 0, 0, 0)
+    true_par[par_index$init] = c(0, 0)
+    
+    labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
+               "baseline y2", "S2 slope y2", "S3 slope y2",
+               "baseline y3", "S2 slope y3", "S3 slope y3",
+               "baseline y4", "S2 slope y4", "S3 slope y4",
+               "logit baseline 1 -> 2", "logit baseline 2 -> 3",
+               "logit baseline 3 -> 1", "logit baseline 3 -> 2",
+               "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
+               "logit init S2", "logit init S3")     
+}
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms

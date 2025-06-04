@@ -20,12 +20,20 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
-               c(par_index$alpha[c(2,5,8,11)]),
-               c(par_index$alpha[c(3,6,9,12)]),
-               c(par_index$zeta),
-               c(par_index$diag_R),
-               c(par_index$init))
+    if(before_t1) {
+        mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
+                   c(par_index$alpha[c(2,4,6,8)]),
+                   c(par_index$zeta),
+                   c(par_index$diag_R),
+                   c(par_index$init))
+    } else {
+        mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
+                   c(par_index$alpha[c(2,5,8,11)]),
+                   c(par_index$alpha[c(3,6,9,12)]),
+                   c(par_index$zeta),
+                   c(par_index$diag_R),
+                   c(par_index$init))    
+    }
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
