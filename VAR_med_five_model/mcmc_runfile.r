@@ -6,8 +6,7 @@ args = commandArgs(TRUE)
 df_num = as.numeric(args[1])
 seed_num = df_num
 sampling_num = 5
-states_per_step = 0
-steps_per_it = 1
+before_t1 = TRUE # Do we handle the state changes before t1 or not?
 
 # seed_num = as.numeric(args[1])
 # sampling_num = floor((seed_num - 1) / 5) + 1
@@ -91,7 +90,7 @@ par[par_index$vec_zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -
                             -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
                             -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1)
 
-par[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
+par[par_index$vec_init] = c(-5, -5, -5, -5)
 
 par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
                                   -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
@@ -125,8 +124,7 @@ if(simulation) {
         }
         
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
-                    max_ind - 5, '_samp', sampling_num, '_', states_per_step,
-                    '_', steps_per_it,'.rda'))
+                    max_ind - 5, '_samp', sampling_num, '.rda'))
         par = mcmc_out_temp$chain[nrow(mcmc_out_temp$chain), ]
         b_chain = mcmc_out_temp$B_chain[nrow(mcmc_out_temp$B_chain), ]
         
@@ -158,5 +156,5 @@ for(ii in 1:length(EIDs)){
 s_time = Sys.time()
 mcmc_out = mcmc_routine( par, par_index, A, W, B, Y, x, z, steps, burnin, seed_num, 
                          trialNum, Dn_omega, simulation, bleed_indicator, 
-                         max_ind, df_num, sampling_num, states_per_step, steps_per_it)
+                         max_ind, df_num, sampling_num, before_t1)
 e_time = Sys.time() - s_time; print(e_time) 

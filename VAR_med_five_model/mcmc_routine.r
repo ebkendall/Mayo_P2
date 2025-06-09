@@ -1,19 +1,19 @@
 library(mvtnorm, quietly=T)
 library(Matrix, quietly=T)
 library(LaplacesDemon, quietly=T)
+library(expm, quietly = T)
 library(Rcpp, quietly=T)
 library(RcppArmadillo, quietly = T)
 library(RcppDist, quietly = T)
-library(expm, quietly = T)
 sourceCpp("likelihood_fnc.cpp")
 
 # Needed for OpenMP C++ parallel
-# Sys.setenv("PKG_CXXFLAGS" = "-fopenmp")
-# Sys.setenv("PKG_LIBS" = "-fopenmp")
+Sys.setenv("PKG_CXXFLAGS" = "-fopenmp")
+Sys.setenv("PKG_LIBS" = "-fopenmp")
 
 mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind, 
                          trialNum, Dn_omega, simulation, bleed_indicator, max_ind, 
-                         df_num, sampling_num, states_per_step, steps_per_it){
+                         df_num, sampling_num, before_t1){
     
     EIDs = as.numeric(unique(Y[,'EID']))
     
@@ -32,7 +32,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                            0, 0, 1, 0, 0,
                            0, 0, 0, 1, 1,
                            1, 0, 0, 1, 1), nrow=5, byrow = T)
-    initialize_cpp(adj_mat, adj_mat_sub, states_per_step, sampling_num)
+    initialize_cpp(adj_mat, adj_mat_sub, 2, sampling_num)
 
     # Index of observed versus missing data ------------------------------------
     # 1 = observed, 0 = missing
@@ -82,8 +82,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             }
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
-                        max_ind - 5, '_samp', sampling_num, '_', states_per_step,
-                        '_', steps_per_it,'.rda'))
+                        max_ind - 5, '_samp', sampling_num, '.rda'))
             
             # initialize Y
             Y[,'hemo'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ]
@@ -122,9 +121,11 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         # There are NO missing Y values 
         print("No missingness")
         impute_step = FALSE
-        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
-        B = B_Dn[[1]]
-        Dn = B_Dn[[2]]
+        
+        # B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
+        # B = B_Dn[[1]]
+        # Dn = B_Dn[[2]]
+        Dn = initialize_Dn(EIDs, B)
     }
     
     # Keeping track of the sampled alpha_i -------------------------------------
@@ -165,6 +166,21 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
             chain_ind = floor((new_t - 1)/10) + 1
             chain_ttt = ttt %% reset_step
         }
+        
+        # # Sample noise for initial time point mean -----------------------------
+        # gamma_vec = c(R[1,1] / (1 - vec_A[1] * vec_A[1]), R[1,2] / (1 - vec_A[1] * vec_A[2]),
+        #               R[1,3] / (1 - vec_A[1] * vec_A[3]), R[1,4] / (1 - vec_A[1] * vec_A[4]),
+        #               R[2,1] / (1 - vec_A[2] * vec_A[1]), R[2,2] / (1 - vec_A[2] * vec_A[2]),
+        #               R[2,3] / (1 - vec_A[2] * vec_A[3]), R[2,4] / (1 - vec_A[2] * vec_A[4]),
+        #               R[3,1] / (1 - vec_A[3] * vec_A[1]), R[3,2] / (1 - vec_A[3] * vec_A[2]),
+        #               R[3,3] / (1 - vec_A[3] * vec_A[3]), R[3,4] / (1 - vec_A[3] * vec_A[4]),
+        #               R[4,1] / (1 - vec_A[4] * vec_A[1]), R[4,2] / (1 - vec_A[4] * vec_A[2]),
+        #               R[4,3] / (1 - vec_A[4] * vec_A[3]), R[4,4] / (1 - vec_A[4] * vec_A[4]))
+        # gamma_mat = matrix(nrow = 4, ncol = 4, byrow = T)
+        # g_noise = list()
+        # for(gg in 1:4) {
+        #     g_noise[[gg]] = rmvnorm(length(EIDs), mean = rep(0, 4), sigma = gamma_mat)
+        # }
 
         # Imputing the missing Y values ----------------------------------------
         if(impute_step) {
@@ -174,57 +190,57 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                             'RBC_rule', 'clinic_rule')    
         }
 
-        # State-space update (B) -----------------------------------------------
-        for(s in 1:steps_per_it) {
-            # Random sample update
-            if(sampling_num == 1) {
-                B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
-                             bleed_indicator, n_cores, states_per_step)
-                B = B_Dn[[1]]
-                Dn = B_Dn[[2]]
-            }
-            
-            # Almost-Gibbs update
-            else if(sampling_num == 2) {
-                B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
-                                       Dn_omega, W, bleed_indicator, n_cores, 
-                                       states_per_step)
-                B = B_Dn[[1]]
-                Dn = B_Dn[[2]]
-            } 
-            
-            # Gibbs update
-            else if(sampling_num == 3) {
-                B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-                                W, bleed_indicator, n_cores, states_per_step)
-                B = B_Dn[[1]]
-                Dn = B_Dn[[2]]
-            }
-            
-            # Full seq MH update
-            else if(sampling_num == 4) {
-                B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-                                 W, bleed_indicator, n_cores)
-                B = B_Dn[[1]]
-                Dn = B_Dn[[2]]
-            }
-            
-            # Almost-Gibbs efficient
-            else if(sampling_num == 5) {
-                
-                if(states_per_step == 0) {
-                    sps = sample(x = 20:50, size = 1, replace = T)
-                } else {
-                    sps = states_per_step
-                }
-                
-                B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
-                                           Dn_omega, W, bleed_indicator,n_cores,
-                                           sps)
-                B = B_Dn[[1]] 
-                Dn = B_Dn[[2]]
-            }
-        }
+        # # State-space update (B) -----------------------------------------------
+        # for(s in 1:steps_per_it) {
+        #     # Random sample update
+        #     if(sampling_num == 1) {
+        #         B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
+        #                      bleed_indicator, n_cores, states_per_step)
+        #         B = B_Dn[[1]]
+        #         Dn = B_Dn[[2]]
+        #     }
+        #     
+        #     # Almost-Gibbs update
+        #     else if(sampling_num == 2) {
+        #         B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
+        #                                Dn_omega, W, bleed_indicator, n_cores, 
+        #                                states_per_step)
+        #         B = B_Dn[[1]]
+        #         Dn = B_Dn[[2]]
+        #     } 
+        #     
+        #     # Gibbs update
+        #     else if(sampling_num == 3) {
+        #         B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+        #                         W, bleed_indicator, n_cores, states_per_step)
+        #         B = B_Dn[[1]]
+        #         Dn = B_Dn[[2]]
+        #     }
+        #     
+        #     # Full seq MH update
+        #     else if(sampling_num == 4) {
+        #         B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+        #                          W, bleed_indicator, n_cores)
+        #         B = B_Dn[[1]]
+        #         Dn = B_Dn[[2]]
+        #     }
+        #     
+        #     # Almost-Gibbs efficient
+        #     else if(sampling_num == 5) {
+        #         
+        #         if(states_per_step == 0) {
+        #             sps = sample(x = 20:50, size = 1, replace = T)
+        #         } else {
+        #             sps = states_per_step
+        #         }
+        #         
+        #         B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
+        #                                    Dn_omega, W, bleed_indicator,n_cores,
+        #                                    sps)
+        #         B = B_Dn[[1]] 
+        #         Dn = B_Dn[[2]]
+        #     }
+        # }
         
         # Gibbs: alpha_i -------------------------------------------------------
         A = update_alpha_i_cpp(EIDs, par, par_index, Y, Dn, Xn, Dn_omega, W, B, n_cores)
@@ -346,7 +362,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 # Proposal
                 psi_nu_q_star = proposal_R_cpp_new(nu_R, psi_R, curr_R, Y, Dn, 
                                                    Xn, A, par, par_index, EIDs, 
-                                                   B, Dn_omega, W)
+                                                   B, Dn_omega, W, n_cores)
                 psi_q_star = psi_nu_q_star[[1]]
                 nu_q_star = psi_nu_q_star[[2]]
                 
@@ -356,7 +372,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                 # Current
                 psi_nu_q_curr = proposal_R_cpp_new(nu_R, psi_R, prop_R, Y, Dn, 
                                                    Xn, A, par, par_index, EIDs, 
-                                                   B, Dn_omega, W)
+                                                   B, Dn_omega, W, n_cores)
                 psi_q_curr = psi_nu_q_curr[[1]]
                 nu_q_curr = psi_nu_q_curr[[2]]
                 
@@ -449,8 +465,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
                                                   ind, 'it', ttt/reset_step + (max_ind - 5), 
-                                                  '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
-                                                  '_sim.rda'))
+                                                  '_samp', sampling_num, '_sim.rda'))
             } else {
                 mcmc_out_temp = list(chain    = chain[index_keep,], 
                                      B_chain  = B_chain[index_keep_2,], 
@@ -465,8 +480,7 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
 
                 save(mcmc_out_temp, file = paste0('Model_out/mcmc_out_',trialNum,'_', 
                                                   ind, 'it', ttt/reset_step + (max_ind - 5), 
-                                                  '_samp', sampling_num, '_', states_per_step, '_', steps_per_it,
-                                                  '.rda'))
+                                                  '_samp', sampling_num, '.rda'))
             }
             
             # Reset the chains

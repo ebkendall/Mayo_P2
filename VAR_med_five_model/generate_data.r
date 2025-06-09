@@ -139,7 +139,7 @@ for(df_num in 1:50) {
                                       -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778, 1.5, 
                                       -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,   1)
     
-    pars_mean[par_index$vec_init] = c(-1, 0, -0.5, 0.1)
+    pars_mean[par_index$vec_init] = c(0, 0, 0, 0)
     
     pars_mean[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
                                             -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
@@ -202,7 +202,8 @@ for(df_num in 1:50) {
         if(rbc_rule) correct_bleed = F
         
         n_i = sum(Y[,'EID']==as.numeric(id_num))
-        m_i = n_i + rpois(n = 1, lambda = 50)
+        # m_i = n_i + rpois(n = 1, lambda = 50)
+        m_i = n_i
         
         x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
         z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
