@@ -5,12 +5,12 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1){
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
     
     EIDs = unique(ids)
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 4
+    n_cores = 6
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -20,20 +20,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    if(before_t1) {
-        mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
-                   c(par_index$alpha[c(2,4,6,8)]),
-                   c(par_index$zeta),
-                   c(par_index$diag_R),
-                   c(par_index$init))
-    } else {
-        mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
-                   c(par_index$alpha[c(2,5,8,11)]),
-                   c(par_index$alpha[c(3,6,9,12)]),
-                   c(par_index$zeta),
-                   c(par_index$diag_R),
-                   c(par_index$init))    
-    }
+    mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
+               c(par_index$alpha[c(2,4,6,8)]),
+               c(par_index$zeta),
+               c(par_index$diag_R),
+               c(par_index$init))
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -49,7 +40,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
     accept = rep( 0, n_group)
     
     # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, n_cores, before_t1)
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, y_first)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -71,22 +62,19 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
             chain_ttt = ttt %% reset_step
         }
         
-        # Sample noise for initial mean ----------------------------------------
-        g_noise = list()
-        for(gg in 1:1) {
-            g_noise[[gg]] = rmvnorm(length(EIDs), mean = rep(0, 4), 
-                                   sigma = diag(exp(par[par_index$diag_R])))
-        }
+        # Sample alpha_1 -------------------------------------------------------
+        alpha_1 = alpha_1_sample(as.numeric(EIDs), par, par_index, B,
+                                 y, ids, n_cores, y_first)
 
         # Almost-Gibbs efficient (b) -------------------------------------------
-        sps = sample(x = 5:50, size = 1, replace = T) # sps > 2
+        sps = sample(x = 3:50, size = 1, replace = T) # sps > 2
         B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
-                                  n_cores, g_noise, before_t1, sps)
+                                  n_cores, sps, alpha_1)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, g_noise, before_t1, n_cores)
+                                       y, ids, n_cores, y_first, alpha_1)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -108,7 +96,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
-                                      B, y, ids, g_noise, before_t1, n_cores)
+                                      B, y, ids, n_cores, y_first, alpha_1)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -124,8 +112,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                     }
 
                     log_target = log_post_cpp(as.numeric(EIDs), proposal,
-                                              par_index, B, y, ids, g_noise,
-                                              before_t1, n_cores)
+                                              par_index, B, y, ids, n_cores, 
+                                              y_first, alpha_1)
                 }
             }
 
@@ -212,8 +200,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, before_t1
                              accept=accept/length(burnin:ttt), 
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
-            save(mcmc_out, file = paste0('Model_out/mcmc_out_', ind, '_it_', ttt/reset_step,
-                                         '_', as.numeric(before_t1), '.rda'))
+            save(mcmc_out, file = paste0('Model_out/mcmc_out_', ind, '_it_', ttt/reset_step, '.rda'))
             
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 

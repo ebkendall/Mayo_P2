@@ -1,7 +1,4 @@
-args = commandArgs(TRUE)
-before_t1 = as.numeric(args[1])
-
-index_seeds = c(1:10)
+index_seeds = c(1:5)
 it_num = 1
 S = 3
 
@@ -20,7 +17,7 @@ for(seed in index_seeds){
     it_seq = 1:it_num
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', before_t1,'.rda')
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it,'.rda')
         if(file.exists(file_name)) {
             load(file_name)
             print(paste0(seed, ": ", file_name))
@@ -104,15 +101,16 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
-seed_focus = 2
+seed_focus = 1
 load(paste0('Data/data_format', seed_focus, '.rda'))
 EIDs = unique(data_format[,"id"])
 
-pdf_title = paste0('Plots/chart_plot_', before_t1, '.pdf')
+pdf_title = paste0('Plots/chart_plot.pdf')
 pdf(pdf_title)
 panel_dim = c(3,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
+set.seed(2025)
 eid_plot = sample(EIDs, size = 25)
 for(i in eid_plot){
     

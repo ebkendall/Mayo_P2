@@ -8,12 +8,12 @@ par_index$diag_R = 17:20
 par_index$init = 21:22
 
 par = rep(0, max(do.call('c', par_index)))
-par[par_index$alpha] = c( 50, -3,  3,
-                         100,  5, -5,
-                         100, -5,  5,
-                          50,  3, -3)
-par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-par[par_index$diag_R] = c(0, 0, 0, 0)
+par[par_index$alpha] = c( 50,  -5,   5,
+                         100,  10, -10,
+                         100, -10,  10,
+                          50,   5,  -5)
+par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
+par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
 par[par_index$init] = c(0, 0)
 
 N = 500
@@ -72,9 +72,9 @@ seed_num = as.numeric(args[1])
         # Select n_i of the states for the true latent state sequence
         b_i = tail(big_b_i, n_i)
         before_b_i = big_b_i[1:(m_i - n_i + 1)]
-        if(b_i[1] == 1) {
-            before_b_i = 1
-        }
+        # if(b_i[1] == 1) {
+        #     before_b_i = 1
+        # }
 
         # Sample the observations
         t_2 = sum(before_b_i == 2)

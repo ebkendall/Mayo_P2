@@ -1,59 +1,46 @@
 args = commandArgs(TRUE)
 before_t1 = as.numeric(args[1])
 
-index_seeds = c(2:100)
+index_seeds = c(1:100)
 it_num = 1
 
 # Parameter initialization -----------------------------------------------------
-if(before_t1) {
-    par_index = list()
-    par_index$alpha = 1:8
-    par_index$zeta = 9:12
-    par_index$diag_R = 13:16
-    par_index$init = 17:18
-    
-    true_par = rep(0, tail(par_index$init, 1))
-    true_par[par_index$alpha] = c(-3,  3,
-                             5, -5,
-                             -5,  5,
-                             3, -3)
-    true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(0, 0, 0, 0)
-    true_par[par_index$init] = c(0, 0)
-    
-    labels = c("S2 slope y1", "S3 slope y1",  
-               "S2 slope y2", "S3 slope y2",
-               "S2 slope y3", "S3 slope y3",
-               "S2 slope y4", "S3 slope y4",
-               "logit baseline 1 -> 2", "logit baseline 2 -> 3",
-               "logit baseline 3 -> 1", "logit baseline 3 -> 2",
-               "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
-               "logit init S2", "logit init S3") 
-} else {
-    par_index = list()
-    par_index$alpha = 1:12
-    par_index$zeta = 13:16
-    par_index$diag_R = 17:20
-    par_index$init = 21:22
-    
-    true_par = rep(0, tail(par_index$init, 1))
-    true_par[par_index$alpha] = c( 50, -3,  3,
-                                   100,  5, -5,
-                                   100, -5,  5,
-                                   50,  3, -3)
-    true_par[par_index$zeta] = c(-2, -1, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(0, 0, 0, 0)
-    true_par[par_index$init] = c(0, 0)
-    
-    labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
-               "baseline y2", "S2 slope y2", "S3 slope y2",
-               "baseline y3", "S2 slope y3", "S3 slope y3",
-               "baseline y4", "S2 slope y4", "S3 slope y4",
-               "logit baseline 1 -> 2", "logit baseline 2 -> 3",
-               "logit baseline 3 -> 1", "logit baseline 3 -> 2",
-               "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
-               "logit init S2", "logit init S3")     
+par_index = list()
+par_index$alpha = 1:8
+par_index$zeta = 9:12
+par_index$diag_R = 13:16
+par_index$init = 17:18
+
+true_par = rep(0, tail(par_index$init, 1))
+true_par[par_index$alpha] = c( -5,   5,
+                               10, -10,
+                               -10,  10,
+                               5,  -5)
+true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
+true_par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
+true_par[par_index$init] = c(0, 0)
+
+labels = c("S2 slope y1", "S3 slope y1",  
+           "S2 slope y2", "S3 slope y2",
+           "S2 slope y3", "S3 slope y3",
+           "S2 slope y4", "S3 slope y4",
+           "logit baseline 1 -> 2", "logit baseline 2 -> 3",
+           "logit baseline 3 -> 1", "logit baseline 3 -> 2",
+           "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
+           "logit init S2", "logit init S3")
+
+# Estimate the initial state probabilities
+init_prob_mat = matrix(nrow = length(index_seeds), ncol = 3)
+for(seed in index_seeds) {
+    load(paste0('Data/data_format', seed, '.rda'))
+    first_ind = c(0, which(diff(data_format[,"id"]) != 0)) + 1
+    init_state = data_format[first_ind, "state"]
+    init_prob_mat[seed, ] = c(sum(init_state == 1), sum(init_state == 2), sum(init_state == 3)) / length(init_state)
 }
+
+init_par_est = colMeans(init_prob_mat)
+true_par[par_index$init[1]] = log(init_par_est[2] / (1 - init_par_est[2] - init_par_est[3]))
+true_par[par_index$init[2]] = log(init_par_est[3] / (1 - init_par_est[2] - init_par_est[3]))
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms
@@ -63,13 +50,14 @@ chain_list = vector(mode = "list", length = length(index_seeds))
 ind = 0
 post_means_mat = NULL
 covg = NULL
+
 for(seed in index_seeds){
     
     it_seq = 1:it_num
     covg_val = FALSE
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', before_t1,'.rda')
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it,'.rda')
         if(file.exists(file_name)) {
             load(file_name)
             print(paste0(seed, ": ", file_name))
@@ -80,7 +68,7 @@ for(seed in index_seeds){
             
             if(it == 1) {
                 ind = ind + 1
-                chain_list[[ind]] = mcmc_out$chain[200:1000, ]
+                chain_list[[ind]] = mcmc_out$chain[1:1000, ]
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
             }
@@ -190,22 +178,15 @@ for(s in names(par_index)){
         
         for(seed in 1:length(chain_list)) { lines( chain_list[[seed]][,r], type='l', col=seed) }
         
-        if(s %in% c("init", "noise")) {
-            x_label = paste0('Mean =',toString(parMean),
-                             ' Median =',toString(parMedian))
-        } else {
-            x_label = paste0('Mean =',toString(parMean),
-                             ' Median =',toString(parMedian),
-                             ' True =', round(true_par[r], 3))    
-        }
+        x_label = paste0('Mean =',toString(parMean),
+                         ' Median =',toString(parMedian),
+                         ' True =', round(true_par[r], 3)) 
         
         hist( stacked_chains[,r], breaks=sqrt(nrow(stacked_chains)), ylab=NA, freq=FALSE,
               xlab=x_label, main = "")
         abline( v=upper, col='red', lwd=2, lty=2)
         abline( v=lower, col='purple', lwd=2, lty=2)
-        if(!(s %in% c("init", "noise"))) {
-            abline( v=true_par[r], col='green', lwd=2, lty=2)
-        }
+        abline( v=true_par[r], col='green', lwd=2, lty=2)
     }   
 }
 
