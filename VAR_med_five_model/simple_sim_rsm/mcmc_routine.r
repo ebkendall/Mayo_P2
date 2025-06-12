@@ -66,10 +66,9 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
         alpha_1 = alpha_1_sample(as.numeric(EIDs), par, par_index, B,
                                  y, ids, n_cores, y_first)
 
-        # Almost-Gibbs efficient (b) -------------------------------------------
-        sps = sample(x = 3:50, size = 1, replace = T) # sps > 2
-        B_Dn = fast_state_sampler(as.numeric(EIDs), par, par_index, B, y, ids,
-                                  n_cores, sps, alpha_1)
+        # Efficient state-sampler ----------------------------------------------
+        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, alpha_1)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
