@@ -1,4 +1,5 @@
 library(mvtnorm, quietly=T)
+library(LaplacesDemon, quietly=T)
 library(Rcpp, quietly=T)
 library(RcppArmadillo, quietly = T)
 library(RcppDist, quietly = T)
@@ -33,8 +34,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$init),
                c(par_index$zeta),
-               c(par_index$A))
-               # c(par_index$R))
+               c(par_index$A),
+               c(par_index$R))
 
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -79,7 +80,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         gamma_1 = update_gamma_i(EIDs, par, par_index, A, B, Dn, Y, n_cores, y_first)
 
         # State-space update (B) -----------------------------------------------
-        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        sps = sample(x = 10:50, size = 1, replace = T) # sps >= 2
         B_Dn = state_sampler(EIDs, par, par_index, A, B, Y, sps, gamma_1, n_cores)
         B = B_Dn[[1]]
         Dn = B_Dn[[2]]
@@ -95,8 +96,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         chain[chain_ttt,] = par
         
         # Evaluate log-likelihood before MH step -------------------------------
-        log_target_prev = log_post_cpp(EIDs, par, par_index, A, B, Dn, Y, 
-                                       n_cores, y_first, gamma_1)
+        log_target_prev = log_post(EIDs, par, par_index, A, B, Dn, Y, n_cores, 
+                                   y_first, gamma_1)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -114,8 +115,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                            sigma=pscale[[j]]*pcov[[j]])
 
                 # Evaluate proposed log-likelihood -----------------------------
-                log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                          n_cores, y_first, gamma_1)
+                log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
+                                      n_cores, y_first, gamma_1)
 
                 if(ttt < burnin){
                     while(!is.finite(log_target)){
@@ -124,8 +125,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                         proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                                    sigma=pcov[[j]]*pscale[j])
 
-                        log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                                  n_cores, y_first, gamma_1)
+                        log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
+                                              n_cores, y_first, gamma_1)
                     }
                 }
 
@@ -184,13 +185,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 # Prior for R
                 nu_R = 8
                 psi_R = diag(c(9, 9, 9, 9))
-                # psi_R = diag(c(0.5, 25, 55, 0.2))
                 psi_R = (nu_R - 4 - 1) * psi_R
-
+                
                 # Proposal
-                psi_nu_q_star = proposal_R_cpp_new(nu_R, psi_R, curr_R, Y, Dn, 
-                                                   Xn, A, par, par_index, EIDs, 
-                                                   B, Dn_omega, W, n_cores)
+                psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 
+                                           par_index, A, B, Dn, Y, n_cores, 
+                                           y_first, gamma_1)
                 psi_q_star = psi_nu_q_star[[1]]
                 nu_q_star = psi_nu_q_star[[2]]
                 
@@ -198,9 +198,9 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 prop_R = matrix(proposal[ind_j], nrow = 4)
                 
                 # Current
-                psi_nu_q_curr = proposal_R_cpp_new(nu_R, psi_R, prop_R, Y, Dn, 
-                                                   Xn, A, par, par_index, EIDs, 
-                                                   B, Dn_omega, W, n_cores)
+                psi_nu_q_curr = proposal_R(nu_R, psi_R, prop_R, EIDs, par, 
+                                           par_index, A, B, Dn, Y, n_cores, 
+                                           y_first, gamma_1)
                 psi_q_curr = psi_nu_q_curr[[1]]
                 nu_q_curr = psi_nu_q_curr[[2]]
                 
@@ -215,8 +215,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                          S = psi_q_curr, log = T)
                 
                 # Log-posterior at proposal
-                log_target = log_post_cpp(EIDs, proposal, par_index, A, B, Y, z,
-                                          Dn, Xn, Dn_omega, W, n_cores)
+                log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
+                                      n_cores, y_first, gamma_1)
 
                 if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) |
                    is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
@@ -249,6 +249,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # ----------------------------------------------------------------------
 
         cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
+        
         if(ttt%%100==0) {
             print(accept) 
             print(pscale)

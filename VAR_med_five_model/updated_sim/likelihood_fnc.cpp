@@ -492,13 +492,13 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
 }
 
 // [[Rcpp::export]]
-arma::field<arma::vec> update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
-                                      const arma::field<arma::uvec> &par_index,
-                                      const arma::field <arma::vec> &A, 
-                                      const arma::field <arma::vec> &B,
-                                      const arma::field<arma::field<arma::mat>> &Dn,
-                                      const arma::mat &Y, int n_cores,
-                                      const arma::mat &y_first){
+arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
+                         const arma::field<arma::uvec> &par_index,
+                         const arma::field <arma::vec> &A, 
+                         const arma::field <arma::vec> &B,
+                         const arma::field<arma::field<arma::mat>> &Dn,
+                         const arma::mat &Y, int n_cores,
+                         const arma::mat &y_first){
 
     // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
@@ -765,13 +765,12 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec par,
 
 // [[Rcpp::export]]
 Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
-                      const arma::mat &Y, arma::field<arma::field<arma::mat>> &Dn, 
-                      const arma::field<arma::field<arma::mat>> &Xn, 
-                      const arma::field <arma::vec> A, const arma::vec par, 
-                      const arma::field<arma::uvec> par_index, 
-                      const arma::vec EIDs, arma::field <arma::vec> B,
-                      const arma::field<arma::field<arma::mat>> Dn_omega,
-                      const arma::field <arma::vec> W, int n_cores) {
+                      const arma::vec &EIDs, const arma::vec &par,
+                      const arma::field<arma::uvec> &par_index,
+                      const arma::field <arma::vec> &A, const arma::field <arma::vec> &B,
+                      const arma::field<arma::field<arma::mat>> &Dn,
+                      const arma::mat &Y, int n_cores,
+                      const arma::mat &y_first, const arma::mat &gamma_1) {
     
     // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
@@ -779,19 +778,45 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
     // "ii" is the index of the EID
     
     // Initializing parameters -------------------------------------------------
-    arma::vec vec_beta = par.elem(par_index(0) - 1);
-    
-    arma::vec vec_A_total = par.elem(par_index(3) - 1);
+    arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    arma::mat A_1 = arma::diagmat(vec_A);
     
     arma::mat curr_R_sqrt = arma::sqrtmat_sympd(curr_R);
-    // -------------------------------------------------------------------------
+    
+    arma::vec qz = exp(par.elem(par_index(4) - 1));
+    
+    arma::vec vec_init_content = par.elem(par_index(5) - 1);
+    arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
+                            exp(vec_init_content(2)), exp(vec_init_content(3))};
+    arma::vec P_init = init_logit / arma::accu(init_logit);
+    
+    arma::mat gamma_var = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+                            curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+                            curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+                            curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                           {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)),
+                            curr_R(1,1) / (1 - vec_A(1) * vec_A(1)),
+                            curr_R(1,2) / (1 - vec_A(1) * vec_A(2)),
+                            curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                           {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)),
+                            curr_R(2,1) / (1 - vec_A(2) * vec_A(1)),
+                            curr_R(2,2) / (1 - vec_A(2) * vec_A(2)),
+                            curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                           {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)),
+                            curr_R(3,1) / (1 - vec_A(3) * vec_A(1)),
+                            curr_R(3,2) / (1 - vec_A(3) * vec_A(2)),
+                            curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    arma::mat inv_gamma_var = arma::inv_sympd(gamma_var);
+    arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_gamma_var);
     
     arma::vec eids = Y.col(0);
+    // -------------------------------------------------------------------------
+    
     arma::field<arma::mat> psi_q_list(EIDs.n_elem);
     
     omp_set_num_threads(n_cores);
-    # pragma omp parallel for 
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         int i = EIDs(ii);
@@ -802,56 +827,32 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
         
         arma::vec b_i = B(ii);
         arma::vec vec_alpha_i = A(ii);
-        arma::vec vec_omega_i = W(ii);
-
-        arma::field<arma::mat> Xn_i = Xn(ii);
         arma::field<arma::mat> Dn_i = Dn(ii);
-        arma::field<arma::mat> Dn_omega_i = Dn_omega(ii);
         
         arma::mat psi_q_i(4, 4, arma::fill::zeros);
         
         for(int k = 0; k < Y_i.n_cols; k++) {
-            
-            arma::vec nu_k = Dn_i(k) * vec_alpha_i + Dn_omega_i(k) * vec_omega_i + Xn_i(k) * vec_beta;
-            arma::vec y_diff_k = Y_i.col(k) - nu_k;
-            arma::mat A_k = arma::diagmat(vec_A);
-            
             if(k == 0) {
-                arma::mat Gamma = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                                    curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                                    curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                                    curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                                   {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)), 
-                                    curr_R(1,1) / (1 - vec_A(1) * vec_A(1)), 
-                                    curr_R(1,2) / (1 - vec_A(1) * vec_A(2)), 
-                                    curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                                   {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)), 
-                                    curr_R(2,1) / (1 - vec_A(2) * vec_A(1)), 
-                                    curr_R(2,2) / (1 - vec_A(2) * vec_A(2)), 
-                                    curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                                   {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)), 
-                                    curr_R(3,1) / (1 - vec_A(3) * vec_A(1)), 
-                                    curr_R(3,2) / (1 - vec_A(3) * vec_A(2)), 
-                                    curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
                 
-                arma::mat inv_Gamma = arma::inv_sympd(Gamma);
-                arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_Gamma);
+                arma::vec diff_k = curr_R_sqrt * inv_gamma_sqrt * 
+                                    (gamma_1.row(ii).t() - y_first.row(ii).t());
                 
-                arma::vec y_diff_temp = curr_R_sqrt * inv_gamma_sqrt * y_diff_k;
-                
-                // psi_q = psi_q + y_diff_temp * y_diff_temp.t();
-                psi_q_i = psi_q_i + y_diff_temp * y_diff_temp.t();
+                psi_q_i = psi_q_i + diff_k * diff_k.t();
 
+            } else if(k == 1) {
+                
+                arma::vec diff_k = Y_i.col(k) - gamma_1.row(ii).t() - Dn_i(k) * vec_alpha_i;
+                
+                psi_q_i = psi_q_i + diff_k * diff_k.t();
+                
             } else {
-                arma::vec nu_k_1 = Dn_i(k-1) * vec_alpha_i + 
-                                   Dn_omega_i(k-1) * vec_omega_i + 
-                                   Xn_i(k-1) * vec_beta;
-                arma::vec y_diff_k_1 = Y_i.col(k-1) - nu_k_1;
                 
-                arma::vec hold_k = y_diff_k - A_k * y_diff_k_1;
+                arma::vec hold_k_1 = Y_i.col(k-1) - gamma_1.row(ii).t() - Dn_i(k-1) * vec_alpha_i;
+                arma::vec mu_k = gamma_1.row(ii).t() + Dn_i(k) * vec_alpha_i + A_1 * hold_k_1;
                 
-                // psi_q = psi_q + hold_k * hold_k.t();
-                psi_q_i = psi_q_i + hold_k * hold_k.t();
+                arma::vec diff_k = Y_i.col(k) - mu_k;
+                
+                psi_q_i = psi_q_i + diff_k * diff_k.t();
             }
         }
         psi_q_list(ii) = psi_q_i;
@@ -861,7 +862,6 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
     for(int ii = 0; ii < EIDs.n_elem; ii++) {
         psi_q += psi_q_list(ii);
     }
-    // psi_q = psi_q + psi_R;
 
     int nu_q = Y.n_rows + nu_R;
 
@@ -881,8 +881,8 @@ arma::field<arma::field<arma::mat>> initialize_Dn(const arma::vec EIDs,
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
 
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
+        
         // Subject-specific information ----------------------------------------
-        int i = EIDs(ii);
         arma::vec b_i = B(ii);
         
         int n_i = b_i.n_elem;
@@ -915,9 +915,9 @@ arma::field<arma::field<arma::mat>> initialize_Dn(const arma::vec EIDs,
     return Dn_return;
 }
 
-arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                      arma::vec &b_i, arma::mat alpha_i, arma::mat R,
-                      arma::mat P_i, arma::vec P_init) {
+arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i, 
+                      arma::vec &b_i, arma::mat alpha_i, arma::mat A_1, 
+                      arma::mat R, arma::mat P_i, arma::vec P_init) {
 
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
@@ -1054,8 +1054,8 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
 }
 
 arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                         arma::vec &b_i, arma::mat alpha_i, arma::mat R,
-                         arma::mat P_i, arma::vec P_init) {
+                         arma::vec &b_i, arma::mat alpha_i, arma::mat A_1, 
+                         arma::mat R, arma::mat P_i, arma::vec P_init) {
 
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
@@ -1232,8 +1232,8 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
 }
 
 arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                         arma::vec &b_i, arma::mat alpha_i, arma::mat R,
-                         arma::mat P_i, arma::vec P_init, int sps) {
+                         arma::vec &b_i, arma::mat alpha_i, arma::mat A_1,
+                         arma::mat R, arma::mat P_i, arma::vec P_init, int sps) {
 
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
@@ -1612,18 +1612,18 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
         
         if(states_per_step == 2) {
             // p = 2
-            new_b_i = p_2_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i,
-                                  R, P_i, P_init);
+            new_b_i = p_2_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R, 
+                                  P_i, P_init);
 
         } else if(states_per_step >= n_i - 1) {
             // p >= n_i - 1 (first time point doesn't count)
-            new_b_i = p_full_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i,
-                                     R, P_i, P_init);
+            new_b_i = p_full_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R,
+                                     P_i, P_init);
 
         } else {
             // 2 < p < n_i - 1
-            new_b_i = p_flex_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i,
-                                     R, P_i, P_init, states_per_step);
+            new_b_i = p_flex_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R,
+                                     P_i, P_init, states_per_step);
         }
         
         // Format the Dn_alpha list --------------------------------------------
@@ -1860,8 +1860,6 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
 void test_fnc(int states_per_step) {
     
     arma::vec temp = {1,2,3,4,5};
-    arma::mat interm = sumsq_parallel(temp, 4);
-    Rcpp::Rcout << interm << std::endl;
 
     // arma::vec s_i = {4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,2,2,2,2,2,2,2,2,2,
     //                  2,2,2,2,4,4,4,4,5,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,

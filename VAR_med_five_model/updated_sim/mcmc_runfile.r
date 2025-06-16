@@ -71,6 +71,9 @@ for(ii in 1:length(EIDs)){
 }
 # -----------------------------------------------------------------------------
 
+steps = 10000
+burnin = 5000
+
 s_time = Sys.time()
 mcmc_out = mcmc_routine(steps, burnin, seed_num, trialNum, simulation, max_ind,
                         par, par_index, Y, B, A, y_first)
