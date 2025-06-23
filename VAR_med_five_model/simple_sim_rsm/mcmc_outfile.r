@@ -1,6 +1,3 @@
-args = commandArgs(TRUE)
-before_t1 = as.numeric(args[1])
-
 index_seeds = c(1:100)
 it_num = 1
 
@@ -154,7 +151,7 @@ for(seed in index_seeds){
 
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('Plots/trace_plot_', before_t1, '.pdf')
+pdf_title = paste0('Plots/trace_plot.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0
