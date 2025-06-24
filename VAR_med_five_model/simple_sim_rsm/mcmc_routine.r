@@ -5,7 +5,7 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
     
     EIDs = unique(ids)
     
@@ -40,7 +40,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
     accept = rep( 0, n_group)
     
     # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, y_first)
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -64,7 +64,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
         
         # Sample alpha_1 -------------------------------------------------------
         alpha_1 = alpha_1_sample(as.numeric(EIDs), par, par_index, B,
-                                 y, ids, n_cores, y_first)
+                                 y, ids, n_cores)
 
         # Efficient state-sampler ----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
@@ -73,7 +73,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, n_cores, y_first, alpha_1)
+                                       y, ids, n_cores, alpha_1)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -95,7 +95,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
-                                      B, y, ids, n_cores, y_first, alpha_1)
+                                      B, y, ids, n_cores, alpha_1)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -112,7 +112,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, y_first){
 
                     log_target = log_post_cpp(as.numeric(EIDs), proposal,
                                               par_index, B, y, ids, n_cores, 
-                                              y_first, alpha_1)
+                                              alpha_1)
                 }
             }
 

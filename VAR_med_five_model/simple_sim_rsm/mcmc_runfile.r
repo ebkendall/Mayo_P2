@@ -30,13 +30,9 @@ par[par_index$init] = c(0, 0)
 n_state = 3
 
 B = list()
-y_first = matrix(nrow = length(EIDs), ncol = 4)
 for(i in EIDs){
     B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
     B[[i]][1,] = 0 # we don't care about the first state
-    
-    y_sub = data_format[data_format[,"id"] == i, c("y1", "y2", "y3", "y4")]
-    y_first[which(EIDs == i), ] = y_sub[1,]
 }
 # -----------------------------------------------------------------------------
 
@@ -45,6 +41,6 @@ burnin =  2000
 
 s_time = Sys.time()
 
-mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, seed_num, y_first)
+mcmc_out = mcmc_routine(par, par_index, B, y, ids, steps, burnin, seed_num)
 
 e_time = Sys.time() - s_time; print(e_time)    
