@@ -24,7 +24,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
                c(par_index$alpha[c(2,4,6,8)]),
                c(par_index$zeta),
                c(par_index$diag_R),
-               c(par_index$init))
+               c(par_index$init),
+               c(par_index$diag_G))
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))

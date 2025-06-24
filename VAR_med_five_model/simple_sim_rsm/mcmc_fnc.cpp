@@ -287,12 +287,13 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores, 
                          const arma::mat &alpha_1) {
-    // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
+    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -331,7 +332,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
             if(jj == 0) {
                 
                 arma::vec alpha_1_mu = y_i.row(jj).t();
-                arma::mat alpha_1_var = 2 * R;
+                // arma::mat alpha_1_var = 2 * R;
+                arma::mat alpha_1_var = G_var;
                 
                 arma::vec log_y_pdf = dmvnorm(alpha_1.row(ii), alpha_1_mu, alpha_1_var, true);
                 like_comp = like_comp + arma::as_scalar(log_y_pdf);
@@ -376,6 +378,8 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                     const arma::field<arma::vec> &B, const arma::mat &y,
                     const arma::vec &eids, int n_cores, 
                     const arma::mat &alpha_1) {
+    
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
 
     // Compute the likelihood --------------------------------------------------
     double value = log_f_i_cpp_total(EIDs, par, par_index, B, y, eids, 
@@ -385,7 +389,8 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
     arma::vec prior_mean = {-5, 5, 10, -10, -10, 10, 5, -5,
                             -2, -2, -1.5, -1.5,
                             1.386294, 1.386294, 1.386294, 1.386294,
-                            0, 0};
+                            0, 0,
+                            2.079442, 2.079442, 2.079442, 2.079442};
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
     prior_var_diag = 100 * prior_var_diag;
@@ -837,7 +842,8 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
                                      const arma::mat &y, const arma::vec &eids,
                                      int n_cores, int states_per_step, 
                                      const arma::mat &alpha_1) {
-    // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
+    
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
     // "i" is the numeric EID number; "ii" is the index of the EID
     arma::field<arma::vec> B_return(EIDs.n_elem);
     
@@ -1159,13 +1165,14 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
                                      const arma::field<arma::uvec> &par_index,
                                      const arma::mat &y, const arma::vec &eids) {
 
-    // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
     arma::field<arma::vec> B_mle(EIDs.n_elem);
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
+    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -1264,11 +1271,14 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
+    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    arma::mat G_inv = arma::inv_sympd(G_var);
+    arma::mat R_inv = arma::inv_sympd(R);
     // -------------------------------------------------------------------------
 
     arma::mat alpha_1(EIDs.n_elem, 4, arma::fill::zeros);
@@ -1284,8 +1294,7 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
         arma::vec b_i = B(ii);
         arma::mat y_i = y.rows(sub_ind);
         
-        arma::vec alpha_1_mu = y_i.row(0).t();
-        alpha_1_mu = 0.5 * alpha_1_mu;
+        arma::vec hold1(y_i.n_cols, arma::fill::zeros);
 
         for(int jj = 1; jj < n_i; jj++) {
 
@@ -1298,11 +1307,14 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
             arma::vec mean_b = arma::accu(twos) * alpha_miss_y.row(0).t() +
                                arma::accu(threes) * alpha_miss_y.row(1).t();
             
-            alpha_1_mu = alpha_1_mu + y_i.row(jj).t() - mean_b;
+            hold1 = hold1 + (y_i.row(jj).t() - mean_b);
         }
         
-        alpha_1_mu = alpha_1_mu / (n_i - 0.5);
-        arma::mat alpha_1_var = R / (n_i - 0.5);
+        arma::mat alpha_1_var_inv = G_inv + (n_i - 1) * R_inv;
+        arma::mat alpha_1_var = arma::inv_sympd(alpha_1_var_inv);
+        
+        arma::vec alpha_1_mu = G_inv * y_i.row(0).t() + R_inv * hold1;
+        alpha_1_mu = alpha_1_var * alpha_1_mu;
         
         alpha_1.row(ii) = rmvnorm(1, alpha_1_mu, alpha_1_var);
     }

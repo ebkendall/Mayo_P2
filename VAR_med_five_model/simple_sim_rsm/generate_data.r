@@ -16,7 +16,7 @@ par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
 par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
 par[par_index$init] = c(0, 0)
 
-N = 500
+N = 1000
 n_state = 3
 
 # Defining parameter objects ---------------------------------------------------
