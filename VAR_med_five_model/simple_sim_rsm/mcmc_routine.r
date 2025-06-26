@@ -63,21 +63,18 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
             chain_ttt = ttt %% reset_step
         }
         
-        # Sample alpha_1 -------------------------------------------------------
-        alpha_1 = alpha_1_sample(as.numeric(EIDs), par, par_index, B,
+        # Sample gamma_1 -------------------------------------------------------
+        gamma_1 = gamma_1_sample(as.numeric(EIDs), par, par_index, B,
                                  y, ids, n_cores)
-        
-        # Sample alpha_tilde ---------------------------------------------------
-        par[par_index$g_tilde] = alpha_tilde_sample(as.numeric(EIDs), par, par_index, alpha_1)
 
         # Efficient state-sampler ----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, alpha_1)
+        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, gamma_1)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, n_cores, alpha_1)
+                                       y, ids, n_cores, gamma_1)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -99,7 +96,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
-                                      B, y, ids, n_cores, alpha_1)
+                                      B, y, ids, n_cores, gamma_1)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -116,7 +113,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
 
                     log_target = log_post_cpp(as.numeric(EIDs), proposal,
                                               par_index, B, y, ids, n_cores, 
-                                              alpha_1)
+                                              gamma_1)
                 }
             }
 
@@ -189,10 +186,6 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
         if(ttt%%100==0) {
             print(accept) 
             print(pscale)
-            
-            print("R"); print(par[par_index$diag_R])
-            print("G"); print(par[par_index$diag_G])
-            print("g_tilde"); print(par[par_index$g_tilde])
         }
         
         ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)

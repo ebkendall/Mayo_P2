@@ -8,7 +8,6 @@ par_index$zeta = 9:12
 par_index$diag_R = 13:16
 par_index$init = 17:18
 par_index$diag_G = 19:22
-par_index$g_tilde = 23:26
 
 true_par = rep(0, tail(par_index$init, 1))
 true_par[par_index$alpha] = c( -5,   5,
@@ -18,8 +17,7 @@ true_par[par_index$alpha] = c( -5,   5,
 true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
 true_par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
 true_par[par_index$init] = c(0, 0)
-true_par[par_index$diag_G] = c(8.257066, 9.642008, 9.643415, 8.255310)
-true_par[par_index$g_tilde] = c(-29.89800, 259.83461, -59.74268, 129.90966)
+true_par[par_index$diag_G] = c(1.386294, 1.386294, 1.386294, 1.386294)
 
 labels = c("S2 slope y1", "S3 slope y1",  
            "S2 slope y2", "S3 slope y2",
@@ -29,30 +27,20 @@ labels = c("S2 slope y1", "S3 slope y1",
            "logit baseline 3 -> 1", "logit baseline 3 -> 2",
            "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
            "logit init S2", "logit init S3", 
-           "log G(1,1)", "log G(2,2)", "log G(3,3)", "log G(4,4)",
-           "alpha tilde (y1)", "alpha tilde (y2)",
-           "alpha tilde (y3)", "alpha tilde (y4)")
+           "log G(1,1)", "log G(2,2)", "log G(3,3)", "log G(4,4)")
 
 # Estimate the initial state probabilities
 init_prob_mat = matrix(nrow = length(index_seeds), ncol = 3)
-g_var_mat = matrix(nrow = length(index_seeds), ncol = 4)
-g_tilde_mat = matrix(nrow = length(index_seeds), ncol = 4)
 for(seed in index_seeds) {
     load(paste0('Data/data_format', seed, '.rda'))
     first_ind = c(0, which(diff(data_format[,"id"]) != 0)) + 2 # ignore the first state
     init_state = data_format[first_ind, "state"]
     init_prob_mat[seed, ] = c(sum(init_state == 1), sum(init_state == 2), sum(init_state == 3)) / length(init_state)
-    
-    g_var_mat[seed, ] = log(diag(cov(data_format[first_ind-1, c("y1", "y2", "y3", "y4")])))
-    g_tilde_mat[seed, ] = colMeans(data_format[first_ind-1, c("y1", "y2", "y3", "y4")])
 }
 
 init_par_est = colMeans(init_prob_mat)
 true_par[par_index$init[1]] = log(init_par_est[2] / (1 - init_par_est[2] - init_par_est[3]))
 true_par[par_index$init[2]] = log(init_par_est[3] / (1 - init_par_est[2] - init_par_est[3]))
-
-true_par[par_index$diag_G] = colMeans(g_var_mat)
-true_par[par_index$g_tilde] = colMeans(g_tilde_mat)
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms

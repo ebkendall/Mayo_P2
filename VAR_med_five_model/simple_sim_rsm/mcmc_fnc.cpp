@@ -286,16 +286,15 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field<arma::uvec> &par_index,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores, 
-                         const arma::mat &alpha_1) {
+                         const arma::mat &gamma_1) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var ---------------------
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
     arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    arma::vec g_tilde = par.elem(par_index(5) - 1);
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -325,7 +324,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         arma::mat y_i = y.rows(sub_ind);
 
         arma::mat alpha_i(3, 4);
-        alpha_i.row(0) = alpha_1.row(ii);
+        alpha_i.row(0) = gamma_1.row(ii);
         alpha_i.row(1) = alpha_miss_y.row(0);
         alpha_i.row(2) = alpha_miss_y.row(1);
 
@@ -333,11 +332,9 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
             
             if(jj == 0) {
                 
-                arma::vec log_alpha_1_pdf = dmvnorm(alpha_1.row(ii), g_tilde, g_var, true);
+                arma::vec log_gamma_1_pdf = dmvnorm(gamma_1.row(ii), y_i.row(jj).t(), g_var + R, true);
                 
-                arma::vec log_y_pdf = dmvnorm(y_i.row(jj), alpha_1.row(ii).t(), R, true);
-                
-                like_comp = like_comp + arma::as_scalar(log_alpha_1_pdf) + arma::as_scalar(log_y_pdf);
+                like_comp = like_comp + arma::as_scalar(log_gamma_1_pdf);
                 
             } else {
                 
@@ -378,25 +375,23 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                     const arma::field<arma::uvec> &par_index,
                     const arma::field<arma::vec> &B, const arma::mat &y,
                     const arma::vec &eids, int n_cores, 
-                    const arma::mat &alpha_1) {
+                    const arma::mat &gamma_1) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var ---------------------
 
     // Compute the likelihood --------------------------------------------------
     double value = log_f_i_cpp_total(EIDs, par, par_index, B, y, eids, 
-                                     n_cores, alpha_1);
+                                     n_cores, gamma_1);
 
     // Prior densities
     arma::vec prior_mean = {-5, 5, 10, -10, -10, 10, 5, -5,
                             -2, -2, -1.5, -1.5,
                             1.386294, 1.386294, 1.386294, 1.386294,
                             0, 0,
-                            8, 9, 9, 8,
-                            50, 100, 100, 50};
+                            1.386294, 1.386294, 1.386294, 1.386294};
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
     prior_var_diag = 100 * prior_var_diag;
-    prior_var_diag(par_index(5) - 1) = 100 * prior_var_diag.elem(par_index(5) - 1);
     arma::mat prior_var = arma::diagmat(prior_var_diag);
 
     arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_var, true);
@@ -844,9 +839,9 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
                                      arma::field <arma::vec> &B,
                                      const arma::mat &y, const arma::vec &eids,
                                      int n_cores, int states_per_step, 
-                                     const arma::mat &alpha_1) {
+                                     const arma::mat &gamma_1) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var ---------------------
     
     // "i" is the numeric EID number; "ii" is the index of the EID
     arma::field<arma::vec> B_return(EIDs.n_elem);
@@ -882,7 +877,7 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
         arma::imat adj_mat_i = adj_mat_GLOBAL;
 
         arma::mat alpha_i(3, 4);
-        alpha_i.row(0) = alpha_1.row(ii);
+        alpha_i.row(0) = gamma_1.row(ii);
         alpha_i.row(1) = alpha_miss_y.row(0);
         alpha_i.row(2) = alpha_miss_y.row(1);
         
@@ -906,261 +901,6 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
         B_return(ii) = new_b_i;
     }
     
-    return B_return;
-}
-
-// [[Rcpp::export]]
-arma::field<arma::vec> fast_state_sampler(const arma::vec EIDs, const arma::vec &par,
-                                          const arma::field<arma::uvec> &par_index,
-                                          arma::field <arma::vec> &B,
-                                          const arma::mat &y, const arma::vec &eids,
-                                          int n_cores, int states_per_step, 
-                                          const arma::mat &alpha_1) {
-    // (0) alpha, (1) zeta, (2) R, (3) init ------------------------------------
-    // "i" is the numeric EID number; "ii" is the index of the EID
-    arma::field<arma::vec> B_return(EIDs.n_elem);
-
-    // Parameter initialization ------------------------------------------------
-    arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
-    arma::vec zeta = par.elem(par_index(1) - 1);
-    arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-
-    arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
-    arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
-    arma::vec init_prob = logit_prob / arma::accu(logit_prob);
-
-    arma::vec qz = exp(zeta);
-    arma::mat Q = { {1, qz(0), 0}, {0, 1, qz(1)}, {qz(2), qz(3), 1}};
-
-    arma::vec q_row_sums = arma::sum(Q, 1);
-    arma::mat P = Q.each_col() / q_row_sums;
-    // -------------------------------------------------------------------------
-
-    omp_set_num_threads(n_cores);
-    # pragma omp parallel for
-    for (int ii = 0; ii < EIDs.n_elem; ii++) {
-        // Subject-specific information ----------------------------------------
-        int i = EIDs(ii);
-        arma::uvec sub_ind = arma::find(eids == i);
-        int n_i = sub_ind.n_elem;
-
-        arma::vec b_i = B(ii);
-        arma::mat y_i = y.rows(sub_ind);
-        
-        arma::imat adj_mat_i = adj_mat_GLOBAL;
-
-        arma::mat alpha_i(3, 4);
-        alpha_i.row(0) = alpha_1.row(ii);
-        alpha_i.row(1) = alpha_miss_y.row(0);
-        alpha_i.row(2) = alpha_miss_y.row(1);
-
-        if(states_per_step >= n_i-1) {
-            arma::vec new_b_i = p_full_sampler(n_i, y_i, adj_mat_i, b_i, 
-                                               alpha_i, R, P, init_prob);
-            b_i = new_b_i;
-        } else {
-            // Ignore the likelihood component from the first time point -------
-            // (k = 0) and use as baseline mean --------------------------------
-            int k = 1;
-            while(k < n_i - 2) {
-                
-                arma::vec s_i = b_i;
-
-                arma::vec all_like_vals_b(states_per_step - 2, arma::fill::zeros);
-                arma::vec all_like_vals_s(states_per_step - 2, arma::fill::zeros);
-                
-                // Step 1: sample 1-at-a-time ----------------------------------
-                arma::ivec t_lim = {k + states_per_step - 2, n_i - 2};
-                int t_max = arma::min(t_lim);
-                for(int t = k; t < t_max; t++) {
-                    
-                    arma::vec like_vals_s;
-                    arma::vec like_vals_b;
-                    arma::vec ss_ind;
-
-                    // Key change ****
-                    if(t == 1) {
-                        like_vals_s.zeros(adj_mat_i.n_cols);
-                        like_vals_b.zeros(adj_mat_i.n_cols);
-
-                        for(int m = 0; m < adj_mat_i.n_cols; m++) {
-                            
-                            // Computations for mean of candidate (s_i) --------
-                            arma::vec s_temp = s_i.subvec(1, t); // start = 1
-                            s_temp(t-1) = m+1;
-                            arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
-                            arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
-                            twos_s.elem(arma::find(s_temp == 2)) += 1;
-                            threes_s.elem(arma::find(s_temp == 3)) += 1;
-                            
-                            arma::vec mean_s = alpha_i.row(0).t() + 
-                                arma::accu(twos_s) * alpha_i.row(1).t() + 
-                                arma::accu(threes_s) * alpha_i.row(2).t();
-                            
-                            // Computations for mean of current (b_i) ----------
-                            arma::vec b_temp = b_i.subvec(1, t); // start = 1
-                            b_temp(t-1) = m+1;
-                            arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
-                            arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
-                            twos_b.elem(arma::find(b_temp == 2)) += 1;
-                            threes_b.elem(arma::find(b_temp == 3)) += 1;
-                            
-                            arma::vec mean_b = alpha_i.row(0).t() + 
-                                arma::accu(twos_b) * alpha_i.row(1).t() + 
-                                arma::accu(threes_b) * alpha_i.row(2).t();
-                            
-                            arma::vec log_y_pdf_s = dmvnorm(y_i.row(t), mean_s, R, true);
-                            arma::vec log_y_pdf_b = dmvnorm(y_i.row(t), mean_b, R, true);
-                            
-                            like_vals_s(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_s);
-                            like_vals_b(m) = log(init_prob(m)) + arma::as_scalar(log_y_pdf_b);
-                        }
-
-                        ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
-
-                    } else {
-                        int prev_state_s = s_i(t-1);
-                        int prev_state_b = b_i(t-1);
-
-                        like_vals_s.zeros(arma::accu(adj_mat_i.row(prev_state_s-1)));
-                        like_vals_b.zeros(arma::accu(adj_mat_i.row(prev_state_b-1)));
-
-                        arma::vec state_vals_s(arma::accu(adj_mat_i.row(prev_state_s-1)), arma::fill::zeros);
-                        arma::vec state_vals_b(arma::accu(adj_mat_i.row(prev_state_b-1)), arma::fill::zeros);
-
-                        int s_ind = 0;
-                        int b_ind = 0;
-
-                        for(int m = 0; m < adj_mat_i.n_cols; m++) {
-                            
-                            // Computations for mean of candidate (s_i) --------
-                            if(adj_mat_i(prev_state_s-1, m) != 0) {
-                                
-                                arma::vec s_temp = s_i.subvec(1, t); // start = 1
-                                s_temp(t-1) = m+1;
-                                arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
-                                arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
-                                twos_s.elem(arma::find(s_temp == 2)) += 1;
-                                threes_s.elem(arma::find(s_temp == 3)) += 1;
-                                
-                                arma::vec mean_s = alpha_i.row(0).t() + 
-                                    arma::accu(twos_s) * alpha_i.row(1).t() + 
-                                    arma::accu(threes_s) * alpha_i.row(2).t();
-                                
-                                arma::vec log_y_pdf = dmvnorm(y_i.row(t), mean_s, R, true);
-                                
-                                like_vals_s(s_ind) = log(P(prev_state_s-1, m)) + arma::as_scalar(log_y_pdf);
-                                state_vals_s(s_ind) = m;
-                                s_ind = s_ind + 1;
-                            }
-                            
-                            // Computations for mean of current (b_i) ----------
-                            if(adj_mat_i(prev_state_b-1, m) != 0) {
-                                
-                                arma::vec b_temp = b_i.subvec(1, t); // start = 1
-                                b_temp(t-1) = m+1;
-                                arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
-                                arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
-                                twos_b.elem(arma::find(b_temp == 2)) += 1;
-                                threes_b.elem(arma::find(b_temp == 3)) += 1;
-                                
-                                arma::vec mean_b = alpha_i.row(0).t() + 
-                                    arma::accu(twos_b) * alpha_i.row(1).t() + 
-                                    arma::accu(threes_b) * alpha_i.row(2).t();
-                                
-                                arma::vec log_y_pdf = dmvnorm(y_i.row(t), mean_b, R, true);
-                                
-                                like_vals_b(b_ind) = log(P(prev_state_b-1, m)) + arma::as_scalar(log_y_pdf);
-                                state_vals_b(b_ind) = m;
-                                b_ind = b_ind + 1;
-                            }
-                        }
-
-                        ss_ind = state_vals_s;
-                    }
-
-                    all_like_vals_s(t-k) = arma::accu(exp(like_vals_s));
-                    all_like_vals_b(t-k) = arma::accu(exp(like_vals_b));
-
-                    // Determine sampling distribution for s_i -----------------
-                    double prob_log_max = like_vals_s.max();
-                    like_vals_s = like_vals_s - prob_log_max;
-                    like_vals_s = exp(like_vals_s);
-                    arma::vec ss_prob = (1/arma::accu(like_vals_s)) * like_vals_s;
-
-                    arma::vec row_ind = RcppArmadillo::sample(ss_ind, 1, false, ss_prob);
-                    s_i(t) = row_ind(0) + 1;
-                }
-                
-                // Step 2: sample the last 2 times together --------------------
-                arma::mat Omega_set_s = get_omega_list(t_max, n_i, s_i, 2);
-                arma::mat Omega_set_b = get_omega_list(t_max, n_i, b_i, 2);
-
-                arma::vec prob_omega_s(Omega_set_s.n_rows, arma::fill::ones);
-                prob_omega_s = (1/arma::accu(prob_omega_s)) * prob_omega_s;
-                arma::vec ind_omega_s = arma::linspace(0, Omega_set_s.n_rows-1, Omega_set_s.n_rows);
-                arma::vec row_omega_s = RcppArmadillo::sample(ind_omega_s, 1, false, prob_omega_s);
-
-                s_i.rows(t_max, t_max + 1) = Omega_set_s.row(row_omega_s(0)).t();
-
-                // Step 3: compute MH-ratio to accept/reject -------------------
-                if(arma::accu(arma::abs(s_i - b_i)) != 0) {
-                    
-                    double log_prob_diff = 0;
-                    double log_like_diff = 0;
-                    
-                    for(int t = t_max; t < n_i; t++) {
-                        
-                        // Computations for mean of candidate (s_i) ------------
-                        arma::vec s_temp = s_i.subvec(1, t); // start = 1
-                        arma::vec twos_s(s_temp.n_elem, arma::fill::zeros);
-                        arma::vec threes_s(s_temp.n_elem, arma::fill::zeros);
-                        twos_s.elem(arma::find(s_temp == 2)) += 1;
-                        threes_s.elem(arma::find(s_temp == 3)) += 1;
-                        
-                        arma::vec mean_s = alpha_i.row(0).t() + 
-                            arma::accu(twos_s) * alpha_i.row(1).t() + 
-                            arma::accu(threes_s) * alpha_i.row(2).t();
-                        
-                        // Computations for mean of current (b_i) --------------
-                        arma::vec b_temp = b_i.subvec(1, t); // start = 1
-                        arma::vec twos_b(b_temp.n_elem, arma::fill::zeros);
-                        arma::vec threes_b(b_temp.n_elem, arma::fill::zeros);
-                        twos_b.elem(arma::find(b_temp == 2)) += 1;
-                        threes_b.elem(arma::find(b_temp == 3)) += 1;
-                        
-                        arma::vec mean_b = alpha_i.row(0).t() + 
-                            arma::accu(twos_b) * alpha_i.row(1).t() + 
-                            arma::accu(threes_b) * alpha_i.row(2).t();
-                        
-                        arma::vec log_y_pdf_s = dmvnorm(y_i.row(t), mean_s, R, true);
-                        arma::vec log_y_pdf_b = dmvnorm(y_i.row(t), mean_b, R, true);
-                        
-                        if(t < k + states_per_step + 1) {
-                            log_prob_diff = log_prob_diff +
-                                log(P(s_i(t-1)-1, s_i(t)-1)) - log(P(b_i(t-1)-1, b_i(t)-1));
-                        }
-                        
-                        log_like_diff = log_like_diff +
-                            arma::as_scalar(log_y_pdf_s) - arma::as_scalar(log_y_pdf_b);
-                    }
-                    
-                    double log_diff_1 = arma::accu(log(all_like_vals_s)) - arma::accu(log(all_like_vals_b));
-                    double log_diff_2 = log(Omega_set_s.n_rows) - log(Omega_set_b.n_rows);
-                    
-                    double diff_check = log_prob_diff + log_like_diff + log_diff_1 + log_diff_2;
-                    
-                    double min_log = log(arma::randu(arma::distr_param(0,1)));
-                    if(diff_check > min_log){b_i = s_i;}
-                }
-
-                k = k + states_per_step - 2;
-            }
-        }
-
-        B_return(ii) = b_i;
-    }
-
     return B_return;
 }
 
@@ -1269,24 +1009,25 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
 }
 
 // [[Rcpp::export]]
-arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
+arma::mat gamma_1_sample(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field<arma::uvec> &par_index,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var ---------------------
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    arma::vec g_tilde = par.elem(par_index(5) - 1);
     
-    arma::mat g_inv = arma::inv_sympd(g_var);
+    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    g_var = g_var + R;
+    
+    arma::mat g_R_inv = arma::inv_sympd(g_var);
     arma::mat R_inv = arma::inv_sympd(R);
     // -------------------------------------------------------------------------
 
-    arma::mat alpha_1(EIDs.n_elem, 4, arma::fill::zeros);
+    arma::mat gamma_1(EIDs.n_elem, 4, arma::fill::zeros);
 
     omp_set_num_threads(n_cores);
     # pragma omp parallel for
@@ -1315,49 +1056,16 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
             hold1 = hold1 + (y_i.row(jj).t() - mean_b);
         }
         
-        arma::mat alpha_1_var_inv = g_inv + n_i * R_inv;
-        arma::mat alpha_1_var = arma::inv_sympd(alpha_1_var_inv);
+        arma::mat gamma_1_var_inv = g_R_inv + (n_i - 1) * R_inv;
+        arma::mat gamma_1_var = arma::inv_sympd(gamma_1_var_inv);
         
-        arma::vec alpha_1_mu = g_inv * g_tilde +  R_inv * y_i.row(0).t() + R_inv * hold1;
-        alpha_1_mu = alpha_1_var * alpha_1_mu;
+        arma::vec gamma_1_mu = g_R_inv * y_i.row(0).t() + R_inv * hold1;
+        gamma_1_mu = gamma_1_var * gamma_1_mu;
         
-        alpha_1.row(ii) = rmvnorm(1, alpha_1_mu, alpha_1_var);
+        gamma_1.row(ii) = rmvnorm(1, gamma_1_mu, gamma_1_var);
     }
 
-    return alpha_1;
-}
-
-// [[Rcpp::export]]
-arma::vec alpha_tilde_sample(const arma::vec &EIDs, const arma::vec &par,
-                             const arma::field<arma::uvec> &par_index,
-                             const arma::mat &alpha_1) {
-
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
-
-    // Parameter initialization ------------------------------------------------
-    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    arma::vec g_tilde = par.elem(par_index(5) - 1);
-
-    arma::mat g_inv = arma::inv_sympd(g_var);
-    
-    // Prior specification -----------------------------------------------------
-    arma::vec prior_mean = {50, 100, 100, 50};
-    
-    arma::mat prior_prec(prior_mean.n_elem, prior_mean.n_elem, arma::fill::eye);
-    prior_prec = prior_prec / 10000;
-    
-    // Full conditional --------------------------------------------------------
-    int N = EIDs.n_elem;
-    arma::vec sum_alpha_1 = arma::sum(alpha_1, 0).t();
-    
-    arma::mat a_tilde_prec = prior_prec + N * g_inv;
-    arma::mat a_tilde_var = arma::inv_sympd(a_tilde_prec);
-    
-    arma::vec a_tilde_mean = a_tilde_var * (prior_prec * prior_mean + g_inv * sum_alpha_1);
-    
-    arma::rowvec new_alpha_tilde = rmvnorm(1, a_tilde_mean, a_tilde_var);
-    
-    return new_alpha_tilde.t();
+    return gamma_1;
 }
 
 
