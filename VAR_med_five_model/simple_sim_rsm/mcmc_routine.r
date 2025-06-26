@@ -66,6 +66,9 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
         # Sample alpha_1 -------------------------------------------------------
         alpha_1 = alpha_1_sample(as.numeric(EIDs), par, par_index, B,
                                  y, ids, n_cores)
+        
+        # Sample alpha_tilde ---------------------------------------------------
+        par[par_index$g_tilde] = alpha_tilde_sample(as.numeric(EIDs), par, par_index, alpha_1)
 
         # Efficient state-sampler ----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
@@ -186,6 +189,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
         if(ttt%%100==0) {
             print(accept) 
             print(pscale)
+            
+            print("R"); print(par[par_index$diag_R])
+            print("G"); print(par[par_index$diag_G])
+            print("g_tilde"); print(par[par_index$g_tilde])
         }
         
         ttt_end_t = Sys.time() - ttt_start_t; print(ttt_end_t)

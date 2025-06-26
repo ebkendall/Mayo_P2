@@ -287,13 +287,15 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores, 
                          const arma::mat &alpha_1) {
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
+    
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    arma::vec g_tilde = par.elem(par_index(5) - 1);
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -331,12 +333,11 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
             
             if(jj == 0) {
                 
-                arma::vec alpha_1_mu = y_i.row(jj).t();
-                // arma::mat alpha_1_var = 2 * R;
-                arma::mat alpha_1_var = G_var;
+                arma::vec log_alpha_1_pdf = dmvnorm(alpha_1.row(ii), g_tilde, g_var, true);
                 
-                arma::vec log_y_pdf = dmvnorm(alpha_1.row(ii), alpha_1_mu, alpha_1_var, true);
-                like_comp = like_comp + arma::as_scalar(log_y_pdf);
+                arma::vec log_y_pdf = dmvnorm(y_i.row(jj), alpha_1.row(ii).t(), R, true);
+                
+                like_comp = like_comp + arma::as_scalar(log_alpha_1_pdf) + arma::as_scalar(log_y_pdf);
                 
             } else {
                 
@@ -379,7 +380,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                     const arma::vec &eids, int n_cores, 
                     const arma::mat &alpha_1) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
 
     // Compute the likelihood --------------------------------------------------
     double value = log_f_i_cpp_total(EIDs, par, par_index, B, y, eids, 
@@ -390,17 +391,19 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                             -2, -2, -1.5, -1.5,
                             1.386294, 1.386294, 1.386294, 1.386294,
                             0, 0,
-                            2.079442, 2.079442, 2.079442, 2.079442};
+                            8, 9, 9, 8,
+                            50, 100, 100, 50};
 
     arma::vec prior_var_diag(par.n_elem, arma::fill::ones);
     prior_var_diag = 100 * prior_var_diag;
-    arma::mat prior_sd = arma::diagmat(prior_var_diag);
+    prior_var_diag(par_index(5) - 1) = 100 * prior_var_diag.elem(par_index(5) - 1);
+    arma::mat prior_var = arma::diagmat(prior_var_diag);
 
-    arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_sd, true);
+    arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_var, true);
     double prior_dens_val = arma::as_scalar(prior_dens);
     
     value = value + prior_dens_val;
-
+    
     return value;
 }
 
@@ -843,7 +846,8 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
                                      int n_cores, int states_per_step, 
                                      const arma::mat &alpha_1) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+    
     // "i" is the numeric EID number; "ii" is the index of the EID
     arma::field<arma::vec> B_return(EIDs.n_elem);
     
@@ -1172,7 +1176,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -1271,13 +1274,15 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &B, const arma::mat &y,
                          const arma::vec &eids, int n_cores) {
     
-    // (0) alpha, (1) zeta, (2) R, (3) init, (4) G -----------------------------
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
 
     // Parameter initialization ------------------------------------------------
     arma::mat alpha_miss_y = arma::reshape(par.elem(par_index(0) - 1), 2, 4);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    arma::mat G_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    arma::mat G_inv = arma::inv_sympd(G_var);
+    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    arma::vec g_tilde = par.elem(par_index(5) - 1);
+    
+    arma::mat g_inv = arma::inv_sympd(g_var);
     arma::mat R_inv = arma::inv_sympd(R);
     // -------------------------------------------------------------------------
 
@@ -1310,16 +1315,49 @@ arma::mat alpha_1_sample(const arma::vec &EIDs, const arma::vec &par,
             hold1 = hold1 + (y_i.row(jj).t() - mean_b);
         }
         
-        arma::mat alpha_1_var_inv = G_inv + (n_i - 1) * R_inv;
+        arma::mat alpha_1_var_inv = g_inv + n_i * R_inv;
         arma::mat alpha_1_var = arma::inv_sympd(alpha_1_var_inv);
         
-        arma::vec alpha_1_mu = G_inv * y_i.row(0).t() + R_inv * hold1;
+        arma::vec alpha_1_mu = g_inv * g_tilde +  R_inv * y_i.row(0).t() + R_inv * hold1;
         alpha_1_mu = alpha_1_var * alpha_1_mu;
         
         alpha_1.row(ii) = rmvnorm(1, alpha_1_mu, alpha_1_var);
     }
 
     return alpha_1;
+}
+
+// [[Rcpp::export]]
+arma::vec alpha_tilde_sample(const arma::vec &EIDs, const arma::vec &par,
+                             const arma::field<arma::uvec> &par_index,
+                             const arma::mat &alpha_1) {
+
+    // (0) alpha, (1) zeta, (2) R, (3) init, (4) gamma_var, (5) gamma_tilde ----
+
+    // Parameter initialization ------------------------------------------------
+    arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    arma::vec g_tilde = par.elem(par_index(5) - 1);
+
+    arma::mat g_inv = arma::inv_sympd(g_var);
+    
+    // Prior specification -----------------------------------------------------
+    arma::vec prior_mean = {50, 100, 100, 50};
+    
+    arma::mat prior_prec(prior_mean.n_elem, prior_mean.n_elem, arma::fill::eye);
+    prior_prec = prior_prec / 10000;
+    
+    // Full conditional --------------------------------------------------------
+    int N = EIDs.n_elem;
+    arma::vec sum_alpha_1 = arma::sum(alpha_1, 0).t();
+    
+    arma::mat a_tilde_prec = prior_prec + N * g_inv;
+    arma::mat a_tilde_var = arma::inv_sympd(a_tilde_prec);
+    
+    arma::vec a_tilde_mean = a_tilde_var * (prior_prec * prior_mean + g_inv * sum_alpha_1);
+    
+    arma::rowvec new_alpha_tilde = rmvnorm(1, a_tilde_mean, a_tilde_var);
+    
+    return new_alpha_tilde.t();
 }
 
 
