@@ -309,22 +309,28 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
                 const arma::field<arma::uvec> &par_index, 
                 const arma::field <arma::vec> &A, const arma::field <arma::vec> &B, 
                 const arma::field<arma::field<arma::mat>> &Dn, const arma::mat &Y, 
-                int n_cores, const arma::mat &y_first, const arma::mat &gamma_1) {
+                int n_cores, const arma::mat &gamma_1) {
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
     
     // Initializing parameters -------------------------------------------------
+    arma::vec alpha_tilde = par.elem(par_index(0) - 1);
+    
+    arma::vec vec_upsilon = par.elem(par_index(1) - 1);
+    arma::mat upsilon_alpha = arma::reshape(vec_upsilon, alpha_tilde.n_elem, 
+                                            alpha_tilde.n_elem);
+    
     arma::vec vec_R = par.elem(par_index(3) - 1);
     arma::mat R = arma::reshape(vec_R, 4, 4);
     
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    arma::mat A_1 = arma::diagmat(vec_A);
     
     arma::vec vec_zeta_content = par.elem(par_index(4) - 1);
-    // arma::mat zeta = arma::reshape(vec_zeta_content, 1, 12); 
     arma::vec qz = exp(vec_zeta_content);
     
     arma::vec vec_init_content = par.elem(par_index(5) - 1);
@@ -348,6 +354,8 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
                                R(3,1) / (1 - vec_A(3) * vec_A(1)),
                                R(3,2) / (1 - vec_A(3) * vec_A(2)),
                                R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    
+    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
     
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -376,18 +384,14 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
             
             if(jj == 0) {
                 
-                arma::vec gamma_1_mu = y_first.row(ii).t();
-                arma::vec log_y_pdf = dmvnorm(gamma_1.row(ii), gamma_1_mu, gamma_var, true);
+                arma::vec gamma_1_mu = Y_i.col(jj);
+                arma::mat gamma_1_v = gamma_var + g_diag;
                 
-                like_comp_i = like_comp_i + arma::as_scalar(log_y_pdf);
+                arma::vec log_g_pdf = dmvnorm(gamma_1.row(ii), gamma_1_mu, gamma_1_v, true);
                 
-            } else if(jj == 1) {
+                arma::vec log_a_pdf = dmvnorm(vec_alpha_i.t(), alpha_tilde, upsilon_alpha, true);
                 
-                arma::vec y_j = Y_i.col(jj);
-                arma::vec nu_j = gamma_1.row(ii).t() + D_alpha(jj) * vec_alpha_i;
-                arma::vec log_y_pdf = dmvnorm(y_j.t(), nu_j, R, true);
-                
-                like_comp_i = like_comp_i + log(P_init(b_i(jj) - 1)) + arma::as_scalar(log_y_pdf);
+                like_comp_i = like_comp_i + arma::as_scalar(log_g_pdf) + arma::as_scalar(log_a_pdf);
                 
             } else {
                 
@@ -405,14 +409,17 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
                 arma::vec nu_j = gamma_1.row(ii).t() + D_alpha(jj) * vec_alpha_i;
                 arma::vec nu_j_1 = gamma_1.row(ii).t() + D_alpha(jj-1) * vec_alpha_i;
                 
-                arma::mat A_1 = arma::diagmat(vec_A);
-                
                 arma::vec y_mean = nu_j + A_1 * (y_j_1 - nu_j_1);
                 
                 arma::vec log_y_pdf = dmvnorm(y_j.t(), y_mean, R, true);
                 
-                like_comp_i = like_comp_i + log(P_i(b_i(jj-1) - 1, b_i(jj) - 1)) + arma::as_scalar(log_y_pdf);
+                like_comp_i = like_comp_i + arma::as_scalar(log_y_pdf);
                 
+                if(jj == 1) {
+                    like_comp_i = like_comp_i + log(P_init(b_i(jj) - 1));
+                } else {
+                    like_comp_i = like_comp_i + log(P_i(b_i(jj-1) - 1, b_i(jj) - 1));
+                }
             }
         }
         
@@ -431,15 +438,15 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
                 const arma::field <arma::vec> &B, 
                 const arma::field<arma::field<arma::mat>> &Dn, 
                 const arma::mat &Y, int n_cores,
-                const arma::mat &y_first, const arma::mat &gamma_1) {
+                const arma::mat &gamma_1) {
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
     
     // Likelihood --------------------------------------------------------------
-    double value = log_like(EIDs, par, par_index, A, B, Dn, Y, n_cores, y_first, gamma_1);
+    double value = log_like(EIDs, par, par_index, A, B, Dn, Y, n_cores, gamma_1);
     
     // Autocorrelation prior ---------------------------------------------------
     arma::vec vec_A_content = par.elem(par_index(2) - 1);
@@ -476,7 +483,6 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Initial Probability prior -----------------------------------------------
     arma::vec vec_init_content = par.elem(par_index(5) - 1);
-
     arma::vec vec_init_mean = {0, 0, 0, 0};
     arma::vec scalar_init(vec_init_content.n_elem, arma::fill::ones);
     scalar_init = 100 * scalar_init;
@@ -485,8 +491,18 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::vec prior_init = dmvnorm(vec_init_content.t(), vec_init_mean, init_var, true);
     double prior_init_val = arma::as_scalar(prior_init);
     
+    // Gamma RE variance prior -------------------------------------------------
+    arma::vec vec_diag_g_content = par.elem(par_index(6) - 1);
+    arma::vec vec_diag_g_mean(vec_diag_g_content.n_elem, arma::fill::zeros);
+    arma::vec scalar_diag_g(vec_diag_g_content.n_elem, arma::fill::ones);
+    scalar_diag_g = 100 * scalar_diag_g;
+    arma::mat diag_g_var = arma::diagmat(scalar_diag_g);
+    
+    arma::vec prior_diag_g = dmvnorm(vec_diag_g_content.t(), vec_diag_g_mean, diag_g_var, true);
+    double prior_diag_g_val = arma::as_scalar(prior_diag_g);
+    
     // Full log-posterior ------------------------------------------------------
-    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val;
+    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val + prior_diag_g_val;
     
     return value;
 }
@@ -497,10 +513,9 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &A, 
                          const arma::field <arma::vec> &B,
                          const arma::field<arma::field<arma::mat>> &Dn,
-                         const arma::mat &Y, int n_cores,
-                         const arma::mat &y_first){
+                         const arma::mat &Y, int n_cores){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -512,6 +527,8 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
 
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    arma::mat A_1 = arma::diagmat(vec_A);
+    arma::mat I(A_1.n_rows, A_1.n_cols, arma::fill::eye);
     
     arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
                             R(0,1) / (1 - vec_A(0) * vec_A(1)), 
@@ -529,7 +546,10 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
                             R(3,1) / (1 - vec_A(3) * vec_A(1)),
                             R(3,2) / (1 - vec_A(3) * vec_A(2)),
                             R(3,3) / (1 - vec_A(3) * vec_A(3))}};
-    arma::mat inv_gamma_var = arma::inv_sympd(gamma_var);
+    
+    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
+    arma::mat g_var_combo = gamma_var + g_diag;
+    arma::mat g_var_combo_inv = arma::inv_sympd(g_var_combo);
 
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -552,30 +572,24 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
         arma::vec vec_alpha_i = A(ii);
         arma::field<arma::mat> D_alpha = Dn(ii);
 
-        arma::mat inv_W_i = inv_gamma_var + inv_R;
-        arma::vec V_i     = inv_gamma_var * y_first.row(ii).t() + 
-                            inv_R * (Y_i.col(1) - D_alpha(1) * vec_alpha_i);
+        arma::mat diff_g = I - A_1;
+        arma::mat inv_W_i = g_var_combo_inv + (n_i - 1) * (diff_g.t() * inv_R * diff_g);
+        arma::mat W_i = arma::inv_sympd(inv_W_i);
+        
+        arma::vec V_i = g_var_combo_inv * Y_i.col(0);
 
-        for(int k = 2; k < n_i; k++) {
+        for(int k = 1; k < n_i; k++) {
 
             arma::mat D_k = D_alpha(k);
             arma::mat D_k_1 = D_alpha(k-1);
 
-            arma::mat A_1 = arma::diagmat(vec_A);
-            arma::mat I(A_1.n_rows, A_1.n_cols, arma::fill::eye);
-
             arma::mat diff_d = D_k - A_1 * D_k_1;
             arma::mat diff_y = Y_i.col(k) - A_1 * Y_i.col(k-1);
-            arma::mat diff_g = I - A_1;
-
+            
             arma::vec m_k = diff_y - diff_d * vec_alpha_i;
-
-            inv_W_i = inv_W_i + diff_g.t() * inv_R * diff_g;
 
             V_i = V_i + diff_g.t() * inv_R * m_k;
         }
-
-        arma::mat W_i = arma::inv_sympd(inv_W_i);
 
         arma::vec mu_gamma_i = W_i * V_i;
 
@@ -594,9 +608,9 @@ arma::field<arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &pa
                                       const arma::field <arma::vec> &B, 
                                       const arma::field<arma::field<arma::mat>> &Dn, 
                                       const arma::mat &Y, int n_cores,
-                                      const arma::mat &y_first, const arma::mat &gamma_1){
+                                      const arma::mat &gamma_1){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -615,6 +629,8 @@ arma::field<arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &pa
     
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
+    arma::mat A_1 = arma::diagmat(vec_A);
+    arma::mat I(A_1.n_rows, A_1.n_cols, arma::fill::eye);
     
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -636,22 +652,19 @@ arma::field<arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &pa
         arma::vec b_i = B(ii);
         arma::field<arma::mat> D_alpha = Dn(ii);
         
-        arma::mat inv_W_i = inv_ups_alpha + D_alpha(1).t() * inv_R * D_alpha(1);
-        arma::vec V_i     = inv_ups_alpha * alpha_tilde + 
-                            D_alpha(1).t() * inv_R * (Y_i.col(1) - gamma_1.row(ii).t());
+        arma::mat inv_W_i = inv_ups_alpha;
+        arma::vec V_i     = inv_ups_alpha * alpha_tilde;
         
-        for(int k = 2; k < n_i; k++) {
+        for(int k = 1; k < n_i; k++) {
             
             arma::mat D_k = D_alpha(k);
             arma::mat D_k_1 = D_alpha(k-1);
             
-            arma::mat A_1 = arma::diagmat(vec_A);
-            
             arma::mat diff_d = D_k - A_1 * D_k_1;
             arma::mat diff_y = Y_i.col(k) - A_1 * Y_i.col(k-1);
-            arma::mat diff_gamma = gamma_1.row(ii).t() - A_1 * gamma_1.row(ii).t();
+            arma::mat diff_g = I - A_1;
             
-            arma::vec m_k = diff_y - diff_gamma;
+            arma::vec m_k = diff_y - diff_g * gamma_1.row(ii).t();
             
             inv_W_i = inv_W_i + diff_d.t() * inv_R * diff_d;
             
@@ -676,7 +689,7 @@ arma::vec update_alpha_tilde(const arma::vec EIDs, arma::vec par,
                              const arma::field<arma::uvec> par_index,
                              const arma::field <arma::vec> A, const arma::mat Y){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -718,7 +731,7 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec par,
                               const arma::field<arma::uvec> &par_index,
                               const arma::field <arma::vec> &A,int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -770,9 +783,9 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
                       const arma::field <arma::vec> &A, const arma::field <arma::vec> &B,
                       const arma::field<arma::field<arma::mat>> &Dn,
                       const arma::mat &Y, int n_cores,
-                      const arma::mat &y_first, const arma::mat &gamma_1) {
+                      const arma::mat &gamma_1) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -807,7 +820,12 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
                             curr_R(3,1) / (1 - vec_A(3) * vec_A(1)),
                             curr_R(3,2) / (1 - vec_A(3) * vec_A(2)),
                             curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
-    arma::mat inv_gamma_var = arma::inv_sympd(gamma_var);
+    
+    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
+    
+    arma::mat gamma_var_combo = gamma_var + g_diag;
+    
+    arma::mat inv_gamma_var = arma::inv_sympd(gamma_var_combo);
     arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_gamma_var);
     
     arma::vec eids = Y.col(0);
@@ -835,16 +853,10 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
             if(k == 0) {
                 
                 arma::vec diff_k = curr_R_sqrt * inv_gamma_sqrt * 
-                                    (gamma_1.row(ii).t() - y_first.row(ii).t());
+                                    (gamma_1.row(ii).t() - Y_i.col(k));
                 
                 psi_q_i = psi_q_i + diff_k * diff_k.t();
 
-            } else if(k == 1) {
-                
-                arma::vec diff_k = Y_i.col(k) - gamma_1.row(ii).t() - Dn_i(k) * vec_alpha_i;
-                
-                psi_q_i = psi_q_i + diff_k * diff_k.t();
-                
             } else {
                 
                 arma::vec hold_k_1 = Y_i.col(k-1) - gamma_1.row(ii).t() - Dn_i(k-1) * vec_alpha_i;
@@ -855,6 +867,7 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
                 psi_q_i = psi_q_i + diff_k * diff_k.t();
             }
         }
+        
         psi_q_list(ii) = psi_q_i;
     }
     
@@ -906,7 +919,13 @@ arma::field<arma::field<arma::mat>> initialize_Dn(const arma::vec EIDs,
         
         arma::mat I = arma::eye(4,4);
         for(int jj = 0; jj < n_i; jj++) {
-            Dn_temp(jj) = arma::kron(I, bigB.row(jj));
+            // Guarantee Dn(0) = 0
+            if(jj == 0) {
+                arma::mat zero_jj(1, bigB.n_cols, arma::fill::zeros);
+                Dn_temp(jj) = arma::kron(I, zero_jj);
+            } else {
+                Dn_temp(jj) = arma::kron(I, bigB.row(jj));    
+            }
         }
         
         Dn_return(ii) = Dn_temp;
@@ -966,32 +985,29 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec s_4 = fours_s.subvec(1, t);
                 arma::vec s_5 = fives_s.subvec(1, t);
 
-                arma::vec mean_s;
+                arma::vec nu_s = alpha_i.row(0).t() + 
+                    arma::accu(s_2) * alpha_i.row(1).t() + 
+                    arma::accu(s_3) * alpha_i.row(2).t() + 
+                    arma::accu(s_4) * alpha_i.row(3).t() + 
+                    arma::accu(s_5) * alpha_i.row(4).t();
+                
+                arma::vec nu_s_1;
                 if(t == 1) {
-                    mean_s = alpha_i.row(0).t() + 
-                        arma::accu(s_2) * alpha_i.row(1).t() + 
-                        arma::accu(s_3) * alpha_i.row(2).t() + 
-                        arma::accu(s_4) * alpha_i.row(3).t() + 
-                        arma::accu(s_5) * alpha_i.row(4).t();
+                    nu_s_1 = alpha_i.row(0).t();
                 } else {
                     arma::vec s_2_1 = twos_s.subvec(1, t-1);
                     arma::vec s_3_1 = threes_s.subvec(1, t-1);
                     arma::vec s_4_1 = fours_s.subvec(1, t-1);
                     arma::vec s_5_1 = fives_s.subvec(1, t-1);
                     
-                    arma::vec nu_t = alpha_i.row(0).t() + 
-                        arma::accu(s_2) * alpha_i.row(1).t() + 
-                        arma::accu(s_3) * alpha_i.row(2).t() + 
-                        arma::accu(s_4) * alpha_i.row(3).t() + 
-                        arma::accu(s_5) * alpha_i.row(4).t();
-                    arma::vec nu_t_1 = alpha_i.row(0).t() + 
+                    nu_s_1 = alpha_i.row(0).t() + 
                         arma::accu(s_2_1) * alpha_i.row(1).t() + 
                         arma::accu(s_3_1) * alpha_i.row(2).t() + 
                         arma::accu(s_4_1) * alpha_i.row(3).t() + 
                         arma::accu(s_5_1) * alpha_i.row(4).t();
-                    
-                    mean_s = nu_t + A_1 * (Y_i.col(t-1) - nu_t_1);
                 }
+                
+                arma::vec mean_s = nu_s + A_1 * (Y_i.col(t-1) - nu_s_1);
 
                 // Computations for mean of current (b_i) --------------
                 arma::vec b_2 = twos_b.subvec(1, t);
@@ -999,32 +1015,29 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec b_4 = fours_b.subvec(1, t);
                 arma::vec b_5 = fives_b.subvec(1, t);
                 
-                arma::vec mean_b;
+                arma::vec nu_b = alpha_i.row(0).t() + 
+                    arma::accu(b_2) * alpha_i.row(1).t() + 
+                    arma::accu(b_3) * alpha_i.row(2).t() + 
+                    arma::accu(b_4) * alpha_i.row(3).t() + 
+                    arma::accu(b_5) * alpha_i.row(4).t();
+                
+                arma::vec nu_b_1;
                 if(t == 1) {
-                    mean_b = alpha_i.row(0).t() + 
-                        arma::accu(b_2) * alpha_i.row(1).t() + 
-                        arma::accu(b_3) * alpha_i.row(2).t() + 
-                        arma::accu(b_4) * alpha_i.row(3).t() + 
-                        arma::accu(b_5) * alpha_i.row(4).t();
+                    nu_b_1 = alpha_i.row(0).t();
                 } else {
                     arma::vec b_2_1 = twos_b.subvec(1, t-1);
                     arma::vec b_3_1 = threes_b.subvec(1, t-1);
                     arma::vec b_4_1 = fours_b.subvec(1, t-1);
                     arma::vec b_5_1 = fives_b.subvec(1, t-1);
-                    
-                    arma::vec nu_t = alpha_i.row(0).t() + 
-                        arma::accu(b_2) * alpha_i.row(1).t() + 
-                        arma::accu(b_3) * alpha_i.row(2).t() + 
-                        arma::accu(b_4) * alpha_i.row(3).t() + 
-                        arma::accu(b_5) * alpha_i.row(4).t();
-                    arma::vec nu_t_1 = alpha_i.row(0).t() + 
+            
+                    nu_b_1 = alpha_i.row(0).t() + 
                         arma::accu(b_2_1) * alpha_i.row(1).t() + 
                         arma::accu(b_3_1) * alpha_i.row(2).t() + 
                         arma::accu(b_4_1) * alpha_i.row(3).t() + 
                         arma::accu(b_5_1) * alpha_i.row(4).t();
-                    
-                    mean_b = nu_t + A_1 * (Y_i.col(t-1) - nu_t_1);
                 }
+                
+                arma::vec mean_b = nu_b + A_1 * (Y_i.col(t-1) - nu_b_1);
 
                 arma::vec log_y_pdf_s = dmvnorm(Y_i.col(t).t(), mean_s, R, true);
                 arma::vec log_y_pdf_b = dmvnorm(Y_i.col(t).t(), mean_b, R, true);
@@ -1091,11 +1104,14 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 fours_s.elem(arma::find(s_sub == 4)) += 1;
                 fives_s.elem(arma::find(s_sub == 5)) += 1;
                 
-                arma::vec mean_s = alpha_i.row(0).t() + 
+                arma::vec nu_s = alpha_i.row(0).t() + 
                     arma::accu(twos_s)   * alpha_i.row(1).t() + 
                     arma::accu(threes_s) * alpha_i.row(2).t() + 
                     arma::accu(fours_s)  * alpha_i.row(3).t() + 
                     arma::accu(fives_s)  * alpha_i.row(4).t();
+                arma::vec nu_s_1 = alpha_i.row(0).t();
+                
+                arma::vec mean_s = nu_s + A_1 * (Y_i.col(k-1) - nu_s_1);
 
                 // Computations for mean of current (b_i) ----------------------
                 arma::vec b_sub = b_i.subvec(1, k); // start = 1
@@ -1109,11 +1125,14 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 fours_b.elem(arma::find(b_sub == 4)) += 1;
                 fives_b.elem(arma::find(b_sub == 5)) += 1;
                 
-                arma::vec mean_b = alpha_i.row(0).t() + 
+                arma::vec nu_b = alpha_i.row(0).t() + 
                     arma::accu(twos_b)   * alpha_i.row(1).t() + 
                     arma::accu(threes_b) * alpha_i.row(2).t() + 
                     arma::accu(fours_b)  * alpha_i.row(3).t() + 
                     arma::accu(fives_b)  * alpha_i.row(4).t();
+                arma::vec nu_b_1 = alpha_i.row(0).t();
+                
+                arma::vec mean_b = nu_b + A_1 * (Y_i.col(k-1) - nu_b_1);
 
                 arma::vec log_y_pdf_s = dmvnorm(Y_i.col(k).t(), mean_s, R, true);
                 arma::vec log_y_pdf_b = dmvnorm(Y_i.col(k).t(), mean_b, R, true);
@@ -1153,18 +1172,18 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_s.elem(arma::find(s_sub == 4)) += 1;
                     fives_s.elem(arma::find(s_sub == 5)) += 1;
                     
-                    arma::vec nu_k = alpha_i.row(0).t() + 
+                    arma::vec nu_s = alpha_i.row(0).t() + 
                         arma::accu(twos_s)   * alpha_i.row(1).t() + 
                         arma::accu(threes_s) * alpha_i.row(2).t() + 
                         arma::accu(fours_s)  * alpha_i.row(3).t() + 
                         arma::accu(fives_s)  * alpha_i.row(4).t();
-                    arma::vec nu_k_1 = alpha_i.row(0).t() + 
+                    arma::vec nu_s_1 = alpha_i.row(0).t() + 
                         arma::accu(twos_s.subvec(0,k-2))   * alpha_i.row(1).t() + 
                         arma::accu(threes_s.subvec(0,k-2)) * alpha_i.row(2).t() + 
                         arma::accu(fours_s.subvec(0,k-2))  * alpha_i.row(3).t() + 
                         arma::accu(fives_s.subvec(0,k-2))  * alpha_i.row(4).t();
                     
-                    arma::vec mean_s = nu_k + A_1 * (Y_i.col(k-1) - nu_k_1);
+                    arma::vec mean_s = nu_s + A_1 * (Y_i.col(k-1) - nu_s_1);
 
                     arma::vec log_y_pdf = dmvnorm(Y_i.col(k).t(), mean_s, R, true);
 
@@ -1187,18 +1206,18 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_b.elem(arma::find(b_sub == 4)) += 1;
                     fives_b.elem(arma::find(b_sub == 5)) += 1;
                     
-                    arma::vec nu_k = alpha_i.row(0).t() + 
+                    arma::vec nu_b = alpha_i.row(0).t() + 
                         arma::accu(twos_b)   * alpha_i.row(1).t() + 
                         arma::accu(threes_b) * alpha_i.row(2).t() + 
                         arma::accu(fours_b)  * alpha_i.row(3).t() + 
                         arma::accu(fives_b)  * alpha_i.row(4).t();
-                    arma::vec nu_k_1 = alpha_i.row(0).t() + 
+                    arma::vec nu_b_1 = alpha_i.row(0).t() + 
                         arma::accu(twos_b.subvec(0,k-2))   * alpha_i.row(1).t() + 
                         arma::accu(threes_b.subvec(0,k-2)) * alpha_i.row(2).t() + 
                         arma::accu(fours_b.subvec(0,k-2))  * alpha_i.row(3).t() + 
                         arma::accu(fives_b.subvec(0,k-2))  * alpha_i.row(4).t();
                     
-                    arma::vec mean_b = nu_k + A_1 * (Y_i.col(k-1) - nu_k_1);
+                    arma::vec mean_b = nu_b + A_1 * (Y_i.col(k-1) - nu_b_1);
 
                     arma::vec log_y_pdf = dmvnorm(Y_i.col(k).t(), mean_b, R, true);
 
@@ -1275,11 +1294,14 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_s.elem(arma::find(s_sub == 4)) += 1;
                     fives_s.elem(arma::find(s_sub == 5)) += 1;
                     
-                    arma::vec mean_s = alpha_i.row(0).t() + 
+                    arma::vec nu_s = alpha_i.row(0).t() + 
                         arma::accu(twos_s)   * alpha_i.row(1).t() + 
                         arma::accu(threes_s) * alpha_i.row(2).t() + 
                         arma::accu(fours_s)  * alpha_i.row(3).t() + 
                         arma::accu(fives_s)  * alpha_i.row(4).t();
+                    arma::vec nu_s_1 = alpha_i.row(0).t();
+                    
+                    arma::vec mean_s = nu_s + A_1 * (Y_i.col(t-1) - nu_s_1);
 
                     // Computations for mean of current (b_i) ----------
                     arma::vec b_sub = b_i.subvec(1, t); // start = 1
@@ -1293,11 +1315,14 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_b.elem(arma::find(b_sub == 4)) += 1;
                     fives_b.elem(arma::find(b_sub == 5)) += 1;
                     
-                    arma::vec mean_b = alpha_i.row(0).t() + 
+                    arma::vec nu_b = alpha_i.row(0).t() + 
                         arma::accu(twos_b)   * alpha_i.row(1).t() + 
                         arma::accu(threes_b) * alpha_i.row(2).t() + 
                         arma::accu(fours_b)  * alpha_i.row(3).t() + 
                         arma::accu(fives_b)  * alpha_i.row(4).t();
+                    arma::vec nu_b_1 = alpha_i.row(0).t();
+                    
+                    arma::vec mean_b = nu_b + A_1 * (Y_i.col(t-1) - nu_b_1);
                     
                     arma::vec log_y_pdf_s = dmvnorm(Y_i.col(t).t(), mean_s, R, true);
                     arma::vec log_y_pdf_b = dmvnorm(Y_i.col(t).t(), mean_b, R, true);
@@ -1337,18 +1362,18 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                         fours_s.elem(arma::find(s_sub == 4)) += 1;
                         fives_s.elem(arma::find(s_sub == 5)) += 1;
                         
-                        arma::vec nu_k = alpha_i.row(0).t() + 
+                        arma::vec nu_s = alpha_i.row(0).t() + 
                             arma::accu(twos_s)   * alpha_i.row(1).t() + 
                             arma::accu(threes_s) * alpha_i.row(2).t() + 
                             arma::accu(fours_s)  * alpha_i.row(3).t() + 
                             arma::accu(fives_s)  * alpha_i.row(4).t();
-                        arma::vec nu_k_1 = alpha_i.row(0).t() + 
+                        arma::vec nu_s_1 = alpha_i.row(0).t() + 
                             arma::accu(twos_s.subvec(0,t-2))   * alpha_i.row(1).t() + 
                             arma::accu(threes_s.subvec(0,t-2)) * alpha_i.row(2).t() + 
                             arma::accu(fours_s.subvec(0,t-2))  * alpha_i.row(3).t() + 
                             arma::accu(fives_s.subvec(0,t-2))  * alpha_i.row(4).t();
                         
-                        arma::vec mean_s = nu_k + A_1 * (Y_i.col(t-1) - nu_k_1);
+                        arma::vec mean_s = nu_s + A_1 * (Y_i.col(t-1) - nu_s_1);
 
                         arma::vec log_y_pdf = dmvnorm(Y_i.col(t).t(), mean_s, R, true);
 
@@ -1371,18 +1396,18 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                         fours_b.elem(arma::find(b_sub == 4)) += 1;
                         fives_b.elem(arma::find(b_sub == 5)) += 1;
                         
-                        arma::vec nu_k = alpha_i.row(0).t() + 
+                        arma::vec nu_b = alpha_i.row(0).t() + 
                             arma::accu(twos_b)   * alpha_i.row(1).t() + 
                             arma::accu(threes_b) * alpha_i.row(2).t() + 
                             arma::accu(fours_b)  * alpha_i.row(3).t() + 
                             arma::accu(fives_b)  * alpha_i.row(4).t();
-                        arma::vec nu_k_1 = alpha_i.row(0).t() + 
+                        arma::vec nu_b_1 = alpha_i.row(0).t() + 
                             arma::accu(twos_b.subvec(0,t-2))   * alpha_i.row(1).t() + 
                             arma::accu(threes_b.subvec(0,t-2)) * alpha_i.row(2).t() + 
                             arma::accu(fours_b.subvec(0,t-2))  * alpha_i.row(3).t() + 
                             arma::accu(fives_b.subvec(0,t-2))  * alpha_i.row(4).t();
                         
-                        arma::vec mean_b = nu_k + A_1 * (Y_i.col(t-1) - nu_k_1);
+                        arma::vec mean_b = nu_b + A_1 * (Y_i.col(t-1) - nu_b_1);
                         
                         arma::vec log_y_pdf = dmvnorm(Y_i.col(t).t(), mean_b, R, true);
 
@@ -1457,18 +1482,18 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec s_4_1 = fours_s.subvec(1, t-1);
                 arma::vec s_5_1 = fives_s.subvec(1, t-1);
 
-                arma::vec nu_t_s = alpha_i.row(0).t() +
+                arma::vec nu_s = alpha_i.row(0).t() +
                     arma::accu(s_2) * alpha_i.row(1).t() +
                     arma::accu(s_3) * alpha_i.row(2).t() +
                     arma::accu(s_4) * alpha_i.row(3).t() +
                     arma::accu(s_5) * alpha_i.row(4).t();
-                arma::vec nu_t_s_1 = alpha_i.row(0).t() +
+                arma::vec nu_s_1 = alpha_i.row(0).t() +
                     arma::accu(s_2_1) * alpha_i.row(1).t() +
                     arma::accu(s_3_1) * alpha_i.row(2).t() +
                     arma::accu(s_4_1) * alpha_i.row(3).t() +
                     arma::accu(s_5_1) * alpha_i.row(4).t();
                 
-                arma::vec mean_s = nu_t_s + A_1 * (Y_i.col(t-1) - nu_t_s_1);
+                arma::vec mean_s = nu_s + A_1 * (Y_i.col(t-1) - nu_s_1);
 
                 // Computations for mean of current (b_i) --------------
                 arma::vec b_2 = twos_b.subvec(1, t);
@@ -1481,18 +1506,18 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec b_4_1 = fours_b.subvec(1, t-1);
                 arma::vec b_5_1 = fives_b.subvec(1, t-1);
 
-                arma::vec nu_t_b = alpha_i.row(0).t() +
+                arma::vec nu_b = alpha_i.row(0).t() +
                     arma::accu(b_2) * alpha_i.row(1).t() +
                     arma::accu(b_3) * alpha_i.row(2).t() +
                     arma::accu(b_4) * alpha_i.row(3).t() +
                     arma::accu(b_5) * alpha_i.row(4).t();
-                arma::vec nu_t_b_1 = alpha_i.row(0).t() +
+                arma::vec nu_b_1 = alpha_i.row(0).t() +
                     arma::accu(b_2_1) * alpha_i.row(1).t() +
                     arma::accu(b_3_1) * alpha_i.row(2).t() +
                     arma::accu(b_4_1) * alpha_i.row(3).t() +
                     arma::accu(b_5_1) * alpha_i.row(4).t();
                 
-                arma::vec mean_b = nu_t_b + A_1 * (Y_i.col(t-1) - nu_t_b_1);
+                arma::vec mean_b = nu_b + A_1 * (Y_i.col(t-1) - nu_b_1);
 
                 arma::vec log_y_pdf_s = dmvnorm(Y_i.col(t).t(), mean_s, R, true);
                 arma::vec log_y_pdf_b = dmvnorm(Y_i.col(t).t(), mean_b, R, true);
@@ -1529,7 +1554,7 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
                          const arma::mat &Y, int states_per_step,
                          const arma::mat &gamma_1, int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -1551,23 +1576,6 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
     arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
                             exp(vec_init_content(2)), exp(vec_init_content(3))};
     arma::vec P_init = init_logit / arma::accu(init_logit);
-    
-    arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                            R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                            R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                            R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                            {R(1,0) / (1 - vec_A(1) * vec_A(0)),
-                             R(1,1) / (1 - vec_A(1) * vec_A(1)),
-                             R(1,2) / (1 - vec_A(1) * vec_A(2)),
-                             R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                             {R(2,0) / (1 - vec_A(2) * vec_A(0)),
-                              R(2,1) / (1 - vec_A(2) * vec_A(1)),
-                              R(2,2) / (1 - vec_A(2) * vec_A(2)),
-                              R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                              {R(3,0) / (1 - vec_A(3) * vec_A(0)),
-                               R(3,1) / (1 - vec_A(3) * vec_A(1)),
-                               R(3,2) / (1 - vec_A(3) * vec_A(2)),
-                               R(3,3) / (1 - vec_A(3) * vec_A(3))}};
     
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -1645,7 +1653,13 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
         
         arma::mat I = arma::eye(4,4);
         for(int jj = 0; jj < n_i; jj++) {
-            Dn_temp(jj) = arma::kron(I, bigB.row(jj));
+            // Guarantee Dn(0) = 0
+            if(jj == 0) {
+                arma::mat zero_jj(1, bigB.n_cols, arma::fill::zeros);
+                Dn_temp(jj) = arma::kron(I, zero_jj);
+            } else {
+                Dn_temp(jj) = arma::kron(I, bigB.row(jj));    
+            }
         }
 
         B_return(ii) = new_b_i;
@@ -1660,9 +1674,9 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
 Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                          const arma::field<arma::uvec> &par_index,
                          const arma::field <arma::vec> &A, const arma::mat &Y, 
-                         const arma::mat &y_first, int n_cores) {
+                         int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -1724,7 +1738,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
         arma::mat alpha_i_no_base = arma::reshape(vec_alpha_i_no_base, 4, 4);
         
         arma::mat alpha_i(5, 4, arma::fill::zeros);
-        alpha_i.row(0) = y_first.row(ii);
+        alpha_i.row(0) = Y_i.col(0).t();
         alpha_i.row(1) = alpha_i_no_base.row(0);
         alpha_i.row(2) = alpha_i_no_base.row(1);
         alpha_i.row(3) = alpha_i_no_base.row(2);
@@ -1764,11 +1778,15 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                     fours.elem(arma::find(b_sub == 4)) += 1;
                     fives.elem(arma::find(b_sub == 5)) += 1;
                     
-                    arma::vec mean_b = alpha_i.row(0).t() + 
+                    arma::vec nu_k = alpha_i.row(0).t() + 
                         arma::accu(twos)   * alpha_i.row(1).t() + 
                         arma::accu(threes) * alpha_i.row(2).t() + 
                         arma::accu(fours)  * alpha_i.row(3).t() + 
                         arma::accu(fives)  * alpha_i.row(4).t();
+                    
+                    arma::vec nu_k_1 = alpha_i.row(0).t();
+                    
+                    arma::vec mean_b = nu_k + A_1 * (Y_i.col(k-1) - nu_k_1);
                     
                     arma::vec log_y_pdf = dmvnorm(Y_i.col(k).t(), mean_b, R, true);
                     init_vals(jj) = log(P_init(jj)) + arma::as_scalar(log_y_pdf);
@@ -1805,6 +1823,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                             arma::accu(threes) * alpha_i.row(2).t() + 
                             arma::accu(fours)  * alpha_i.row(3).t() + 
                             arma::accu(fives)  * alpha_i.row(4).t();
+                        
                         arma::vec nu_k_1 = alpha_i.row(0).t() + 
                             arma::accu(twos.subvec(0,k-2))   * alpha_i.row(1).t() + 
                             arma::accu(threes.subvec(0,k-2)) * alpha_i.row(2).t() + 
@@ -1845,7 +1864,13 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
         
         arma::mat I = arma::eye(4,4);
         for(int jj = 0; jj < n_i; jj++) {
-            Dn_temp(jj) = arma::kron(I, bigB.row(jj));
+            // Guarantee Dn(0) = 0
+            if(jj == 0) {
+                arma::mat zero_jj(1, bigB.n_cols, arma::fill::zeros);
+                Dn_temp(jj) = arma::kron(I, zero_jj);
+            } else {
+                Dn_temp(jj) = arma::kron(I, bigB.row(jj));    
+            }
         }
         
         B_return(ii) = b_i;

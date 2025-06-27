@@ -24,6 +24,7 @@ par_index$A = 273:276
 par_index$R = 277:292
 par_index$zeta = 293:304
 par_index$init = 305:308
+par_index$g_diag = 309:312
 
 par = rep(0, max(do.call('c', par_index)))
 par[par_index$alpha_tilde] = c( -5,  5, -2,  2,
@@ -43,6 +44,7 @@ par[par_index$zeta] = c(-3.7405, -4.2152, -2.6473, -2.1475,
                         -3.4459, -2.9404, -3.2151, -3.1778, 
                         -2.0523, -3.4459, -3.2404, -3.2151)
 par[par_index$init] = c(0,0,0,0)
+par[par_index$g_diag] = c(0,0,0,0)
 
 if(simulation) {
     load(paste0('Data/alpha_i_mat_', seed_num, '.rda'))
@@ -53,7 +55,6 @@ if(simulation) {
 # -----------------------------------------------------------------------------
 A = list()
 B = list()
-y_first = matrix(nrow = length(EIDs), ncol = 4)
 for(ii in 1:length(EIDs)){
     i = EIDs[ii]
     
@@ -65,9 +66,6 @@ for(ii in 1:length(EIDs)){
     
     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
     B[[ii]][1,] = 0 # we don't care about the first state
-    
-    y_sub = data_format[data_format[,"EID"] == i, c('hemo', 'hr', 'map', 'lactate')]
-    y_first[ii, ] = y_sub[1,]
 }
 # -----------------------------------------------------------------------------
 
@@ -76,5 +74,5 @@ burnin = 5000
 
 s_time = Sys.time()
 mcmc_out = mcmc_routine(steps, burnin, seed_num, trialNum, simulation, max_ind,
-                        par, par_index, Y, B, A, y_first)
+                        par, par_index, Y, B, A)
 e_time = Sys.time() - s_time; print(e_time) 

@@ -1,4 +1,4 @@
-index_seeds = c(1:5)
+index_seeds = c(1,3,4,5)
 trialNum = 1
 it_num = 1
 S = 5

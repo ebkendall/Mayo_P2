@@ -10,12 +10,12 @@ Sys.setenv("PKG_CXXFLAGS" = "-fopenmp")
 Sys.setenv("PKG_LIBS" = "-fopenmp")
 
 mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
-                        par, par_index, Y, B, A, y_first){
+                        par, par_index, Y, B, A){
     
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 8 #strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -35,7 +35,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     mpi = list(c(par_index$init),
                c(par_index$zeta),
                c(par_index$A),
-               c(par_index$R))
+               c(par_index$R),
+               c(par_index$g_diag))
 
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -51,7 +52,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     accept = rep( 0, n_group)
     
     # Initialization continued -------------------------------------------------
-    B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, y_first, n_cores)
+    B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, n_cores)
     B = B_Dn[[1]]
     Dn = B_Dn[[2]]
     # Dn = initialize_Dn(EIDs, B)
@@ -77,16 +78,16 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         }
         
         # Sample gamma_1 -------------------------------------------------------
-        gamma_1 = update_gamma_i(EIDs, par, par_index, A, B, Dn, Y, n_cores, y_first)
+        gamma_1 = update_gamma_i(EIDs, par, par_index, A, B, Dn, Y, n_cores)
 
         # State-space update (B) -----------------------------------------------
-        sps = sample(x = 10:50, size = 1, replace = T) # sps >= 2
+        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
         B_Dn = state_sampler(EIDs, par, par_index, A, B, Y, sps, gamma_1, n_cores)
         B = B_Dn[[1]]
         Dn = B_Dn[[2]]
         
         # Gibbs: alpha_i -------------------------------------------------------
-        A = update_alpha_i(EIDs, par, par_index, B, Dn, Y, n_cores, y_first, gamma_1)
+        A = update_alpha_i(EIDs, par, par_index, B, Dn, Y, n_cores, gamma_1)
         
         # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
         par = update_alpha_tilde(EIDs, par, par_index, A, Y)
@@ -96,8 +97,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         chain[chain_ttt,] = par
         
         # Evaluate log-likelihood before MH step -------------------------------
-        log_target_prev = log_post(EIDs, par, par_index, A, B, Dn, Y, n_cores, 
-                                   y_first, gamma_1)
+        log_target_prev = log_post(EIDs, par, par_index, A, B, Dn, Y, n_cores, gamma_1)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -116,7 +116,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
 
                 # Evaluate proposed log-likelihood -----------------------------
                 log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                      n_cores, y_first, gamma_1)
+                                      n_cores, gamma_1)
 
                 if(ttt < burnin){
                     while(!is.finite(log_target)){
@@ -126,7 +126,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                                    sigma=pcov[[j]]*pscale[j])
 
                         log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                              n_cores, y_first, gamma_1)
+                                              n_cores, gamma_1)
                     }
                 }
 
@@ -190,7 +190,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 # Proposal
                 psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 
                                            par_index, A, B, Dn, Y, n_cores, 
-                                           y_first, gamma_1)
+                                           gamma_1)
                 psi_q_star = psi_nu_q_star[[1]]
                 nu_q_star = psi_nu_q_star[[2]]
                 
@@ -200,7 +200,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 # Current
                 psi_nu_q_curr = proposal_R(nu_R, psi_R, prop_R, EIDs, par, 
                                            par_index, A, B, Dn, Y, n_cores, 
-                                           y_first, gamma_1)
+                                           gamma_1)
                 psi_q_curr = psi_nu_q_curr[[1]]
                 nu_q_curr = psi_nu_q_curr[[2]]
                 
@@ -216,7 +216,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 
                 # Log-posterior at proposal
                 log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                      n_cores, y_first, gamma_1)
+                                      n_cores, gamma_1)
 
                 if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) |
                    is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
