@@ -311,7 +311,7 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
                 const arma::field<arma::field<arma::mat>> &Dn, const arma::mat &Y, 
                 int n_cores, const arma::mat &gamma_1) {
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -323,8 +323,11 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
     arma::mat upsilon_alpha = arma::reshape(vec_upsilon, alpha_tilde.n_elem, 
                                             alpha_tilde.n_elem);
     
-    arma::vec vec_R = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R, 4, 4);
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
+    arma::mat R = R_sqrt * R_sqrt;
+    // arma::vec vec_R = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R, 4, 4);
     
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
@@ -355,7 +358,9 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
                                R(3,2) / (1 - vec_A(3) * vec_A(2)),
                                R(3,3) / (1 - vec_A(3) * vec_A(3))}};
     
-    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
+    arma::mat G_sqrt_t = arma::reshape(par.elem(par_index(6) - 1), 4, 4);
+    arma::mat G_sqrt = G_sqrt_t.t() * G_sqrt_t;
+    arma::mat G = G_sqrt * G_sqrt;
     
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -385,7 +390,8 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
             if(jj == 0) {
                 
                 arma::vec gamma_1_mu = Y_i.col(jj);
-                arma::mat gamma_1_v = gamma_var + g_diag;
+                // arma::mat gamma_1_v = gamma_var + g_diag;
+                arma::mat gamma_1_v = G;
                 
                 arma::vec log_g_pdf = dmvnorm(gamma_1.row(ii), gamma_1_mu, gamma_1_v, true);
                 
@@ -440,7 +446,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
                 const arma::mat &Y, int n_cores,
                 const arma::mat &gamma_1) {
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -460,14 +466,21 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Error-variance prior ----------------------------------------------------
     arma::vec vec_R_content = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R_content, 4, 4);
+    arma::vec vec_R_mean(vec_R_content.n_elem, arma::fill::zeros);
+    arma::vec scalar_R(vec_R_content.n_elem, arma::fill::ones);
+    scalar_R = 100 * scalar_R;
+    arma::mat R_var = arma::diagmat(scalar_R);
     
-    int nu_R = 8;
-    arma::vec scalar_vec_R = {9, 9, 9, 9};
-    scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
-    arma::mat Psi_R = arma::diagmat(scalar_vec_R);
-    
-    double prior_R_val = diwish(R, nu_R, Psi_R, true);
+    arma::vec prior_R = dmvnorm(vec_R_content.t(), vec_R_mean, R_var, true);
+    double prior_R_val = arma::as_scalar(prior_R);
+    // arma::vec vec_R_content = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R_content, 4, 4);
+    // 
+    // int nu_R = 8;
+    // arma::vec scalar_vec_R = {9, 9, 9, 9};
+    // scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
+    // arma::mat Psi_R = arma::diagmat(scalar_vec_R);
+    // double prior_R_val = diwish(R, nu_R, Psi_R, true);
     
     // Zeta prior --------------------------------------------------------------
     arma::vec vec_zeta_content = par.elem(par_index(4) - 1);
@@ -492,17 +505,17 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     double prior_init_val = arma::as_scalar(prior_init);
     
     // Gamma RE variance prior -------------------------------------------------
-    arma::vec vec_diag_g_content = par.elem(par_index(6) - 1);
-    arma::vec vec_diag_g_mean(vec_diag_g_content.n_elem, arma::fill::zeros);
-    arma::vec scalar_diag_g(vec_diag_g_content.n_elem, arma::fill::ones);
-    scalar_diag_g = 100 * scalar_diag_g;
-    arma::mat diag_g_var = arma::diagmat(scalar_diag_g);
+    arma::vec vec_G_content = par.elem(par_index(6) - 1);
+    arma::vec vec_G_mean(vec_G_content.n_elem, arma::fill::zeros);
+    arma::vec scalar_G(vec_G_content.n_elem, arma::fill::ones);
+    scalar_G = 100 * scalar_G;
+    arma::mat G_var = arma::diagmat(scalar_G);
     
-    arma::vec prior_diag_g = dmvnorm(vec_diag_g_content.t(), vec_diag_g_mean, diag_g_var, true);
-    double prior_diag_g_val = arma::as_scalar(prior_diag_g);
+    arma::vec prior_G = dmvnorm(vec_G_content.t(), vec_G_mean, G_var, true);
+    double prior_G_val = arma::as_scalar(prior_G);
     
     // Full log-posterior ------------------------------------------------------
-    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val + prior_diag_g_val;
+    value = value + prior_A_val + prior_R_val + prior_zeta_val + prior_init_val + prior_G_val;
     
     return value;
 }
@@ -515,14 +528,17 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
                          const arma::field<arma::field<arma::mat>> &Dn,
                          const arma::mat &Y, int n_cores){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
 
     // Initializing parameters -------------------------------------------------
-    arma::vec vec_R = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R, 4, 4);
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
+    arma::mat R = R_sqrt * R_sqrt;
+    // arma::vec vec_R = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R, 4, 4);
     arma::mat inv_R = arma::inv_sympd(R);
 
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
@@ -530,26 +546,31 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
     arma::mat A_1 = arma::diagmat(vec_A);
     arma::mat I(A_1.n_rows, A_1.n_cols, arma::fill::eye);
     
-    arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                            R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                            R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                            R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                           {R(1,0) / (1 - vec_A(1) * vec_A(0)),
-                            R(1,1) / (1 - vec_A(1) * vec_A(1)),
-                            R(1,2) / (1 - vec_A(1) * vec_A(2)),
-                            R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                           {R(2,0) / (1 - vec_A(2) * vec_A(0)),
-                            R(2,1) / (1 - vec_A(2) * vec_A(1)),
-                            R(2,2) / (1 - vec_A(2) * vec_A(2)),
-                            R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                           {R(3,0) / (1 - vec_A(3) * vec_A(0)),
-                            R(3,1) / (1 - vec_A(3) * vec_A(1)),
-                            R(3,2) / (1 - vec_A(3) * vec_A(2)),
-                            R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    // arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+    //                         R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+    //                         R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+    //                         R(0,3) / (1 - vec_A(0) * vec_A(3))},
+    //                        {R(1,0) / (1 - vec_A(1) * vec_A(0)),
+    //                         R(1,1) / (1 - vec_A(1) * vec_A(1)),
+    //                         R(1,2) / (1 - vec_A(1) * vec_A(2)),
+    //                         R(1,3) / (1 - vec_A(1) * vec_A(3))},
+    //                        {R(2,0) / (1 - vec_A(2) * vec_A(0)),
+    //                         R(2,1) / (1 - vec_A(2) * vec_A(1)),
+    //                         R(2,2) / (1 - vec_A(2) * vec_A(2)),
+    //                         R(2,3) / (1 - vec_A(2) * vec_A(3))},
+    //                        {R(3,0) / (1 - vec_A(3) * vec_A(0)),
+    //                         R(3,1) / (1 - vec_A(3) * vec_A(1)),
+    //                         R(3,2) / (1 - vec_A(3) * vec_A(2)),
+    //                         R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    // 
+    // arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
+    // arma::mat g_var_combo = gamma_var + g_diag;
+    // arma::mat g_var_combo_inv = arma::inv_sympd(g_var_combo);
     
-    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
-    arma::mat g_var_combo = gamma_var + g_diag;
-    arma::mat g_var_combo_inv = arma::inv_sympd(g_var_combo);
+    arma::mat G_sqrt_t = arma::reshape(par.elem(par_index(6) - 1), 4, 4);
+    arma::mat G_sqrt = G_sqrt_t.t() * G_sqrt_t;
+    arma::mat G = G_sqrt * G_sqrt;
+    arma::mat g_var_combo_inv = arma::inv_sympd(G);
 
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -610,7 +631,7 @@ arma::field<arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &pa
                                       const arma::mat &Y, int n_cores,
                                       const arma::mat &gamma_1){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -623,8 +644,11 @@ arma::field<arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &pa
                                             alpha_tilde.n_elem);
     arma::mat inv_ups_alpha = arma::inv_sympd(upsilon_alpha);
     
-    arma::vec vec_R = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R, 4, 4);
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
+    arma::mat R = R_sqrt * R_sqrt;
+    // arma::vec vec_R = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R, 4, 4);
     arma::mat inv_R = arma::inv_sympd(R);
     
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
@@ -689,7 +713,7 @@ arma::vec update_alpha_tilde(const arma::vec EIDs, arma::vec par,
                              const arma::field<arma::uvec> par_index,
                              const arma::field <arma::vec> A, const arma::mat Y){
 
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -731,7 +755,7 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec par,
                               const arma::field<arma::uvec> &par_index,
                               const arma::field <arma::vec> &A,int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -785,7 +809,7 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
                       const arma::mat &Y, int n_cores,
                       const arma::mat &gamma_1) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -804,26 +828,31 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
                             exp(vec_init_content(2)), exp(vec_init_content(3))};
     arma::vec P_init = init_logit / arma::accu(init_logit);
     
-    arma::mat gamma_var = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                            curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                            curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                            curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                           {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)),
-                            curr_R(1,1) / (1 - vec_A(1) * vec_A(1)),
-                            curr_R(1,2) / (1 - vec_A(1) * vec_A(2)),
-                            curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                           {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)),
-                            curr_R(2,1) / (1 - vec_A(2) * vec_A(1)),
-                            curr_R(2,2) / (1 - vec_A(2) * vec_A(2)),
-                            curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                           {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)),
-                            curr_R(3,1) / (1 - vec_A(3) * vec_A(1)),
-                            curr_R(3,2) / (1 - vec_A(3) * vec_A(2)),
-                            curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    // arma::mat gamma_var = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+    //                         curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+    //                         curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+    //                         curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
+    //                        {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)),
+    //                         curr_R(1,1) / (1 - vec_A(1) * vec_A(1)),
+    //                         curr_R(1,2) / (1 - vec_A(1) * vec_A(2)),
+    //                         curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
+    //                        {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)),
+    //                         curr_R(2,1) / (1 - vec_A(2) * vec_A(1)),
+    //                         curr_R(2,2) / (1 - vec_A(2) * vec_A(2)),
+    //                         curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
+    //                        {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)),
+    //                         curr_R(3,1) / (1 - vec_A(3) * vec_A(1)),
+    //                         curr_R(3,2) / (1 - vec_A(3) * vec_A(2)),
+    //                         curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    // 
+    // arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
+    // 
+    // arma::mat gamma_var_combo = gamma_var + g_diag;
     
-    arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
-    
-    arma::mat gamma_var_combo = gamma_var + g_diag;
+    arma::mat G_sqrt_t = arma::reshape(par.elem(par_index(6) - 1), 4, 4);
+    arma::mat G_sqrt = G_sqrt_t.t() * G_sqrt_t;
+    arma::mat G = G_sqrt * G_sqrt;
+    arma::mat gamma_var_combo = G;
     
     arma::mat inv_gamma_var = arma::inv_sympd(gamma_var_combo);
     arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_gamma_var);
@@ -1554,7 +1583,7 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
                          const arma::mat &Y, int states_per_step,
                          const arma::mat &gamma_1, int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -1567,8 +1596,11 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
     arma::mat A_1 = arma::diagmat(vec_A);
     
-    arma::vec vec_R = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R, 4, 4);
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
+    arma::mat R = R_sqrt * R_sqrt;
+    // arma::vec vec_R = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R, 4, 4);
     
     arma::vec qz = exp(par.elem(par_index(4) - 1));
     
@@ -1676,7 +1708,7 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
                          const arma::field <arma::vec> &A, const arma::mat &Y, 
                          int n_cores) {
     
-    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) g_diag
+    // par_index: (0) alpha_tilde, (1) upsilon, (2) A, (3) R, (4) zeta, (5) init, (6) G
     // Y: (0) EID, (1) hemo, (2) hr, (3) map, (4) lactate
     // "i" is the numeric EID number
     // "ii" is the index of the EID
@@ -1685,8 +1717,11 @@ Rcpp::List mle_state_seq(const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
 
     // Initializing parameters -------------------------------------------------
-    arma::vec vec_R = par.elem(par_index(3) - 1);
-    arma::mat R = arma::reshape(vec_R, 4, 4);
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
+    arma::mat R = R_sqrt * R_sqrt;
+    // arma::vec vec_R = par.elem(par_index(3) - 1);
+    // arma::mat R = arma::reshape(vec_R, 4, 4);
     
     arma::vec vec_A_total = par.elem(par_index(2) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));

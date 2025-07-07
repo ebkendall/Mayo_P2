@@ -15,7 +15,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8 #strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 6 #strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -36,11 +36,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                c(par_index$zeta),
                c(par_index$A),
                c(par_index$R),
-               c(par_index$g_diag))
+               c(par_index$G))
 
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
     pscale = rep( 0.001, n_group)
+    # pscale = do.call('c', lapply(mpi, function(x){2.38/sqrt(length(x))}))
   
     # Initialize data storage --------------------------------------------------
     reset_step = 10000
@@ -110,7 +111,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             proposal = par
 
             # MH update: A, zeta, init -----------------------------------------
-            if(sum(ind_j %in% par_index$R) == 0) {
+            # if(sum(ind_j %in% par_index$R) == 0) {
                 proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
                                            sigma=pscale[[j]]*pcov[[j]])
 
@@ -178,68 +179,68 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 }
                 # --------------------------------------------------------------
 
-            } else {
-                # MH update: R -------------------------------------------------
-                curr_R = matrix(par[ind_j], nrow = 4)
-                
-                # Prior for R
-                nu_R = 8
-                psi_R = diag(c(9, 9, 9, 9))
-                psi_R = (nu_R - 4 - 1) * psi_R
-                
-                # Proposal
-                psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 
-                                           par_index, A, B, Dn, Y, n_cores, 
-                                           gamma_1)
-                psi_q_star = psi_nu_q_star[[1]]
-                nu_q_star = psi_nu_q_star[[2]]
-                
-                proposal[ind_j] = c(rinvwishart(nu = nu_q_star, S = psi_q_star))
-                prop_R = matrix(proposal[ind_j], nrow = 4)
-                
-                # Current
-                psi_nu_q_curr = proposal_R(nu_R, psi_R, prop_R, EIDs, par, 
-                                           par_index, A, B, Dn, Y, n_cores, 
-                                           gamma_1)
-                psi_q_curr = psi_nu_q_curr[[1]]
-                nu_q_curr = psi_nu_q_curr[[2]]
-                
-                # q(R* | R)
-                log_q_prop = dinvwishart(Sigma = prop_R, 
-                                         nu = nu_q_star, 
-                                         S = psi_q_star, log = T)
-                
-                # q(R | R*)
-                log_q_curr = dinvwishart(Sigma = curr_R, 
-                                         nu = nu_q_curr, 
-                                         S = psi_q_curr, log = T)
-                
-                # Log-posterior at proposal
-                log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                      n_cores, gamma_1)
-
-                if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) |
-                   is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
-                    print("Current R")
-                    print(curr_R)
-                    print("Prop R")
-                    print(prop_R)
-                    print(paste0("log_target: ", log_target))
-                    print(paste0("log_q_curr: ", log_q_curr))
-                    print(paste0("log_target_prev: ", log_target_prev))
-                    print(paste0("log_q_prop: ", log_q_prop))
-                    print(log_target + log_q_curr - log_target_prev - log_q_prop)
-                }
-
-                # Compute Metropolis ratio
-                if( log_target + log_q_curr - log_target_prev - log_q_prop > log(runif(1,0,1)) ){
-                    log_target_prev = log_target
-                    par[ind_j] = proposal[ind_j]
-                    accept[j] = accept[j] +1
-                }
-
-                chain[chain_ttt,ind_j] = par[ind_j]
-            }
+            # } else {
+            #     # MH update: R -------------------------------------------------
+            #     curr_R = matrix(par[ind_j], nrow = 4)
+            #     
+            #     # Prior for R
+            #     nu_R = 8
+            #     psi_R = diag(c(9, 9, 9, 9))
+            #     psi_R = (nu_R - 4 - 1) * psi_R
+            #     
+            #     # Proposal
+            #     psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 
+            #                                par_index, A, B, Dn, Y, n_cores, 
+            #                                gamma_1)
+            #     psi_q_star = psi_nu_q_star[[1]]
+            #     nu_q_star = psi_nu_q_star[[2]]
+            #     
+            #     proposal[ind_j] = c(rinvwishart(nu = nu_q_star, S = psi_q_star))
+            #     prop_R = matrix(proposal[ind_j], nrow = 4)
+            #     
+            #     # Current
+            #     psi_nu_q_curr = proposal_R(nu_R, psi_R, prop_R, EIDs, par, 
+            #                                par_index, A, B, Dn, Y, n_cores, 
+            #                                gamma_1)
+            #     psi_q_curr = psi_nu_q_curr[[1]]
+            #     nu_q_curr = psi_nu_q_curr[[2]]
+            #     
+            #     # q(R* | R)
+            #     log_q_prop = dinvwishart(Sigma = prop_R, 
+            #                              nu = nu_q_star, 
+            #                              S = psi_q_star, log = T)
+            #     
+            #     # q(R | R*)
+            #     log_q_curr = dinvwishart(Sigma = curr_R, 
+            #                              nu = nu_q_curr, 
+            #                              S = psi_q_curr, log = T)
+            #     
+            #     # Log-posterior at proposal
+            #     log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
+            #                           n_cores, gamma_1)
+            # 
+            #     if(!is.finite(log_target + log_q_curr - log_target_prev - log_q_prop) |
+            #        is.nan(log_target + log_q_curr - log_target_prev - log_q_prop)) {
+            #         print("Current R")
+            #         print(curr_R)
+            #         print("Prop R")
+            #         print(prop_R)
+            #         print(paste0("log_target: ", log_target))
+            #         print(paste0("log_q_curr: ", log_q_curr))
+            #         print(paste0("log_target_prev: ", log_target_prev))
+            #         print(paste0("log_q_prop: ", log_q_prop))
+            #         print(log_target + log_q_curr - log_target_prev - log_q_prop)
+            #     }
+            # 
+            #     # Compute Metropolis ratio
+            #     if( log_target + log_q_curr - log_target_prev - log_q_prop > log(runif(1,0,1)) ){
+            #         log_target_prev = log_target
+            #         par[ind_j] = proposal[ind_j]
+            #         accept[j] = accept[j] +1
+            #     }
+            # 
+            #     chain[chain_ttt,ind_j] = par[ind_j]
+            # }
         }
 
         # Restart the acceptance ratio at burnin

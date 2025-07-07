@@ -1,4 +1,4 @@
-index_seeds = c(1:100)
+index_seeds = c(1:43, 45, 46, 48, 49)
 trialNum = 1
 it_num = 1
 
@@ -10,6 +10,7 @@ par_index$A = 273:276
 par_index$R = 277:292
 par_index$zeta = 293:304
 par_index$init = 305:308
+par_index$g_diag = 309:312
 
 true_par = rep(0, max(do.call('c', par_index)))
 true_par[par_index$alpha_tilde] = c( -5,  5, -2,  2,
@@ -29,6 +30,7 @@ true_par[par_index$zeta] = c(-3.7405, -4.2152, -2.6473, -2.1475,
                              -3.4459, -2.9404, -3.2151, -3.1778, 
                              -2.0523, -3.4459, -3.2404, -3.2151)
 true_par[par_index$init] = c(0,0,0,0)
+true_par[par_index$g_diag] = c(0,0,0,0)
 
 labels = c("slope S2 (hemo)", "slope S3 (hemo)", "slope S4 (hemo)", "slope S5 (hemo)",
            "slope S2 (hr)", "slope S3 (hr)", "slope S4 (hr)", "slope S5 (hr)",
@@ -45,17 +47,20 @@ labels = c("slope S2 (hemo)", "slope S3 (hemo)", "slope S4 (hemo)", "slope S5 (h
            "intercept: S3 --> S4", "intercept: S4 --> S2", "intercept: S4 --> S5", 
            "intercept: S5 --> S1", "intercept: S5 --> S2", "intercept: S5 --> S4", 
            "logit Pr(init S2)", "logit Pr(init S3)",
-           "logit Pr(init S4)", "logit Pr(init S5)")
+           "logit Pr(init S4)", "logit Pr(init S5)",
+           "log(G_1)", "log(G_2)", "log(G_3)", "log(G_4)")
 
 # Estimate the initial state probabilities
 init_prob_mat = matrix(nrow = length(index_seeds), ncol = 5)
+c_s = 1
 for(seed in index_seeds) {
     load(paste0('Data/sim_data_', seed, '.rda'))
     first_ind = c(0, which(diff(data_format[,"EID"]) != 0)) + 2
     init_state = data_format[first_ind, "b_true"]
-    init_prob_mat[seed, ] = c(sum(init_state == 1), sum(init_state == 2),
+    init_prob_mat[c_s, ] = c(sum(init_state == 1), sum(init_state == 2),
                               sum(init_state == 3), sum(init_state == 4), 
                               sum(init_state == 5)) / length(init_state)
+    c_s = c_s + 1
 }
 
 init_par_est = colMeans(init_prob_mat)

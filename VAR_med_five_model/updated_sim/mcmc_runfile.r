@@ -24,7 +24,7 @@ par_index$A = 273:276
 par_index$R = 277:292
 par_index$zeta = 293:304
 par_index$init = 305:308
-par_index$g_diag = 309:312
+par_index$G = 309:324
 
 par = rep(0, max(do.call('c', par_index)))
 par[par_index$alpha_tilde] = c( -5,  5, -2,  2,
@@ -36,7 +36,7 @@ par[par_index$upsilon] = c(diag(c(4, 4, 1, 1,
                                   4, 4, 1, 1, 
                                   4, 4, 1, 1)))
 par[par_index$A] = rep(0, 4)
-par[par_index$R] = c(diag(c(9, 9, 9, 9)))
+par[par_index$R] = c(diag(c(sqrt(3), sqrt(3), sqrt(3), sqrt(3))))
 #    transitions:          1->2,    1->4,    2->3,    2->4, 
 #                          3->1,    3->2,    3->4,    4->2, 
 #                          4->5,    5->1,    5->2,    5->4
@@ -44,7 +44,7 @@ par[par_index$zeta] = c(-3.7405, -4.2152, -2.6473, -2.1475,
                         -3.4459, -2.9404, -3.2151, -3.1778, 
                         -2.0523, -3.4459, -3.2404, -3.2151)
 par[par_index$init] = c(0,0,0,0)
-par[par_index$g_diag] = c(0,0,0,0)
+par[par_index$G] = c(diag(c(9,9,9,9)))
 
 if(simulation) {
     load(paste0('Data/alpha_i_mat_', seed_num, '.rda'))
