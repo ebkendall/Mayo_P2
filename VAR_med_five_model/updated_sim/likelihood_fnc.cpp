@@ -390,8 +390,8 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
             if(jj == 0) {
                 
                 arma::vec gamma_1_mu = Y_i.col(jj);
-                // arma::mat gamma_1_v = gamma_var + g_diag;
-                arma::mat gamma_1_v = G;
+                arma::mat gamma_1_v = gamma_var + G;
+                // arma::mat gamma_1_v = G;
                 
                 arma::vec log_g_pdf = dmvnorm(gamma_1.row(ii), gamma_1_mu, gamma_1_v, true);
                 
@@ -546,31 +546,28 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
     arma::mat A_1 = arma::diagmat(vec_A);
     arma::mat I(A_1.n_rows, A_1.n_cols, arma::fill::eye);
     
-    // arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-    //                         R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-    //                         R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-    //                         R(0,3) / (1 - vec_A(0) * vec_A(3))},
-    //                        {R(1,0) / (1 - vec_A(1) * vec_A(0)),
-    //                         R(1,1) / (1 - vec_A(1) * vec_A(1)),
-    //                         R(1,2) / (1 - vec_A(1) * vec_A(2)),
-    //                         R(1,3) / (1 - vec_A(1) * vec_A(3))},
-    //                        {R(2,0) / (1 - vec_A(2) * vec_A(0)),
-    //                         R(2,1) / (1 - vec_A(2) * vec_A(1)),
-    //                         R(2,2) / (1 - vec_A(2) * vec_A(2)),
-    //                         R(2,3) / (1 - vec_A(2) * vec_A(3))},
-    //                        {R(3,0) / (1 - vec_A(3) * vec_A(0)),
-    //                         R(3,1) / (1 - vec_A(3) * vec_A(1)),
-    //                         R(3,2) / (1 - vec_A(3) * vec_A(2)),
-    //                         R(3,3) / (1 - vec_A(3) * vec_A(3))}};
-    // 
-    // arma::mat g_diag = arma::diagmat(exp(par.elem(par_index(6) - 1)));
-    // arma::mat g_var_combo = gamma_var + g_diag;
-    // arma::mat g_var_combo_inv = arma::inv_sympd(g_var_combo);
+    arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)),
+                            R(0,1) / (1 - vec_A(0) * vec_A(1)),
+                            R(0,2) / (1 - vec_A(0) * vec_A(2)),
+                            R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                           {R(1,0) / (1 - vec_A(1) * vec_A(0)),
+                            R(1,1) / (1 - vec_A(1) * vec_A(1)),
+                            R(1,2) / (1 - vec_A(1) * vec_A(2)),
+                            R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                           {R(2,0) / (1 - vec_A(2) * vec_A(0)),
+                            R(2,1) / (1 - vec_A(2) * vec_A(1)),
+                            R(2,2) / (1 - vec_A(2) * vec_A(2)),
+                            R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                           {R(3,0) / (1 - vec_A(3) * vec_A(0)),
+                            R(3,1) / (1 - vec_A(3) * vec_A(1)),
+                            R(3,2) / (1 - vec_A(3) * vec_A(2)),
+                            R(3,3) / (1 - vec_A(3) * vec_A(3))}};
     
     arma::mat G_sqrt_t = arma::reshape(par.elem(par_index(6) - 1), 4, 4);
     arma::mat G_sqrt = G_sqrt_t.t() * G_sqrt_t;
     arma::mat G = G_sqrt * G_sqrt;
-    arma::mat g_var_combo_inv = arma::inv_sympd(G);
+    arma::mat g_var_combo = gamma_var + G;
+    arma::mat g_var_combo_inv = arma::inv_sympd(g_var_combo);
 
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
