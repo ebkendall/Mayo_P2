@@ -67,9 +67,8 @@ save(true_pars, file = 'Data/true_pars.rda')
 # ------------------------------------------------------------------------------
 
 # for(df_num in 1:50) {
-# args = commandArgs(TRUE)
-# df_num = as.numeric(args[1])
-df_num = 1
+args = commandArgs(TRUE)
+df_num = as.numeric(args[1])
 
     print(paste0("Df ", df_num))
     set.seed(df_num)

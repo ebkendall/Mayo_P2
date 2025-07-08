@@ -1,6 +1,5 @@
 source('mcmc_routine.r')
 
-# Input will be a number 1-25 (5 seeds with 5 sampling routines)
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 set.seed(seed_num)
@@ -43,6 +42,7 @@ par_index$omega_tilde = 325:408
 par_index$eta_omega = 409:492
 par_index$G = 493:508
 
+par = rep(0, max(do.call('c', par_index)))
 par[par_index$beta] = c(0.25, -2, 2, -0.25) 
 par[par_index$alpha_tilde] = c( -5,   5, -2,  2,
                                 10, -10,  2, -2,
@@ -122,7 +122,7 @@ for(ii in 1:length(EIDs)){
 }
 # -----------------------------------------------------------------------------
 
-steps  = 20000
+steps  = 10000
 burnin =  5000
 
 s_time = Sys.time()
