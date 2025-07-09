@@ -332,7 +332,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
             
             if(jj == 0) {
                 
-                arma::vec log_gamma_1_pdf = dmvnorm(gamma_1.row(ii), y_i.row(jj).t(), g_var + R, true);
+                arma::vec log_gamma_1_pdf = dmvnorm(gamma_1.row(ii), y_i.row(jj).t(), g_var, true);
                 
                 like_comp = like_comp + arma::as_scalar(log_gamma_1_pdf);
                 
@@ -1021,7 +1021,6 @@ arma::mat gamma_1_sample(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
     
     arma::mat g_var = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    g_var = g_var + R;
     
     arma::mat g_R_inv = arma::inv_sympd(g_var);
     arma::mat R_inv = arma::inv_sympd(R);
