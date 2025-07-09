@@ -69,12 +69,11 @@ seed_num = as.numeric(args[1])
             big_b_i[k] = sample(1:n_state, size = 1, prob=P[big_b_i[k-1],])
         }
 
-        # Select n_i of the states for the true latent state sequence
-        b_i = tail(big_b_i, n_i)
-        before_b_i = big_b_i[1:(m_i - n_i + 1)]
-        # if(b_i[1] == 1) {
-        #     before_b_i = 1
-        # }
+        # # Select n_i of the states for the true latent state sequence
+        # b_i = tail(big_b_i, n_i)
+        # before_b_i = big_b_i[1:(m_i - n_i + 1)]
+        b_i = head(big_b_i, n_i)
+        before_b_i = 1
 
         # Sample the observations
         t_2 = sum(before_b_i == 2)

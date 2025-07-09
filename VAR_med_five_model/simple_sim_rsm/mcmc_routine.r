@@ -5,7 +5,7 @@ library(RcppDist, quietly = T)
 library(expm, quietly = T)
 sourceCpp("mcmc_fnc.cpp")
 
-mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
+mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
     
     EIDs = unique(ids)
     
@@ -20,12 +20,21 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
     initialize_cpp(adjacency_mat)
     
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
-               c(par_index$alpha[c(2,4,6,8)]),
-               c(par_index$zeta),
-               c(par_index$diag_R),
-               c(par_index$init),
-               c(par_index$diag_G))
+    if(dgm) {
+        mpi = list(c(par_index$alpha[c(1,4,7,10)]), 
+                   c(par_index$alpha[c(2,5,8,11)]),
+                   c(par_index$alpha[c(3,6,9,12)]),
+                   c(par_index$zeta),
+                   c(par_index$diag_R),
+                   c(par_index$init))
+    } else {
+        mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
+                   c(par_index$alpha[c(2,4,6,8)]),
+                   c(par_index$zeta),
+                   c(par_index$diag_R),
+                   c(par_index$init),
+                   c(par_index$diag_G))    
+    }
     
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -41,7 +50,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
     accept = rep( 0, n_group)
     
     # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids)
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, dgm)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -62,19 +71,15 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
             chain_ind = floor((new_t - 1)/10) + 1
             chain_ttt = ttt %% reset_step
         }
-        
-        # Sample gamma_1 -------------------------------------------------------
-        gamma_1 = gamma_1_sample(as.numeric(EIDs), par, par_index, B,
-                                 y, ids, n_cores)
 
         # Efficient state-sampler ----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, gamma_1)
+        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, dgm)
         B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, n_cores, gamma_1)
+                                       y, ids, n_cores, dgm)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -96,7 +101,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
-                                      B, y, ids, n_cores, gamma_1)
+                                      B, y, ids, n_cores, dgm)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -112,8 +117,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind){
                     }
 
                     log_target = log_post_cpp(as.numeric(EIDs), proposal,
-                                              par_index, B, y, ids, n_cores, 
-                                              gamma_1)
+                                              par_index, B, y, ids, n_cores, dgm)
                 }
             }
 
