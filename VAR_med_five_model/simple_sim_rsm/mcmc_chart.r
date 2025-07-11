@@ -2,6 +2,8 @@ index_seeds = c(1:5)
 it_num = 1
 S = 3
 
+dgm = F # fit the data generating model (dgm) or the approx. model
+
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
     ux <- unique(x)
@@ -105,7 +107,7 @@ seed_focus = 1
 load(paste0('Data/data_format', seed_focus, '.rda'))
 EIDs = unique(data_format[,"id"])
 
-pdf_title = paste0('Plots/chart_plot.pdf')
+pdf_title = paste0('Plots/chart_plot_', as.numeric(dgm), '.pdf')
 pdf(pdf_title)
 panel_dim = c(3,1)
 inset_dim = c(0,-.18)

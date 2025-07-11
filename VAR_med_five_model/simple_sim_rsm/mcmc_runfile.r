@@ -4,7 +4,7 @@ args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 set.seed(seed_num)
 
-dgm = TRUE # fit the data generating model (dgm) or the approx. model
+dgm = T # fit the data generating model (dgm) or the approx. model
 
 # Load data ----------------------------------------------------------------
 load(paste0('Data/data_format', seed_num, '.rda'))
@@ -29,7 +29,7 @@ if(dgm) {
                              100, -10,  10,
                               50,   5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    par[par_index$diag_R] = c(2, 2, 2, 2)
     par[par_index$init] = c(0, 0)
 } else {
     par_index = list()
@@ -45,9 +45,9 @@ if(dgm) {
                              -10,  10,
                                5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    par[par_index$diag_R] = c(2, 2, 2, 2)
     par[par_index$init] = c(0, 0)
-    par[par_index$diag_G] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    par[par_index$diag_G] = c(2, 2, 2, 2)
 }
 
 n_state = 3
@@ -60,7 +60,7 @@ for(i in EIDs){
 # -----------------------------------------------------------------------------
 
 steps  = 10000
-burnin =  2000
+burnin =  5000
 
 s_time = Sys.time()
 

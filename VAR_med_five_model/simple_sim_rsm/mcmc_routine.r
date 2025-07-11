@@ -167,11 +167,11 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                     if(ttt %% 480 == 0){
                         accept[j] = 0
 
-                    } else if( accept[j] / (ttt %% 480) < .4 ){
+                    } else if( accept[j] / (ttt %% 480) < .35 ){
                         pscale[j] = (.5^2)*pscale[j]
 
-                    } else if( accept[j] / (ttt %% 480) > .5 ){
-                        pscale[j] = (1.5^2)*pscale[j]
+                    } else if( accept[j] / (ttt %% 480) > .55 ){
+                        pscale[j] = (1.75^2)*pscale[j]
                     }
                 }
             }

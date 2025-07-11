@@ -1,7 +1,7 @@
 index_seeds = c(1:100)
 it_num = 1
 
-dgm = TRUE # fit the data generating model (dgm) or the approx. model
+dgm = F # fit the data generating model (dgm) or the approx. model
 
 # Parameter initialization -----------------------------------------------------
 if(dgm) {
@@ -17,7 +17,7 @@ if(dgm) {
                                   100, -10,  10,
                                    50,   5,  -5)
     true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    true_par[par_index$diag_R] = c(2, 2, 2, 2)
     true_par[par_index$init] = c(0, 0)
     
     labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
@@ -42,9 +42,9 @@ if(dgm) {
                                   -10,  10,
                                     5,  -5)
     true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    true_par[par_index$diag_R] = c(2, 2, 2, 2)
     true_par[par_index$init] = c(0, 0)
-    true_par[par_index$diag_G] = c(1.386294, 1.386294, 1.386294, 1.386294)
+    true_par[par_index$diag_G] = c(2, 2, 2, 2)
     
     labels = c("S2 slope y1", "S3 slope y1",  
                "S2 slope y2", "S3 slope y2",
@@ -87,7 +87,7 @@ for(seed in index_seeds){
             
             if(it == 1) {
                 ind = ind + 1
-                chain_list[[ind]] = mcmc_out$chain[1:1000, ]
+                chain_list[[ind]] = mcmc_out$chain[500:1000, ]
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
             }
@@ -173,7 +173,7 @@ for(seed in index_seeds){
 
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('Plots/trace_plot.pdf')
+pdf_title = paste0('Plots/trace_plot_', as.numeric(dgm), '.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0
