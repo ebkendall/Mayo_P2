@@ -63,7 +63,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     accept = rep( 0, n_group)
     
     # Initialize design matrix -------------------------------------------------
-    Xn = initialize_X(EIDs, Y, x)
+    Xn = initialize_Xn(EIDs, Y, x)
     Dn_alpha = initialize_Dn(EIDs, B)
     impute_step = FALSE
     

@@ -1226,9 +1226,9 @@ bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i,
 }
 
 // [[Rcpp::export]]
-arma::field<arma::field<arma::mat>> initialize_X(const arma::vec EIDs,
-                                                 const arma::mat &Y,
-                                                 const arma::mat &x) {
+arma::field<arma::field<arma::mat>> initialize_Xn(const arma::vec EIDs,
+                                                  const arma::mat &Y,
+                                                  const arma::mat &x) {
     
     // par_index: (0) beta, (1) alpha_tilde, (2) upsilon, (3) A, (4) R, (5) zeta, 
     //            (6) init, (7) omega_tilde, (8) eta_omega, (9) G
@@ -1309,17 +1309,19 @@ arma::field<arma::field<arma::mat>> initialize_Dn(const arma::vec EIDs,
     return Dn_return;
 }
 
-arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                      arma::vec &b_i, arma::mat alpha_i, arma::mat A_1,
-                      arma::mat R, arma::mat P_i, arma::vec P_init) {
-
+arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::mat z_i, arma::imat adj_mat_i,
+                      arma::vec &b_i, arma::mat alpha_i, arma::vec vec_omega_i,
+                      arma::vec vec_beta, arma::mat A_1, arma::mat R, 
+                      arma::field<arma::mat> D_omega_i, arma::field<arma::mat> X_i,
+                      arma::mat zeta, arma::vec P_init, bool clinic_sub) {
+    
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
     for(int k = 1; k < n_i - 1; k++) {
 
         arma::vec s_i = b_i;
 
-        arma::mat omega_set = get_omega_list(k-1, n_i - 1, b_i.subvec(1, n_i-1), 2, false);
+        arma::mat omega_set = get_omega_list(k-1, n_i - 1, b_i.subvec(1, n_i-1), 2, clinic_sub);
         arma::vec prob_omega(omega_set.n_rows, arma::fill::ones);
         prob_omega = (1/arma::accu(prob_omega)) * prob_omega;
         arma::vec ind_omega = arma::linspace(0, omega_set.n_rows-1, omega_set.n_rows);
@@ -1360,27 +1362,30 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec s_4 = fours_s.subvec(1, t);
                 arma::vec s_5 = fives_s.subvec(1, t);
 
-                arma::vec nu_s = alpha_i.row(0).t() +
+                arma::vec g_p_a_s = alpha_i.row(0).t() +
                     arma::accu(s_2) * alpha_i.row(1).t() +
                     arma::accu(s_3) * alpha_i.row(2).t() +
                     arma::accu(s_4) * alpha_i.row(3).t() +
                     arma::accu(s_5) * alpha_i.row(4).t();
 
-                arma::vec nu_s_1;
+                arma::vec g_p_a_s_1;
                 if(t == 1) {
-                    nu_s_1 = alpha_i.row(0).t();
+                    g_p_a_s_1 = alpha_i.row(0).t();
                 } else {
                     arma::vec s_2_1 = twos_s.subvec(1, t-1);
                     arma::vec s_3_1 = threes_s.subvec(1, t-1);
                     arma::vec s_4_1 = fours_s.subvec(1, t-1);
                     arma::vec s_5_1 = fives_s.subvec(1, t-1);
 
-                    nu_s_1 = alpha_i.row(0).t() +
+                    g_p_a_s_1 = alpha_i.row(0).t() +
                         arma::accu(s_2_1) * alpha_i.row(1).t() +
                         arma::accu(s_3_1) * alpha_i.row(2).t() +
                         arma::accu(s_4_1) * alpha_i.row(3).t() +
                         arma::accu(s_5_1) * alpha_i.row(4).t();
                 }
+                
+                arma::vec nu_s = g_p_a_s + D_omega_i(t)*vec_omega_i + X_i(t)*vec_beta;
+                arma::vec nu_s_1 = g_p_a_s_1 + D_omega_i(t-1)*vec_omega_i + X_i(t-1)*vec_beta;
 
                 arma::vec mean_s = nu_s + A_1 * (Y_i.col(t-1) - nu_s_1);
 
@@ -1390,45 +1395,50 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 arma::vec b_4 = fours_b.subvec(1, t);
                 arma::vec b_5 = fives_b.subvec(1, t);
 
-                arma::vec nu_b = alpha_i.row(0).t() +
+                arma::vec g_p_a_b = alpha_i.row(0).t() +
                     arma::accu(b_2) * alpha_i.row(1).t() +
                     arma::accu(b_3) * alpha_i.row(2).t() +
                     arma::accu(b_4) * alpha_i.row(3).t() +
                     arma::accu(b_5) * alpha_i.row(4).t();
 
-                arma::vec nu_b_1;
+                arma::vec g_p_a_b_1;
                 if(t == 1) {
-                    nu_b_1 = alpha_i.row(0).t();
+                    g_p_a_b_1 = alpha_i.row(0).t();
                 } else {
                     arma::vec b_2_1 = twos_b.subvec(1, t-1);
                     arma::vec b_3_1 = threes_b.subvec(1, t-1);
                     arma::vec b_4_1 = fours_b.subvec(1, t-1);
                     arma::vec b_5_1 = fives_b.subvec(1, t-1);
 
-                    nu_b_1 = alpha_i.row(0).t() +
+                    g_p_a_b_1 = alpha_i.row(0).t() +
                         arma::accu(b_2_1) * alpha_i.row(1).t() +
                         arma::accu(b_3_1) * alpha_i.row(2).t() +
                         arma::accu(b_4_1) * alpha_i.row(3).t() +
                         arma::accu(b_5_1) * alpha_i.row(4).t();
                 }
 
+                arma::vec nu_b = g_p_a_b + D_omega_i(t)*vec_omega_i + X_i(t)*vec_beta;
+                arma::vec nu_b_1 = g_p_a_b_1 + D_omega_i(t-1)*vec_omega_i + X_i(t-1)*vec_beta;
+                
                 arma::vec mean_b = nu_b + A_1 * (Y_i.col(t-1) - nu_b_1);
 
                 arma::vec log_y_pdf_s = dmvnorm(Y_i.col(t).t(), mean_s, R, true);
                 arma::vec log_y_pdf_b = dmvnorm(Y_i.col(t).t(), mean_b, R, true);
 
+                log_like_s = log_like_s + arma::as_scalar(log_y_pdf_s);
+                log_like_b = log_like_b + arma::as_scalar(log_y_pdf_b);
+                
                 if(t <= k + 2) {
                     if(t == 1) {
                         log_like_s = log_like_s + log(P_init(s_i(t) - 1));
                         log_like_b = log_like_b + log(P_init(b_i(t) - 1));
                     } else {
+                        arma::mat P_i = get_P_i(t, z_i, zeta);
+                        
                         log_like_s = log_like_s + log(P_i(s_i(t-1)-1, s_i(t)-1));
                         log_like_b = log_like_b + log(P_i(b_i(t-1)-1, b_i(t)-1));
                     }
                 }
-
-                log_like_s = log_like_s + arma::as_scalar(log_y_pdf_s);
-                log_like_b = log_like_b + arma::as_scalar(log_y_pdf_b);
             }
 
             double diff_check = log_like_s - log_like_b;
@@ -1441,9 +1451,11 @@ arma::vec p_2_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
     return b_i;
 }
 
-arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                         arma::vec &b_i, arma::mat alpha_i, arma::mat A_1,
-                         arma::mat R, arma::mat P_i, arma::vec P_init) {
+arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::mat z_i, arma::imat adj_mat_i,
+                         arma::vec &b_i, arma::mat alpha_i, arma::vec vec_omega_i,
+                         arma::vec vec_beta, arma::mat A_1, arma::mat R, 
+                         arma::field<arma::mat> D_omega_i, arma::field<arma::mat> X_i,
+                         arma::mat zeta, arma::vec P_init, bool clinic_sub) {
 
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
@@ -1479,12 +1491,15 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 fours_s.elem(arma::find(s_sub == 4)) += 1;
                 fives_s.elem(arma::find(s_sub == 5)) += 1;
 
-                arma::vec nu_s = alpha_i.row(0).t() +
+                arma::vec g_p_a_s = alpha_i.row(0).t() +
                     arma::accu(twos_s)   * alpha_i.row(1).t() +
                     arma::accu(threes_s) * alpha_i.row(2).t() +
                     arma::accu(fours_s)  * alpha_i.row(3).t() +
                     arma::accu(fives_s)  * alpha_i.row(4).t();
-                arma::vec nu_s_1 = alpha_i.row(0).t();
+                arma::vec g_p_a_s_1 = alpha_i.row(0).t();
+                
+                arma::vec nu_s = g_p_a_s + D_omega_i(k)*vec_omega_i + X_i(k)*vec_beta;
+                arma::vec nu_s_1 = g_p_a_s_1 + D_omega_i(k-1)*vec_omega_i + X_i(k-1)*vec_beta;
 
                 arma::vec mean_s = nu_s + A_1 * (Y_i.col(k-1) - nu_s_1);
 
@@ -1500,13 +1515,16 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                 fours_b.elem(arma::find(b_sub == 4)) += 1;
                 fives_b.elem(arma::find(b_sub == 5)) += 1;
 
-                arma::vec nu_b = alpha_i.row(0).t() +
+                arma::vec g_p_a_b = alpha_i.row(0).t() +
                     arma::accu(twos_b)   * alpha_i.row(1).t() +
                     arma::accu(threes_b) * alpha_i.row(2).t() +
                     arma::accu(fours_b)  * alpha_i.row(3).t() +
                     arma::accu(fives_b)  * alpha_i.row(4).t();
-                arma::vec nu_b_1 = alpha_i.row(0).t();
-
+                arma::vec g_p_a_b_1 = alpha_i.row(0).t();
+                
+                arma::vec nu_b = g_p_a_b + D_omega_i(k)*vec_omega_i + X_i(k)*vec_beta;
+                arma::vec nu_b_1 = g_p_a_b_1 + D_omega_i(k-1)*vec_omega_i + X_i(k-1)*vec_beta;
+                
                 arma::vec mean_b = nu_b + A_1 * (Y_i.col(k-1) - nu_b_1);
 
                 arma::vec log_y_pdf_s = dmvnorm(Y_i.col(k).t(), mean_s, R, true);
@@ -1517,6 +1535,12 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
             }
 
             ss_ind = arma::linspace(0, adj_mat_i.n_cols-1, adj_mat_i.n_cols);
+            
+            if(clinic_sub) {
+                ss_ind = {0,3,4};
+                like_vals_s = {like_vals_s(0), like_vals_s(3), like_vals_s(4)};
+                like_vals_b = {like_vals_b(0), like_vals_b(3), like_vals_b(4)};
+            }
 
         } else {
             int prev_state_s = s_i(k-1);
@@ -1530,6 +1554,8 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
 
             int s_ind = 0;
             int b_ind = 0;
+            
+            arma::mat P_i = get_P_i(k, z_i, zeta);
 
             for(int m = 0; m < adj_mat_i.n_cols; m++) {
 
@@ -1547,17 +1573,20 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_s.elem(arma::find(s_sub == 4)) += 1;
                     fives_s.elem(arma::find(s_sub == 5)) += 1;
 
-                    arma::vec nu_s = alpha_i.row(0).t() +
+                    arma::vec g_p_a_s = alpha_i.row(0).t() +
                         arma::accu(twos_s)   * alpha_i.row(1).t() +
                         arma::accu(threes_s) * alpha_i.row(2).t() +
                         arma::accu(fours_s)  * alpha_i.row(3).t() +
                         arma::accu(fives_s)  * alpha_i.row(4).t();
-                    arma::vec nu_s_1 = alpha_i.row(0).t() +
+                    arma::vec g_p_a_s_1 = alpha_i.row(0).t() +
                         arma::accu(twos_s.subvec(0,k-2))   * alpha_i.row(1).t() +
                         arma::accu(threes_s.subvec(0,k-2)) * alpha_i.row(2).t() +
                         arma::accu(fours_s.subvec(0,k-2))  * alpha_i.row(3).t() +
                         arma::accu(fives_s.subvec(0,k-2))  * alpha_i.row(4).t();
 
+                    arma::vec nu_s = g_p_a_s + D_omega_i(k)*vec_omega_i + X_i(k)*vec_beta;
+                    arma::vec nu_s_1 = g_p_a_s_1 + D_omega_i(k-1)*vec_omega_i + X_i(k-1)*vec_beta;
+                    
                     arma::vec mean_s = nu_s + A_1 * (Y_i.col(k-1) - nu_s_1);
 
                     arma::vec log_y_pdf = dmvnorm(Y_i.col(k).t(), mean_s, R, true);
@@ -1581,16 +1610,19 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
                     fours_b.elem(arma::find(b_sub == 4)) += 1;
                     fives_b.elem(arma::find(b_sub == 5)) += 1;
 
-                    arma::vec nu_b = alpha_i.row(0).t() +
+                    arma::vec g_p_a_b = alpha_i.row(0).t() +
                         arma::accu(twos_b)   * alpha_i.row(1).t() +
                         arma::accu(threes_b) * alpha_i.row(2).t() +
                         arma::accu(fours_b)  * alpha_i.row(3).t() +
                         arma::accu(fives_b)  * alpha_i.row(4).t();
-                    arma::vec nu_b_1 = alpha_i.row(0).t() +
+                    arma::vec g_p_a_b_1 = alpha_i.row(0).t() +
                         arma::accu(twos_b.subvec(0,k-2))   * alpha_i.row(1).t() +
                         arma::accu(threes_b.subvec(0,k-2)) * alpha_i.row(2).t() +
                         arma::accu(fours_b.subvec(0,k-2))  * alpha_i.row(3).t() +
                         arma::accu(fives_b.subvec(0,k-2))  * alpha_i.row(4).t();
+                    
+                    arma::vec nu_b = g_p_a_b + D_omega_i(k)*vec_omega_i + X_i(k)*vec_beta;
+                    arma::vec nu_b_1 = g_p_a_b_1 + D_omega_i(k-1)*vec_omega_i + X_i(k-1)*vec_beta;
 
                     arma::vec mean_b = nu_b + A_1 * (Y_i.col(k-1) - nu_b_1);
 
@@ -1625,9 +1657,11 @@ arma::vec p_full_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
     return b_i;
 }
 
-arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::imat adj_mat_i,
-                         arma::vec &b_i, arma::mat alpha_i, arma::mat A_1,
-                         arma::mat R, arma::mat P_i, arma::vec P_init, int sps) {
+arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::mat z_i, arma::imat adj_mat_i,
+                         arma::vec &b_i, arma::mat alpha_i, arma::vec vec_omega_i,
+                         arma::vec vec_beta, arma::mat A_1, arma::mat R, 
+                         arma::field<arma::mat> D_omega_i, arma::field<arma::mat> X_i,
+                         arma::mat zeta, arma::vec P_init, bool clinic_sub, int sps) {
 
     // Because we ignore the first time point, the length of the state sequence
     // we care about is 1 less than the original.
@@ -1937,24 +1971,26 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
     arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
 
     // Initializing parameters -------------------------------------------------
-    arma::vec vec_A_total = par.elem(par_index(2) - 1);
+    arma::vec vec_beta = par.elem(par_index(0) - 1);
+    
+    arma::vec vec_A_total = par.elem(par_index(3) - 1);
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
     arma::mat A_1 = arma::diagmat(vec_A);
-
-    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(3) - 1), 4, 4);
+    
+    arma::mat R_sqrt_t = arma::reshape(par.elem(par_index(4) - 1), 4, 4);
     arma::mat R_sqrt = R_sqrt_t.t() * R_sqrt_t;
     arma::mat R = R_sqrt * R_sqrt;
-    // arma::vec vec_R = par.elem(par_index(3) - 1);
-    // arma::mat R = arma::reshape(vec_R, 4, 4);
-
-    arma::vec qz = exp(par.elem(par_index(4) - 1));
-
-    arma::vec vec_init_content = par.elem(par_index(5) - 1);
+    
+    arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
+    arma::mat zeta = arma::reshape(vec_zeta_content, 2, 12); 
+    
+    arma::vec vec_init_content = par.elem(par_index(6) - 1);
     arma::vec init_logit = {1, exp(vec_init_content(0)), exp(vec_init_content(1)),
                             exp(vec_init_content(2)), exp(vec_init_content(3))};
     arma::vec P_init = init_logit / arma::accu(init_logit);
-
+    
     arma::vec eids = Y.col(0);
+    arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
     omp_set_num_threads(n_cores);
@@ -1969,17 +2005,11 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
         arma::mat Y_temp = Y.rows(sub_ind);
         arma::mat Y_i = Y_temp.cols(1, 4);
         Y_i = Y_i.t();
-
-        arma::mat Q = { {    1,  qz(0),     0,  qz(1),     0},
-        {    0,      1, qz(2),  qz(3),     0},
-        {qz(4),  qz(5),     1,  qz(6),     0},
-        {    0,  qz(7),     0,      1, qz(8)},
-        {qz(9), qz(10),     0, qz(11),     1}};
-
-        arma::vec q_row_sums = arma::sum(Q, 1);
-        arma::mat P_i = Q.each_col() / q_row_sums;
-
-        arma::vec b_i = B(ii);
+        arma::mat z_i = z.rows(sub_ind);
+        
+        arma::vec vec_omega_i = W(ii);
+        arma::field<arma::mat> D_omega_i = Dn_omega(ii);
+        arma::field<arma::mat> X_i = Xn(ii);
 
         arma::vec vec_alpha_i_no_base = A(ii);
         arma::mat alpha_i_no_base = arma::reshape(vec_alpha_i_no_base, 4, 4);
@@ -1990,25 +2020,40 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
         alpha_i.row(2) = alpha_i_no_base.row(1);
         alpha_i.row(3) = alpha_i_no_base.row(2);
         alpha_i.row(4) = alpha_i_no_base.row(3);
+        
+        int clinic_rule = clinic_rule_vec(sub_ind.min());
 
-        arma::imat adj_mat_i = adj_mat_GLOBAL;
+        arma::imat adj_mat_i;
+        bool clinic_sub;
+        if(clinic_rule < 0) {
+            adj_mat_i = adj_mat_sub_GLOBAL;
+            clinic_sub = true;
+        } else {
+            adj_mat_i = adj_mat_GLOBAL;
+            clinic_sub = false;
+        }
 
+        arma::vec b_i = B(ii);
         arma::vec new_b_i;
 
         if(states_per_step == 2) {
             // p = 2
-            new_b_i = p_2_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R,
-                                  P_i, P_init);
+            new_b_i = p_2_sampler(n_i, Y_i, z_i, adj_mat_i, b_i, alpha_i, 
+                                  vec_omega_i, vec_beta, A_1, R, D_omega_i, X_i,
+                                  zeta, P_init, clinic_sub);
 
         } else if(states_per_step >= n_i - 1) {
             // p >= n_i - 1 (first time point doesn't count)
-            new_b_i = p_full_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R,
-                                     P_i, P_init);
+            new_b_i = p_full_sampler(n_i, Y_i, z_i, adj_mat_i, b_i, alpha_i, 
+                                     vec_omega_i, vec_beta, A_1, R, D_omega_i, 
+                                     X_i, zeta, P_init, clinic_sub);
 
         } else {
             // 2 < p < n_i - 1
-            new_b_i = p_flex_sampler(n_i, Y_i, adj_mat_i, b_i, alpha_i, A_1, R,
-                                     P_i, P_init, states_per_step);
+            new_b_i = p_flex_sampler(n_i, Y_i, z_i, adj_mat_i, b_i, alpha_i, 
+                                     vec_omega_i, vec_beta, A_1, R, D_omega_i, 
+                                     X_i, zeta, P_init, clinic_sub,
+                                     states_per_step);
         }
 
         // Format the Dn_alpha list --------------------------------------------
