@@ -13,8 +13,6 @@ y = data_format[,c("y1", "y2", "y3", "y4"), drop = F]
 ids = data_format[,"id"]
 EIDs = unique(data_format[,"id"])
 
-first_ind = c(0, which(diff(data_format[,"id"]) != 0)) + 1
-
 # Parameter initialization -------------------------------------------------
 if(dgm) {
     par_index = list()
@@ -29,7 +27,7 @@ if(dgm) {
                              100, -10,  10,
                               50,   5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    par[par_index$diag_R] = c(2, 2, 2, 2)
+    par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     par[par_index$init] = c(0, 0)
 } else {
     par_index = list()
@@ -45,9 +43,9 @@ if(dgm) {
                              -10,  10,
                                5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    par[par_index$diag_R] = c(2, 2, 2, 2)
+    par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     par[par_index$init] = c(0, 0)
-    par[par_index$diag_G] = c(2, 2, 2, 2)
+    par[par_index$diag_G] = c(log(4), log(4), log(4), log(4))
 }
 
 n_state = 3

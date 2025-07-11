@@ -28,7 +28,7 @@ for(seed in index_seeds){
             
             if(it == 1) {
                 ind = ind + 1
-                B_chain = mcmc_out$B_chain[200:1000, ]
+                B_chain = mcmc_out$B_chain[500:1000, ]
             } else {
                 B_chain = rbind(B_chain, mcmc_out_temp$B_chain)
             }
