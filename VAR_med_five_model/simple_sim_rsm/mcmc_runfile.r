@@ -1,10 +1,17 @@
 source('mcmc_routine.r')
 
 args = commandArgs(TRUE)
-seed_num = as.numeric(args[1])
-set.seed(seed_num)
+init_seed_num = as.numeric(args[1])
 
-dgm = T # fit the data generating model (dgm) or the approx. model
+if(init_seed_num <= 100) {
+    dgm = T # fit the data generating model (dgm)    
+    seed_num = init_seed_num
+} else {
+    dgm = F # fit the approx. model
+    seed_num = init_seed_num - 100
+}
+
+set.seed(seed_num)
 
 # Load data ----------------------------------------------------------------
 load(paste0('Data/data_format', seed_num, '.rda'))
@@ -53,7 +60,7 @@ n_state = 3
 B = list()
 for(i in EIDs){
     B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
-    B[[i]][1,] = 0 # we don't care about the first state
+    # B[[i]][1,] = 0 # we don't care about the first state
 }
 # -----------------------------------------------------------------------------
 

@@ -25,14 +25,14 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                    c(par_index$alpha[c(2,5,8,11)]),
                    c(par_index$alpha[c(3,6,9,12)]),
                    c(par_index$zeta),
-                   c(par_index$diag_R),
-                   c(par_index$init))
+                   c(par_index$diag_R))
+                   # c(par_index$init))
     } else {
         mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
                    c(par_index$alpha[c(2,4,6,8)]),
                    c(par_index$zeta),
                    c(par_index$diag_R),
-                   c(par_index$init),
+                   # c(par_index$init),
                    c(par_index$diag_G))    
     }
     
@@ -49,8 +49,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
     
     accept = rep( 0, n_group)
     
-    # Initialize states to MLE state sequences ---------------------------------
-    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, dgm)
+    # # Initialize states to MLE state sequences ---------------------------------
+    # B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, dgm)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -71,15 +71,21 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
             chain_ind = floor((new_t - 1)/10) + 1
             chain_ttt = ttt %% reset_step
         }
+        
+        # Sample gamma_i's -----------------------------------------------------
+        gamma_i = matrix(0, nrow = 1, ncol = 1)
+        if(!dgm) {
+            gamma_i = gamma_i_sample(as.numeric(EIDs), par, par_index, B, y, ids, n_cores)
+        }
 
-        # Efficient state-sampler ----------------------------------------------
-        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, dgm)
-        B = B_Dn
+        # # Efficient state-sampler ----------------------------------------------
+        # sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        # B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, dgm, gamma_i)
+        # B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
-                                       y, ids, n_cores, dgm)
+                                       y, ids, n_cores, dgm, gamma_i)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -101,7 +107,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
 
             # Evaluate proposed log-likelihood -----------------------------
             log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index,
-                                      B, y, ids, n_cores, dgm)
+                                      B, y, ids, n_cores, dgm, gamma_i)
 
             if(ttt < burnin){
                 while(!is.finite(log_target)){
@@ -116,8 +122,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                                                 sd=sqrt(pscale[[j]]*pcov[[j]]))
                     }
 
-                    log_target = log_post_cpp(as.numeric(EIDs), proposal,
-                                              par_index, B, y, ids, n_cores, dgm)
+                    log_target = log_post_cpp(as.numeric(EIDs), proposal, par_index, 
+                                              B, y, ids, n_cores, dgm, gamma_i)
                 }
             }
 
@@ -167,10 +173,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                     if(ttt %% 480 == 0){
                         accept[j] = 0
 
-                    } else if( accept[j] / (ttt %% 480) < .35 ){
+                    } else if( accept[j] / (ttt %% 480) < .4 ){
                         pscale[j] = (.5^2)*pscale[j]
 
-                    } else if( accept[j] / (ttt %% 480) > .55 ){
+                    } else if( accept[j] / (ttt %% 480) > .5 ){
                         pscale[j] = (1.75^2)*pscale[j]
                     }
                 }
@@ -204,7 +210,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                              accept=accept/length(burnin:ttt), 
                              pscale=pscale, pcov = pcov, par_index=par_index)
             
-            save(mcmc_out, file = paste0('Model_out/mcmc_out_', ind, '_it_', ttt/reset_step, '.rda'))
+            save(mcmc_out, file = paste0('Model_out/mcmc_out_', ind, '_it_', ttt/reset_step,
+                                         '_', as.numeric(dgm), '.rda'))
             
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 

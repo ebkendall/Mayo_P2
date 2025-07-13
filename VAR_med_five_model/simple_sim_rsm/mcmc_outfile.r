@@ -1,7 +1,7 @@
 index_seeds = c(1:100)
 it_num = 1
 
-dgm = F # fit the data generating model (dgm) or the approx. model
+dgm = T # fit the data generating model (dgm) or the approx. model
 
 # Parameter initialization -----------------------------------------------------
 if(dgm) {
@@ -17,7 +17,7 @@ if(dgm) {
                                   100, -10,  10,
                                    50,   5,  -5)
     true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(2, 2, 2, 2)
+    true_par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     true_par[par_index$init] = c(0, 0)
     
     labels = c("baseline y1", "S2 slope y1", "S3 slope y1",  
@@ -42,9 +42,9 @@ if(dgm) {
                                   -10,  10,
                                     5,  -5)
     true_par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
-    true_par[par_index$diag_R] = c(2, 2, 2, 2)
+    true_par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     true_par[par_index$init] = c(0, 0)
-    true_par[par_index$diag_G] = c(2, 2, 2, 2)
+    true_par[par_index$diag_G] = c(log(4), log(4), log(4), log(4))
     
     labels = c("S2 slope y1", "S3 slope y1",  
                "S2 slope y2", "S3 slope y2",
