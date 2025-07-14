@@ -1,7 +1,7 @@
 index_seeds = c(1:100)
 it_num = 1
 
-dgm = T # fit the data generating model (dgm) or the approx. model
+dgm = F # fit the data generating model (dgm) or the approx. model
 
 # Parameter initialization -----------------------------------------------------
 if(dgm) {
@@ -57,7 +57,7 @@ if(dgm) {
                "log G(1,1)", "log G(2,2)", "log G(3,3)", "log G(4,4)")
 }
 
-init_par_est = c(0.8807971, 0.1192029, 0.0000000)
+init_par_est = c(1, 0, 0)
 true_par[par_index$init[1]] = log(init_par_est[2] / (1 - init_par_est[2] - init_par_est[3]))
 true_par[par_index$init[2]] = log(init_par_est[3] / (1 - init_par_est[2] - init_par_est[3]))
 
@@ -76,7 +76,7 @@ for(seed in index_seeds){
     covg_val = FALSE
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it,'.rda')
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', as.numeric(dgm), '.rda')
         if(file.exists(file_name)) {
             load(file_name)
             print(paste0(seed, ": ", file_name))

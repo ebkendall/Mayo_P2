@@ -35,7 +35,7 @@ if(dgm) {
                               50,   5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
     par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
-    par[par_index$init] = c(0, 0)
+    par[par_index$init] = c(-7, -7)
 } else {
     par_index = list()
     par_index$alpha = 1:8
@@ -51,7 +51,7 @@ if(dgm) {
                                5,  -5)
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
     par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
-    par[par_index$init] = c(0, 0)
+    par[par_index$init] = c(-7, -7)
     par[par_index$diag_G] = c(log(4), log(4), log(4), log(4))
 }
 

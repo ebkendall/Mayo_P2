@@ -307,10 +307,9 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
     }
 
-    // arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
-    // arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
-    // arma::vec init_prob = logit_prob / arma::accu(logit_prob);
-    arma::vec init_prob = {1.0, 0.0, 0.0};
+    arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
+    arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
+    arma::vec init_prob = logit_prob / arma::accu(logit_prob);
 
     arma::vec qz = exp(zeta);
     arma::mat Q = { {1, qz(0), 0}, {0, 1, qz(1)}, {qz(2), qz(3), 1}};
@@ -820,10 +819,9 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
     
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
     
-    // arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
-    // arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
-    // arma::vec init_prob = logit_prob / arma::accu(logit_prob);
-    arma::vec init_prob = {1.0, 0.0, 0.0};
+    arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
+    arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
+    arma::vec init_prob = logit_prob / arma::accu(logit_prob);
 
     arma::vec qz = exp(zeta);
     arma::mat Q = { {1, qz(0), 0}, {0, 1, qz(1)}, {qz(2), qz(3), 1}};
@@ -903,10 +901,9 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
         G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
     }
 
-    // arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
-    // arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
-    // arma::vec init_prob = logit_prob / arma::accu(logit_prob);
-    arma::vec init_prob = {1.0, 0.0, 0.0};
+    arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
+    arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
+    arma::vec init_prob = logit_prob / arma::accu(logit_prob);
 
     arma::vec qz = exp(zeta);
     arma::mat Q = { {1, qz(0), 0}, {0, 1, qz(1)}, {qz(2), qz(3), 1}};

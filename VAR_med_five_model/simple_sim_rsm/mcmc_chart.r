@@ -19,7 +19,7 @@ for(seed in index_seeds){
     it_seq = 1:it_num
     
     for(it in it_seq) {
-        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it,'.rda')
+        file_name = paste0('Model_out/mcmc_out_',seed, '_it_', it, '_', as.numeric(dgm), '.rda')
         if(file.exists(file_name)) {
             load(file_name)
             print(paste0(seed, ": ", file_name))

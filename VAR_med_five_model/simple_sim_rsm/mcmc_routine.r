@@ -25,14 +25,14 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                    c(par_index$alpha[c(2,5,8,11)]),
                    c(par_index$alpha[c(3,6,9,12)]),
                    c(par_index$zeta),
-                   c(par_index$diag_R))
-                   # c(par_index$init))
+                   c(par_index$diag_R),
+                   c(par_index$init))
     } else {
         mpi = list(c(par_index$alpha[c(1,3,5,7)]), 
                    c(par_index$alpha[c(2,4,6,8)]),
                    c(par_index$zeta),
                    c(par_index$diag_R),
-                   # c(par_index$init),
+                   c(par_index$init),
                    c(par_index$diag_G))    
     }
     
@@ -49,8 +49,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
     
     accept = rep( 0, n_group)
     
-    # # Initialize states to MLE state sequences ---------------------------------
-    # B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, dgm)
+    # Initialize states to MLE state sequences ---------------------------------
+    B = mle_state_seq(as.numeric(EIDs), par, par_index, y, ids, dgm)
     
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par 
@@ -78,10 +78,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
             gamma_i = gamma_i_sample(as.numeric(EIDs), par, par_index, B, y, ids, n_cores)
         }
 
-        # # Efficient state-sampler ----------------------------------------------
-        # sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        # B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, dgm, gamma_i)
-        # B = B_Dn
+        # Efficient state-sampler ----------------------------------------------
+        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        B_Dn = state_sampler(as.numeric(EIDs), par, par_index, B, y, ids, n_cores, sps, dgm, gamma_i)
+        B = B_Dn
 
         # Evaluate log-likelihood before MH step -------------------------------
         log_target_prev = log_post_cpp(as.numeric(EIDs), par, par_index, B,
