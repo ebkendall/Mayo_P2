@@ -66,6 +66,7 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
                                   -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                   -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 par[par_index$eta_omega] = rep(1, length(par_index$eta_omega))
+par[par_index$G] = c(diag(c(sqrt(3), sqrt(3), sqrt(3), sqrt(3))))
 
 n_state = 5
 
@@ -118,7 +119,6 @@ for(ii in 1:length(EIDs)){
     }
     
     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
-    B[[ii]][1,] = 0 # we don't care about the first state
 }
 # -----------------------------------------------------------------------------
 

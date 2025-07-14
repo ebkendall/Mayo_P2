@@ -110,8 +110,7 @@ df_num = as.numeric(args[1])
         for(j in 1:length(when_rbc)) {
             s_time = sub_dat[when_rbc[j], "time"]
             e_time_12 = s_time + 720
-            e_time_24 = s_time + 1440
-            RBC_diff_12 = RBC_diff_24 = 0
+            RBC_diff_12 = 0
             
             if (e_time_12 <= max_time) {
                 s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
@@ -122,45 +121,28 @@ df_num = as.numeric(args[1])
                 e_ind = order(abs(sub_dat[,"time"] - max_time))[1]
                 RBC_diff_12 = sub_dat[e_ind, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
             }
-            if (e_time_24 <= max_time) {
-                s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
-                ind_24 = order(abs(sub_dat[,"time"] - e_time_24))[1]
-                RBC_diff_24 = sub_dat[ind_24, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
-            } else {
-                s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
-                e_ind = order(abs(sub_dat[,"time"] - max_time))[1]
-                RBC_diff_24 = sub_dat[e_ind, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
-            }
             
-            if(RBC_diff_12 >=3 | RBC_diff_24 >= 6) {
+            if(RBC_diff_12 >=3) {
+                
                 admin_times = sub_dat[sub_dat[,"RBC_admin"] != 0, "time"]
-                if(RBC_diff_12 >=3) {
-                    a_t = which(admin_times >= s_time & admin_times < e_time_12)
-                    first_time = admin_times[a_t[1]]
-                    order_times = sub_dat[sub_dat[,"RBC_ordered"] != 0, "time"]
-                    if(sum(order_times <= first_time) == 0) {
-                        first_order_time = first_time
-                    } else {
-                        first_order_time = max(order_times[order_times <= first_time])   
-                    }
-                } else if (RBC_diff_24 >= 6) {
-                    a_t = which(admin_times >= s_time & admin_times < e_time_24)
-                    first_time = admin_times[a_t[1]]  
-                    order_times = sub_dat[sub_dat[,"RBC_ordered"] != 0, "time"]
-                    if(sum(order_times <= first_time) == 0) {
-                        first_order_time = first_time
-                    } else {
-                        first_order_time = max(order_times[order_times <= first_time])   
-                    }
+                
+                a_t = which(admin_times >= s_time & admin_times < e_time_12)
+                
+                # first_time = admin_times[a_t[1]]       # before first of three RBCs
+                first_time = admin_times[tail(a_t, 1)] # before last of three RBCs
+                
+                order_times = sub_dat[sub_dat[,"RBC_ordered"] != 0, "time"]
+                if(sum(order_times <= first_time) == 0) {
+                    first_order_time = first_time
+                } else {
+                    first_order_time = max(order_times[order_times <= first_time])   
                 }
                 
                 bleed_indicator[data_format[,"EID"] == bleed_pat[i] & 
                                     data_format[,"time"] == first_order_time] = 1
                 break
             }
-            
         }
-        
     }
     
     rm(data_format)
@@ -333,7 +315,8 @@ df_num = as.numeric(args[1])
             if(2 %in% b_i) {
                 first_bleed_ind = which(bleed_ind_i == 1)
                 sim_bleed_ind = which(b_i == 2)
-                if(2 %in% b_i[c(first_bleed_ind, first_bleed_ind - 1)]){
+                # Check if bleed occurred before the RBC times (like we'd expect)
+                if(2 %in% b_i[1:first_bleed_ind]){
                     correct_bleed = T
                     rbc_bleed_correct[length(rbc_bleed_correct)] = 1
                 } 
