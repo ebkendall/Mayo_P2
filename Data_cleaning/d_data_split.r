@@ -168,6 +168,14 @@ data_format = data_format[ind_icu_time, ]
 level_of_care_vec = level_of_care_vec[ind_icu_time]
 if(nrow(data_format) != length(level_of_care_vec)) print("error")
 
+# Remove sequential missingness at the beginning and end of the encounter ------
+EIDs_sub = unique(data_format[,"EID"])
+for(i in 1:length(EIDs_sub)) {
+    ind_i = which(data_format[,"EID"] == EIDs_sub[i])
+    hr_i = data_format[ind_i, "hr"]
+    map_i = data_format[ind_i, "map"]
+}
+
 # Selection of training patients -----------------------------------------------
 rbc_patients = unique(data_format[data_format[,"RBC_rule"] == 1,"EID"])
 
