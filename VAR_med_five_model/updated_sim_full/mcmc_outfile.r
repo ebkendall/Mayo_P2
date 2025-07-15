@@ -76,7 +76,7 @@ init_prob_mat = matrix(nrow = length(index_seeds), ncol = 5)
 c_s = 1
 for(seed in index_seeds) {
     load(paste0('Data/sim_data_', seed, '.rda'))
-    first_ind = c(0, which(diff(data_format[,"EID"]) != 0)) + 2
+    first_ind = c(0, which(diff(data_format[,"EID"]) != 0)) + 1
     init_state = data_format[first_ind, "b_true"]
     init_prob_mat[c_s, ] = c(sum(init_state == 1), sum(init_state == 2),
                              sum(init_state == 3), sum(init_state == 4), 
