@@ -33,7 +33,8 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                    c(par_index$zeta),
                    c(par_index$diag_R),
                    c(par_index$init),
-                   c(par_index$diag_G))    
+                   c(par_index$diag_G),
+                   c(par_index$g_tilde))
     }
     
     n_group = length(mpi)
@@ -73,7 +74,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
         }
         
         # Sample gamma_i's -----------------------------------------------------
-        gamma_i = matrix(0, nrow = 1, ncol = 1)
+        gamma_i = matrix(0, nrow = 1, ncol = 4)
         if(!dgm) {
             gamma_i = gamma_i_sample(as.numeric(EIDs), par, par_index, B, y, ids, n_cores)
         }
@@ -174,10 +175,10 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                         accept[j] = 0
 
                     } else if( accept[j] / (ttt %% 480) < .4 ){
-                        pscale[j] = (.5^2)*pscale[j]
+                        pscale[j] = (.75^2)*pscale[j]
 
                     } else if( accept[j] / (ttt %% 480) > .5 ){
-                        pscale[j] = (1.75^2)*pscale[j]
+                        pscale[j] = (1.25^2)*pscale[j]
                     }
                 }
             }

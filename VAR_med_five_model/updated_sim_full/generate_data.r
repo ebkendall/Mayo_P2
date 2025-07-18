@@ -75,8 +75,8 @@ df_num = as.numeric(args[1])
 
     # load('Data/data_format_train_large.rda')
     # load('Data/Dn_omega_large.rda')
-    load('Data/data_format_train.rda')
-    load('Data/Dn_omega.rda')
+    load('Data/data_format_train_miss.rda')
+    load('Data/Dn_omega_miss.rda')
     load('Data/Dn_omega_names.rda')
     
     EIDs = unique(data_format[,"EID"])
@@ -373,11 +373,11 @@ df_num = as.numeric(args[1])
     # Impose missingness like real data ----------------------------------------
     true_vitals = data_format[,c("hemo", "hr", "map", "lactate")]
     colnames(true_vitals) = c('hm_true', 'hr_true', 'mp_true', 'la_true')
-    # data_format[!otype[,"hemo"], "hemo"] = NA
+    data_format[!otype[,"hemo"], "hemo"] = NA
     # data_format[!otype[,"hr"], "hr"] = NA
     # data_format[!otype[,"map"], "map"] = NA
-    # data_format[!otype[,"lactate"], "lactate"] = NA
-    # data_format = cbind(data_format, true_vitals)
+    data_format[!otype[,"lactate"], "lactate"] = NA
+    data_format = cbind(data_format, true_vitals)
     
     # Print transition frequencies for the simulated data set ------------------
     nTrans_sim = matrix(0, nrow = n_state, ncol = n_state)

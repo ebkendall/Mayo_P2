@@ -19,7 +19,7 @@ if(simulation) {
     max_ind = 5
     if(max_ind > 5) {burnin = 0}
     
-    load('Data/data_format_train.rda')
+    load('Data/data_format_train_miss.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
 }
 
@@ -79,7 +79,7 @@ if(simulation) {
     Dn_omega = Dn_omega_sim
     b_chain = data_format[, "b_true"]
 } else {
-    load('Data/Dn_omega.rda')
+    load('Data/Dn_omega_miss.rda')
     bleed_indicator = b_ind_fnc(data_format)
     
     if(max_ind > 5) {
@@ -122,7 +122,7 @@ for(ii in 1:length(EIDs)){
 }
 # -----------------------------------------------------------------------------
 
-steps  = 10000
+steps  = 20000
 burnin =  5000
 
 s_time = Sys.time()

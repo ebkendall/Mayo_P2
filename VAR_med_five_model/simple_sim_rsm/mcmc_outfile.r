@@ -1,5 +1,5 @@
 index_seeds = c(1:100)
-it_num = 1
+it_num = 2
 
 dgm = F # fit the data generating model (dgm) or the approx. model
 

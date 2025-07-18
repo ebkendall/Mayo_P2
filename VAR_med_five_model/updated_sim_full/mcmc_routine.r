@@ -60,6 +60,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     if(sum(c(otype) == 0) > 0) {
         
         # There exists missing Y values
+        print("Missing Y values - initializing")
+        
         if(max_ind > 5) {
             # it5, samp 4: seed 4
             # it5, samp 5: seed 1
@@ -97,9 +99,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             B = Y_B_Dn_init[[2]]
             Dn_alpha = Y_B_Dn_init[[3]]
 
-            impute_its = 250
+            impute_its = 100
 
             for(i in 1:impute_its) {
+                
+                gamma_1 = update_gamma_i(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, n_cores)
+                
                 Y = impute_Y(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, 
                              gamma_1, otype, n_cores)
                 colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
@@ -107,6 +112,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             }
             
         }
+        
+        print("Done")
         
     } else {
         
@@ -295,7 +302,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             mcmc_end_t = Sys.time() - mcmc_start_t; print(mcmc_end_t)
 
             index_keep = seq(10, reset_step, by = 10)
-            # index_keep_2 = seq(2, chain_length_MASTER, by = 2)
+            index_keep_2 = seq(2, chain_length_MASTER, by = 2)
             
             if(simulation) {
                 if(impute_step) {
@@ -339,8 +346,10 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 
             B_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
-            # hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
-            # bp_chain = la_chain = matrix(NA, chain_length_MASTER, nrow(Y))
+            if(impute_step) {
+                hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y))
+                bp_chain = la_chain = matrix(NA, chain_length_MASTER, nrow(Y))    
+            }
         }
     }
     # ---------------------------------------------------------------------------

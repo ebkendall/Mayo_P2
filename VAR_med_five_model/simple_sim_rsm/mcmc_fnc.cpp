@@ -303,8 +303,10 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
     
     arma::mat G(R.n_rows, R.n_cols, arma::fill::zeros);
+    arma::vec g_tilde(gamma_i.n_cols, arma::fill::zeros);
     if(!dgm) {
         G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+        g_tilde = par.elem(par_index(5) - 1);
     }
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
@@ -351,7 +353,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                 
                 double log_g_val = 0.0;
                 if(!dgm) {
-                    arma::vec log_g_pdf = dmvnorm(alpha_i.row(0), y_i.row(jj).t(), G, true);
+                    arma::vec log_g_pdf = dmvnorm(alpha_i.row(0), g_tilde, G, true);
                     log_g_val = arma::as_scalar(log_g_pdf);
                 }
                 
@@ -402,6 +404,7 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
 
     // Prior densities
     arma::vec prior_mean;
+    arma::vec prior_var_diag(par.n_elem, arma::fill::value(100));
     if(dgm) {
         prior_mean = {50,  -5,   5, 100,  10, -10, 100, -10,  10, 50,   5,  -5,
                       -2, -2, -1.5, -1.5,
@@ -412,11 +415,13 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                       -2, -2, -1.5, -1.5,
                       0, 0, 0, 0,
                       0, 0,
-                      0, 0, 0, 0};
+                      0, 0, 0, 0,
+                      50, 100, 100, 50};
+        
+        arma::uvec re_indices = {22,23,24,25};
+        prior_var_diag.elem(re_indices) *= 100;
     }
 
-    arma::vec prior_var_diag(prior_mean.n_elem, arma::fill::ones);
-    prior_var_diag = 100 * prior_var_diag;
     arma::mat prior_var = arma::diagmat(prior_var_diag);
 
     arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_var, true);
@@ -828,6 +833,11 @@ arma::field<arma::vec> state_sampler(const arma::vec EIDs, const arma::vec &par,
 
     arma::vec q_row_sums = arma::sum(Q, 1);
     arma::mat P = Q.each_col() / q_row_sums;
+    
+    arma::mat G(R.n_rows, R.n_cols, arma::fill::zeros);
+    if(!dgm) {
+        G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
+    }
     // -------------------------------------------------------------------------
     
     omp_set_num_threads(n_cores);
@@ -996,6 +1006,8 @@ arma::mat gamma_i_sample(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_G = exp(par.elem(par_index(4) - 1));
     arma::mat G = arma::diagmat(vec_G); 
     arma::mat inv_G = arma::diagmat(1 / vec_G);
+    
+    arma::vec g_tilde = par.elem(par_index(5) - 1);
     // -------------------------------------------------------------------------
 
     arma::mat gamma_i(EIDs.n_elem, 4, arma::fill::zeros);
@@ -1030,7 +1042,7 @@ arma::mat gamma_i_sample(const arma::vec &EIDs, const arma::vec &par,
         arma::mat inv_W_i = inv_G + n_i * inv_R;
         arma::mat W_i = arma::inv_sympd(inv_W_i);
 
-        arma::vec V_i = (inv_R + inv_G) * y_i.row(0).t() + inv_R * hold1;
+        arma::vec V_i = inv_G * g_tilde + inv_R * y_i.row(0).t() + inv_R * hold1;
         
         arma::vec gamma_i_mu = W_i * V_i;
 
@@ -1041,16 +1053,21 @@ arma::mat gamma_i_sample(const arma::vec &EIDs, const arma::vec &par,
 }
 
 // [[Rcpp::export]]
-void test_fnc(const arma::vec &par,
-              const arma::field<arma::uvec> &par_index) {
+void test_fnc() {
     
-    arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    Rcpp::Rcout << R << std::endl;
+    arma::vec prior_mean;
+    arma::vec prior_var_diag(26, arma::fill::value(100));
     
-    arma::vec test = {1,2,3,4,5,6};
-    Rcpp::Rcout << test << std::endl;
-    test.subvec(1,2) = {0,0};
-    Rcpp::Rcout << test << std::endl;
+    prior_mean = {-5, 5, 10, -10, -10, 10, 5, -5,
+                  -2, -2, -1.5, -1.5,
+                  0, 0, 0, 0,
+                  0, 0,
+                  0, 0, 0, 0,
+                  50, 100, 100, 50};
+    
+    arma::uvec re_indices = {22,23,24,25};
+    prior_var_diag.elem(re_indices) *= 100;
+    Rcpp::Rcout << prior_var_diag << std::endl;
     
     // Rcpp::Rcout << "() -> () -> 1" << std::endl;
     // Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(0) << std::endl;

@@ -43,6 +43,8 @@ if(dgm) {
     par_index$diag_R = 13:16
     par_index$init = 17:18
     par_index$diag_G = 19:22
+    par_index$g_tilde = 23:26
+    
     
     par = rep(0, max(do.call('c', par_index)))
     par[par_index$alpha] = c( -5,   5,
@@ -52,7 +54,12 @@ if(dgm) {
     par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
     par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     par[par_index$init] = c(-7, -7)
-    par[par_index$diag_G] = c(log(4), log(4), log(4), log(4))
+    
+    first_time_ind = c(1, which(diff(ids) != 0) + 1)
+    y_first = y[first_time_ind, ]
+    diag(cov(y_first))
+    par[par_index$diag_G] = log(diag(cov(y_first)))
+    par[par_index$g_tilde] = colMeans(y_first)
 }
 
 n_state = 3
@@ -60,7 +67,6 @@ n_state = 3
 B = list()
 for(i in EIDs){
     B[[i]] = matrix(data_format[data_format[,"id"] == i,"state"], ncol = 1)
-    # B[[i]][1,] = 0 # we don't care about the first state
 }
 # -----------------------------------------------------------------------------
 

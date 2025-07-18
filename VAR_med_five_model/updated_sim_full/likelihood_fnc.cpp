@@ -1093,7 +1093,6 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     return par;
 }
 
-
 // [[Rcpp::export]]
 arma::vec update_alpha_tilde(const arma::vec &EIDs, arma::vec &par, 
                              const arma::field<arma::uvec> &par_index,
@@ -2330,7 +2329,7 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                             R(3,1) / (1 - vec_A(3) * vec_A(1)),
                             R(3,2) / (1 - vec_A(3) * vec_A(2)),
                             R(3,3) / (1 - vec_A(3) * vec_A(3))}};
-    arma::mat inv_gamma = arma::inv_sympd(Gamma);
+    arma::mat inv_gamma = arma::inv_sympd(gamma_var);
     
     arma::vec eids = Y.col(0);
     // -------------------------------------------------------------------------
@@ -2533,12 +2532,6 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
         
         arma::vec vec_alpha_i_no_base = A(ii);
         arma::mat alpha_i_no_base = arma::reshape(vec_alpha_i_no_base, 4, 4);
-        arma::mat alpha_i(5, 4, arma::fill::zeros);
-        alpha_i.row(0) = gamma_1.row(ii);
-        alpha_i.row(1) = alpha_i_no_base.row(0);
-        alpha_i.row(2) = alpha_i_no_base.row(1);
-        alpha_i.row(3) = alpha_i_no_base.row(2);
-        alpha_i.row(4) = alpha_i_no_base.row(3);
         
         int clinic_rule = clinic_rule_vec(sub_ind.min());
         arma::imat adj_mat_i;
@@ -2592,6 +2585,13 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
                 }
             }
         }
+        
+        arma::mat alpha_i(5, 4, arma::fill::zeros);
+        alpha_i.row(0) = Y_i_new.col(0).t();
+        alpha_i.row(1) = alpha_i_no_base.row(0);
+        alpha_i.row(2) = alpha_i_no_base.row(1);
+        alpha_i.row(3) = alpha_i_no_base.row(2);
+        alpha_i.row(4) = alpha_i_no_base.row(3);
         
         // STEP 2: Use HR and MAP to find "most likely state seq" --------------
         for(int k = 0; k < n_i; k++) {

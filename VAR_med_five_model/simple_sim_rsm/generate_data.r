@@ -16,7 +16,7 @@ par[par_index$zeta] = c(-2, -2, -1.5, -1.5)
 par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
 par[par_index$init] = c(0, 0)
 
-N = 1000
+N = 500
 n_state = 3
 
 # Defining parameter objects ---------------------------------------------------
@@ -50,13 +50,13 @@ seed_num = as.numeric(args[1])
 
     data_format = NULL
     for(i in 1:N) {
-        m_i = rpois(n = 1, lambda = 250)
-        n_i = rpois(n = 1, lambda = 200)
+        m_i = rpois(n = 1, lambda = 150)
+        n_i = rpois(n = 1, lambda = 100)
 
         # Ensure m_i >= n_i
         while(m_i < n_i) {
-            m_i = rpois(n = 1, lambda = 250)
-            n_i = rpois(n = 1, lambda = 200)
+            m_i = rpois(n = 1, lambda = 150)
+            n_i = rpois(n = 1, lambda = 100)
         }
 
         big_b_i = rep(NA, m_i)
