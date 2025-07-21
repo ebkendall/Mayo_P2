@@ -373,10 +373,10 @@ df_num = as.numeric(args[1])
     # Impose missingness like real data ----------------------------------------
     true_vitals = data_format[,c("hemo", "hr", "map", "lactate")]
     colnames(true_vitals) = c('hm_true', 'hr_true', 'mp_true', 'la_true')
-    data_format[!otype[,"hemo"], "hemo"] = NA
+    # data_format[!otype[,"hemo"], "hemo"] = NA
     # data_format[!otype[,"hr"], "hr"] = NA
     # data_format[!otype[,"map"], "map"] = NA
-    data_format[!otype[,"lactate"], "lactate"] = NA
+    # data_format[!otype[,"lactate"], "lactate"] = NA
     data_format = cbind(data_format, true_vitals)
     
     # Print transition frequencies for the simulated data set ------------------

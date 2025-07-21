@@ -1017,12 +1017,13 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
     
     int nu_ups = 20;
-    arma::vec scalar_ups = {4, 4, 1, 1, 
-                            4, 4, 1, 1, 
-                            4, 4, 1, 1, 
-                            4, 4, 1, 1};
-    scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
-    arma::mat psi_ups = arma::diagmat(scalar_ups);
+    arma::mat psi_ups(16, 16, arma::fill::eye);
+    // arma::vec scalar_ups = {4, 4, 1, 1, 
+    //                         4, 4, 1, 1, 
+    //                         4, 4, 1, 1, 
+    //                         4, 4, 1, 1};
+    // scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
+    // arma::mat psi_ups = arma::diagmat(scalar_ups);
     
     // -------------------------------------------------------------------------
 

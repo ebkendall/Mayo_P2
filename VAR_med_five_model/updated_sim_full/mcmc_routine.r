@@ -409,7 +409,6 @@ b_ind_fnc <- function(data_format) {
     return(bleed_indicator)
 }
 
-
 var_R_calc <- function(psi, nu, p) {
     var_mat = matrix(0, p, p)
     for(i in 1:p) {
