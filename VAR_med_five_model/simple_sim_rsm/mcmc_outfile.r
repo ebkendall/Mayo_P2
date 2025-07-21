@@ -35,7 +35,6 @@ if(dgm) {
     par_index$diag_R = 13:16
     par_index$init = 17:18
     par_index$diag_G = 19:22
-    par_index$g_tilde = 23:26
     
     true_par = rep(0, max(do.call('c', par_index)))
     true_par[par_index$alpha] = c( -5,   5,
@@ -46,7 +45,6 @@ if(dgm) {
     true_par[par_index$diag_R] = c(log(4), log(4), log(4), log(4))
     true_par[par_index$init] = c(0, 0)
     true_par[par_index$diag_G] = c(log(4), log(4), log(4), log(4))
-    true_par[par_index$g_tilde] = c(50, 100, 100, 50)
     
     labels = c("S2 slope y1", "S3 slope y1",  
                "S2 slope y2", "S3 slope y2",
@@ -56,13 +54,24 @@ if(dgm) {
                "logit baseline 3 -> 1", "logit baseline 3 -> 2",
                "log R(1,1)", "log R(2,2)", "log R(3,3)", "log R(4,4)",
                "logit init S2", "logit init S3", 
-               "log G(1,1)", "log G(2,2)", "log G(3,3)", "log G(4,4)",
-               "gammaTilde(1)", "gammaTilde(2)", "gammaTilde(3)", "gammaTilde(4)")
+               "log G(1,1)", "log G(2,2)", "log G(3,3)", "log G(4,4)")
 }
 
-init_par_est = c(1, 0, 0)
-true_par[par_index$init[1]] = log(init_par_est[2] / (1 - init_par_est[2] - init_par_est[3]))
-true_par[par_index$init[2]] = log(init_par_est[3] / (1 - init_par_est[2] - init_par_est[3]))
+# Estimate the initial state probabilities
+init_prob_mat = matrix(nrow = length(index_seeds), ncol = 3)
+c_s = 1
+for(seed in index_seeds) {
+    load(paste0('Data/data_format', seed, '.rda'))
+    first_ind = c(0, which(diff(data_format[,"id"]) != 0)) + 1
+    init_state = data_format[first_ind, "state"]
+    init_prob_mat[c_s, ] = c(sum(init_state == 1), sum(init_state == 2),
+                             sum(init_state == 3)) / length(init_state)
+    c_s = c_s + 1
+}
+
+init_par_est = colMeans(init_prob_mat)
+true_par[par_index$init[1]] = log(init_par_est[2] / (1 - sum(init_par_est[2:3])))
+true_par[par_index$init[2]] = log(init_par_est[3] / (1 - sum(init_par_est[2:3])))
 
 # -----------------------------------------------------------------------------
 # Create mcmc trace plots and histograms

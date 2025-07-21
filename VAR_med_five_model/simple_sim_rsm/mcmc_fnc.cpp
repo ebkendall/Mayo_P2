@@ -303,10 +303,8 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
     
     arma::mat G(R.n_rows, R.n_cols, arma::fill::zeros);
-    arma::vec g_tilde(gamma_i.n_cols, arma::fill::zeros);
     if(!dgm) {
         G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-        g_tilde = par.elem(par_index(5) - 1);
     }
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
@@ -340,7 +338,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
         if(dgm) {
             alpha_i = alpha_miss_y;
         } else {
-            alpha_i.row(0) = gamma_i.row(ii); 
+            alpha_i.row(0) = gamma_i.row(ii);
             alpha_i.row(1) = alpha_miss_y.row(0);
             alpha_i.row(2) = alpha_miss_y.row(1);    
         }
@@ -353,7 +351,7 @@ double log_f_i_cpp_total(const arma::vec &EIDs, const arma::vec &par,
                 
                 double log_g_val = 0.0;
                 if(!dgm) {
-                    arma::vec log_g_pdf = dmvnorm(alpha_i.row(0), g_tilde, G, true);
+                    arma::vec log_g_pdf = dmvnorm(alpha_i.row(0), y_i.row(jj).t(), G, true);
                     log_g_val = arma::as_scalar(log_g_pdf);
                 }
                 
@@ -404,7 +402,6 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
 
     // Prior densities
     arma::vec prior_mean;
-    arma::vec prior_var_diag(par.n_elem, arma::fill::value(100));
     if(dgm) {
         prior_mean = {50,  -5,   5, 100,  10, -10, 100, -10,  10, 50,   5,  -5,
                       -2, -2, -1.5, -1.5,
@@ -415,13 +412,10 @@ double log_post_cpp(const arma::vec &EIDs, const arma::vec &par,
                       -2, -2, -1.5, -1.5,
                       0, 0, 0, 0,
                       0, 0,
-                      0, 0, 0, 0,
-                      50, 100, 100, 50};
-        
-        arma::uvec re_indices = {22,23,24,25};
-        prior_var_diag.elem(re_indices) *= 100;
+                      0, 0, 0, 0};
     }
 
+    arma::vec prior_var_diag(par.n_elem, arma::fill::value(100));
     arma::mat prior_var = arma::diagmat(prior_var_diag);
 
     arma::vec prior_dens = dmvnorm(par.t(), prior_mean, prior_var, true);
@@ -905,11 +899,6 @@ arma::field<arma::vec> mle_state_seq(const arma::vec &EIDs, const arma::vec &par
     
     arma::vec zeta = par.elem(par_index(1) - 1);
     arma::mat R = arma::diagmat(exp(par.elem(par_index(2) - 1)));
-    
-    arma::mat G(R.n_rows, R.n_cols, arma::fill::zeros);
-    if(!dgm) {
-        G = arma::diagmat(exp(par.elem(par_index(4) - 1)));
-    }
 
     arma::vec lp_temp = exp(par.elem(par_index(3) - 1));
     arma::vec logit_prob = {1, lp_temp(0), lp_temp(1)};
@@ -1006,8 +995,6 @@ arma::mat gamma_i_sample(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_G = exp(par.elem(par_index(4) - 1));
     arma::mat G = arma::diagmat(vec_G); 
     arma::mat inv_G = arma::diagmat(1 / vec_G);
-    
-    arma::vec g_tilde = par.elem(par_index(5) - 1);
     // -------------------------------------------------------------------------
 
     arma::mat gamma_i(EIDs.n_elem, 4, arma::fill::zeros);
@@ -1042,7 +1029,7 @@ arma::mat gamma_i_sample(const arma::vec &EIDs, const arma::vec &par,
         arma::mat inv_W_i = inv_G + n_i * inv_R;
         arma::mat W_i = arma::inv_sympd(inv_W_i);
 
-        arma::vec V_i = inv_G * g_tilde + inv_R * y_i.row(0).t() + inv_R * hold1;
+        arma::vec V_i = (inv_R + inv_G) * y_i.row(0).t() + inv_R * hold1;
         
         arma::vec gamma_i_mu = W_i * V_i;
 

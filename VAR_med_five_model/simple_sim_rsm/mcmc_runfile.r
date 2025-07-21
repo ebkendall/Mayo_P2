@@ -43,8 +43,6 @@ if(dgm) {
     par_index$diag_R = 13:16
     par_index$init = 17:18
     par_index$diag_G = 19:22
-    par_index$g_tilde = 23:26
-    
     
     par = rep(0, max(do.call('c', par_index)))
     par[par_index$alpha] = c( -5,   5,
@@ -59,7 +57,6 @@ if(dgm) {
     y_first = y[first_time_ind, ]
     diag(cov(y_first))
     par[par_index$diag_G] = log(diag(cov(y_first)))
-    par[par_index$g_tilde] = colMeans(y_first)
 }
 
 n_state = 3

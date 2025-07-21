@@ -33,8 +33,7 @@ mcmc_routine = function(par, par_index, B, y, ids, steps, burnin, ind, dgm){
                    c(par_index$zeta),
                    c(par_index$diag_R),
                    c(par_index$init),
-                   c(par_index$diag_G),
-                   c(par_index$g_tilde))
+                   c(par_index$diag_G))
     }
     
     n_group = length(mpi)
