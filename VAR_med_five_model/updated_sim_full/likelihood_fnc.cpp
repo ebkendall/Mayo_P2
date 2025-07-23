@@ -593,7 +593,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_A_content = par.elem(par_index(3) - 1);
     arma::vec vec_A_mean(vec_A_content.n_elem, arma::fill::zeros);
     arma::vec scalar_A(vec_A_content.n_elem, arma::fill::ones);
-    scalar_A = 100 * scalar_A;
+    scalar_A = 25 * scalar_A;
     arma::mat A_var = arma::diagmat(scalar_A);
     
     arma::vec prior_A = dmvnorm(vec_A_content.t(), vec_A_mean, A_var, true);
@@ -601,9 +601,11 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Error-variance prior ----------------------------------------------------
     arma::vec vec_R_content = par.elem(par_index(4) - 1);
-    arma::vec vec_R_mean(vec_R_content.n_elem, arma::fill::zeros);
+    arma::vec vec_R_mean = {1.414214, 0, 0, 0, 
+                                   0, 2, 0, 0, 
+                                   0, 0, 2, 0, 
+                                   0, 0, 0, 1.414214};
     arma::vec scalar_R(vec_R_content.n_elem, arma::fill::ones);
-    scalar_R = 100 * scalar_R;
     arma::mat R_var = arma::diagmat(scalar_R);
     
     arma::vec prior_R = dmvnorm(vec_R_content.t(), vec_R_mean, R_var, true);
@@ -611,11 +613,11 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Zeta prior --------------------------------------------------------------
     arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
-    arma::vec vec_zeta_mean = {-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
-                               -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
-                               -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1};
+    arma::vec vec_zeta_mean = {-7.2405, 2.5, -5.2152,   1, -2.6473,  -1, -5.1475,  -1, 
+                               -9.4459,  -1, -7.2404, 2.5, -5.2151,   1, -7.1778, 2.5, 
+                               -2.6523,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   1};
     arma::vec scalar_zeta(vec_zeta_mean.n_elem, arma::fill::ones);
-    scalar_zeta = 100 * scalar_zeta;
+    scalar_zeta = 4 * scalar_zeta;
     arma::mat zeta_var = arma::diagmat(scalar_zeta);
     
     arma::vec prior_zeta = dmvnorm(vec_zeta_content.t(), vec_zeta_mean, zeta_var, true);
@@ -635,7 +637,6 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_up_omega_content = par.elem(par_index(8) - 1);
     arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::zeros);
     arma::vec scalar_omega(vec_up_omega_content.n_elem, arma::fill::ones);
-    scalar_omega = 100 * scalar_omega;
     arma::mat omega_var = arma::diagmat(scalar_omega);
     
     arma::vec prior_omega = dmvnorm(vec_up_omega_content.t(), omega_mean, omega_var, true);
@@ -643,9 +644,11 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Gamma RE variance prior -------------------------------------------------
     arma::vec vec_G_content = par.elem(par_index(9) - 1);
-    arma::vec vec_G_mean(vec_G_content.n_elem, arma::fill::zeros);
+    arma::vec vec_G_mean = {1.414214, 0, 0, 0, 
+                                   0, 2, 0, 0, 
+                                   0, 0, 2, 0, 
+                                   0, 0, 0, 1.414214};
     arma::vec scalar_G(vec_G_content.n_elem, arma::fill::ones);
-    scalar_G = 100 * scalar_G;
     arma::mat G_var = arma::diagmat(scalar_G);
     
     arma::vec prior_G = dmvnorm(vec_G_content.t(), vec_G_mean, G_var, true);
@@ -1013,17 +1016,17 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     
     // Priors ------------------------------------------------------------------
     arma::vec vec_beta_0 = {0.25, -2, 2, -0.25};
-    arma::vec scalar_beta = {1, 0.01, 0.01, 0.01};
+    arma::vec scalar_beta = {1, 0.0625, 0.0625, 0.0625};
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
     
     int nu_ups = 20;
-    arma::mat psi_ups(16, 16, arma::fill::eye);
-    // arma::vec scalar_ups = {4, 4, 1, 1, 
-    //                         4, 4, 1, 1, 
-    //                         4, 4, 1, 1, 
-    //                         4, 4, 1, 1};
-    // scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
-    // arma::mat psi_ups = arma::diagmat(scalar_ups);
+    // arma::mat psi_ups(16, 16, arma::fill::eye);
+    arma::vec scalar_ups = {0.25, 0.25,  4,  4,
+                            2.25, 2.25, 25, 25,
+                            2.25, 2.25, 25, 25,
+                            0.25, 0.25,  4,  4};
+    scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
+    arma::mat psi_ups = arma::diagmat(scalar_ups);
     
     // -------------------------------------------------------------------------
 
@@ -1110,9 +1113,14 @@ arma::vec update_alpha_tilde(const arma::vec &EIDs, arma::vec &par,
     arma::mat inv_ups_alpha = arma::inv_sympd(upsilon_alpha);
     
     // Priors ------------------------------------------------------------------
-    arma::vec alpha_0(par_index(1).n_elem, arma::fill::zeros);
-    arma::vec inv_sigma_alpha_diag(alpha_0.n_elem, arma::fill::ones);
-    inv_sigma_alpha_diag = 0.01 * inv_sigma_alpha_diag;
+    arma::vec alpha_0 = {-1,  1, 0, 0,
+                          7, -7, 0, 0,
+                         -7,  7, 0, 0,
+                          1, -1, 0, 0};
+    arma::vec inv_sigma_alpha_diag = {   4,    4,     0.25,     0.25,
+                                      0.25, 0.25, 0.015625, 0.015625,
+                                      0.25, 0.25, 0.015625, 0.015625,
+                                         4,    4,     0.25,     0.25};
     arma::mat inv_sigma_alpha = arma::diagmat(inv_sigma_alpha_diag);
     
     // -------------------------------------------------------------------------
@@ -1158,7 +1166,6 @@ arma::vec update_omega_tilde(const arma::vec &EIDs, arma::vec &par,
     omega_0 = 2 * omega_0;
     
     arma::vec inv_sigma_omega_diag(omega_0.n_elem, arma::fill::ones);
-    inv_sigma_omega_diag = 0.01 * inv_sigma_omega_diag;
     arma::mat inv_sigma_omega = arma::diagmat(inv_sigma_omega_diag);
     
     // -------------------------------------------------------------------------
