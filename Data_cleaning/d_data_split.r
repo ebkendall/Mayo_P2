@@ -5,6 +5,8 @@ load('Data/cov_info.rda')
 
 EIDs = unique(data_format[,"EID"])
 
+final_train_size = 1000
+
 # ------------------------------------------------------------------------------
 # FINAL FORMATTING TO DETERMINE TRAINING SET -----------------------------------
 # ------------------------------------------------------------------------------
@@ -60,21 +62,28 @@ level_of_care_vec = level_of_care_vec[ind_ICU]
 if(nrow(data_format) != length(level_of_care_vec)) print("error")
 EIDs_sub = unique(data_format[,"EID"])
 
-# Choose subjects with >= 50% HR and MAP measurements --------------------------
-enough_dat = rep(0, length(EIDs_sub))
+# Choose subjects with very few missing HR and MAP measurements ----------------
+hr_map_obs_ratios = matrix(nrow = length(EIDs_sub), ncol = 2)
 for(i in 1:length(EIDs_sub)) {
     if(i %% 100 == 0) print(i)
     sub_df = data_format[data_format[,"EID"] == EIDs_sub[i], ]
     
     hr_ratio = sum(!is.na(sub_df[,"hr"])) / nrow(sub_df)
     map_ratio = sum(!is.na(sub_df[,"map"])) / nrow(sub_df)
-
-    if(hr_ratio >= 0.5 & map_ratio >= 0.5) {
-        enough_dat[i] = 1
-    }
+    
+    hr_map_obs_ratios[i,] = c(hr_ratio, map_ratio)
 }
 
-EIDs_sub = EIDs_sub[enough_dat == 1]
+avg_obs_ratio = apply(hr_map_obs_ratios, 1, mean)
+hr_map_obs_ratios = cbind(hr_map_obs_ratios, avg_obs_ratio)
+hr_map_obs_ratios = cbind(EIDs_sub, hr_map_obs_ratios)
+colnames(hr_map_obs_ratios) = c("EID", "hr", "map", "avg")
+hr_map_obs_ratios = hr_map_obs_ratios[order(hr_map_obs_ratios[,"avg"], decreasing = T),]
+
+enough_dat = which(hr_map_obs_ratios[,"hr"] >= 0.9 & hr_map_obs_ratios[,"map"] >= 0.9)
+EID_enough_dat = hr_map_obs_ratios[enough_dat, "EID"]
+
+EIDs_sub = sort(EID_enough_dat)
 
 ind_dat = which(data_format[,"EID"] %in% EIDs_sub)
 data_format = data_format[ind_dat, ]
@@ -116,8 +125,7 @@ for(i in 1:length(bleed_pat)) {
     for(j in 1:length(when_rbc)) {
         s_time = sub_dat[when_rbc[j], "time"]
         e_time_12 = s_time + 720
-        e_time_24 = s_time + 1440
-        RBC_diff_12 = RBC_diff_24 = 0
+        RBC_diff_12 = 0
 
         if (e_time_12 <= max_time) {
             s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
@@ -128,17 +136,8 @@ for(i in 1:length(bleed_pat)) {
             e_ind = order(abs(sub_dat[,"time"] - max_time))[1]
             RBC_diff_12 = sub_dat[e_ind, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
         }
-        if (e_time_24 <= max_time) {
-            s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
-            ind_24 = order(abs(sub_dat[,"time"] - e_time_24))[1]
-            RBC_diff_24 = sub_dat[ind_24, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
-        } else {
-            s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
-            e_ind = order(abs(sub_dat[,"time"] - max_time))[1]
-            RBC_diff_24 = sub_dat[e_ind, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
-        }
 
-        if(RBC_diff_12 >=3 | RBC_diff_24 >= 6) {
+        if(RBC_diff_12 >=3) {
             data_format[data_format[,"EID"] == bleed_pat[i], "RBC_rule"] = 1
             break
         }
@@ -168,13 +167,7 @@ data_format = data_format[ind_icu_time, ]
 level_of_care_vec = level_of_care_vec[ind_icu_time]
 if(nrow(data_format) != length(level_of_care_vec)) print("error")
 
-# Remove sequential missingness at the beginning and end of the encounter ------
-EIDs_sub = unique(data_format[,"EID"])
-for(i in 1:length(EIDs_sub)) {
-    ind_i = which(data_format[,"EID"] == EIDs_sub[i])
-    hr_i = data_format[ind_i, "hr"]
-    map_i = data_format[ind_i, "map"]
-}
+print(paste0("Final count of all training data = ", length(EIDs_sub)))
 
 # Selection of training patients -----------------------------------------------
 rbc_patients = unique(data_format[data_format[,"RBC_rule"] == 1,"EID"])
@@ -190,7 +183,7 @@ TEST_SET = c(sample(clinical_patients[clinical_patients %in% clinical_id_no],
                   size = 2, replace = F),
              sample(clinical_patients[clinical_patients %in% clinical_id_yes], 
                     size = 3, replace = F))
-save(TEST_SET, file = "Data/TEST_SET.rda")
+save(TEST_SET, file = "Data/TEST_SET_update.rda")
 
 clinical_patients = clinical_patients[!(clinical_patients %in% TEST_SET)]
 rbc_patients = rbc_patients[!(rbc_patients %in% TEST_SET)]
@@ -200,7 +193,6 @@ remaining_ids = EIDs_sub[!(EIDs_sub %in% c(rbc_clinic_both, TEST_SET))]
 print(paste0("Number of possible subjects: ", length(remaining_ids)))
 
 set.seed(2025)
-final_train_size = 1000
 EIDs_FINAL = c(rbc_clinic_both, sample(remaining_ids, size = final_train_size - length(rbc_clinic_both),
                       replace = F))
 EIDs_FINAL = sort(EIDs_FINAL)
@@ -210,9 +202,9 @@ if(sum(TEST_SET %in% EIDs_FINAL) != 0) print("ERROR: TEST IDs are in TRAIN IDs")
 
 data_format = data_format[data_format[,"EID"] %in% EIDs_FINAL, ]
 if(final_train_size == 500) {
-    save(data_format, file = "Data/data_format_train.rda")
+    save(data_format, file = "Data/data_format_train_update.rda")
 } else {
-    save(data_format, file = "Data/data_format_train_large.rda")
+    save(data_format, file = "Data/data_format_train_update_large.rda")
 }
 
 # ------------------------------------------------------------------------------
@@ -314,9 +306,9 @@ for(i in 1:length(Dn_omega)) {
     }
 }
 if(final_train_size == 500) {
-    save(Dn_omega, file = paste0('Data/Dn_omega.rda'))
+    save(Dn_omega, file = paste0('Data/Dn_omega_update.rda'))
 } else {
-    save(Dn_omega, file = paste0('Data/Dn_omega_large.rda'))
+    save(Dn_omega, file = paste0('Data/Dn_omega_update_large.rda'))
 }
 
 
@@ -373,3 +365,19 @@ cat(mean_dn_omega, sep = ',')
 # -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
 # -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
 # -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1
+
+# 500 subject "Final count of all training data = 1516"
+# "Number of possible subjects: 1441"
+# -1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+# -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+# -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+# -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1
+
+# 1000 subject "Final count of all training data = 1516"
+# "Number of possible subjects: 1441"
+# -1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+# -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+# -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+# -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1
+
+

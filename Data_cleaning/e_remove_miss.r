@@ -82,6 +82,44 @@ for(df_name in 1:2) {
         new_Dn_omega[[ii]] = Dn_omega[[ii]][index_keep]
     }
     
+    # Redo RBC rule ------------------------------------------------------------
+    og_rbc_rule = unique(new_data_format[new_data_format[,"RBC_rule"] == 1, "EID"])
+    new_data_format[,"RBC_rule"] = 0
+    
+    bleed_pat = unique(new_data_format[new_data_format[,"n_RBC_admin"] >= 3, "EID"])
+    
+    # Adding the rule that a patient is bleeding if >= 3 in 12hrs or >= 6 in 24hrs
+    for(i in 1:length(bleed_pat)) {
+        sub_dat = new_data_format[new_data_format[,"EID"] == bleed_pat[i], ]
+        
+        # Check in any 12 hour period
+        max_time = tail(sub_dat[,"time"], 1)
+        when_rbc = c(1, which(diff(sub_dat[,"n_RBC_admin"]) != 0))
+        
+        for(j in 1:length(when_rbc)) {
+            s_time = sub_dat[when_rbc[j], "time"]
+            e_time_12 = s_time + 720
+            RBC_diff_12 = 0
+            
+            if (e_time_12 <= max_time) {
+                s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
+                ind_12 = order(abs(sub_dat[,"time"] - e_time_12))[1]
+                RBC_diff_12 = sub_dat[ind_12, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
+            } else {
+                s_ind = order(abs(sub_dat[,"time"] - s_time))[1]
+                e_ind = order(abs(sub_dat[,"time"] - max_time))[1]
+                RBC_diff_12 = sub_dat[e_ind, "n_RBC_admin"] - sub_dat[s_ind, "n_RBC_admin"]
+            }
+            
+            if(RBC_diff_12 >=3) {
+                new_data_format[new_data_format[,"EID"] == bleed_pat[i], "RBC_rule"] = 1
+                break
+            }
+        }
+    }
+    
+    new_rbc_rule = unique(new_data_format[new_data_format[,"RBC_rule"] == 1, "EID"])
+    
     data_format = new_data_format
     Dn_omega = new_Dn_omega
     

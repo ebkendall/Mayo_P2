@@ -317,10 +317,10 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 } else {
                     mcmc_out = list(chain    = chain[index_keep,], 
                                     B_chain  = B_chain, 
-                                    hc_chain = Y[,'hemo'],
-                                    hr_chain = Y[,'hr'], 
-                                    bp_chain = Y[,'map'], 
-                                    la_chain = Y[,'lactate'], 
+                                    hc_chain = matrix(Y[,'hemo'], nrow = 1),
+                                    hr_chain = matrix(Y[,'hr'], nrow = 1), 
+                                    bp_chain = matrix(Y[,'map'], nrow = 1), 
+                                    la_chain = matrix(Y[,'lactate'], nrow = 1), 
                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                     pscale=pscale, pcov = pcov, par_index=par_index)
                 }

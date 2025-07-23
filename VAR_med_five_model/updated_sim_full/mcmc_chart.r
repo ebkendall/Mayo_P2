@@ -5,7 +5,7 @@ index_seeds = 1:5
 trialNum = 1
 it_num = 1
 S = 5
-simulation = F
+simulation = T
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -56,10 +56,18 @@ for(seed in index_seeds){
                 ind = ind + 1
                 
                 B_chain = mcmc_out$B_chain[250:500, ]
-                Hr_chain  = mcmc_out$hr_chain[250:500, ]
-                Map_chain = mcmc_out$bp_chain[250:500, ]
-                Hc_chain  = mcmc_out$hc_chain[250:500, ]
-                La_chain  = mcmc_out$la_chain[250:500, ]
+
+                if(length(c(mcmc_out$hr_chain)) > ncol(B_chain)) {
+                    Hr_chain  = mcmc_out$hr_chain[250:500, ]
+                    Map_chain = mcmc_out$bp_chain[250:500, ]
+                    Hc_chain  = mcmc_out$hc_chain[250:500, ]
+                    La_chain  = mcmc_out$la_chain[250:500, ]
+                } else {
+                    Hr_chain  = matrix(mcmc_out$hr_chain, nrow = 1)
+                    Map_chain = matrix(mcmc_out$bp_chain, nrow = 1)
+                    Hc_chain  = matrix(mcmc_out$hc_chain, nrow = 1)
+                    La_chain  = matrix(mcmc_out$la_chain, nrow = 1)
+                }
             } else {
                 B_chain = rbind(B_chain, mcmc_out$B_chain)
                 Hr_chain  = rbind(Hr_chain, mcmc_out$hr_chain)
