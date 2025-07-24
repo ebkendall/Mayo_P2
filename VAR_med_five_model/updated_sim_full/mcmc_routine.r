@@ -16,7 +16,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8 
+    n_cores = 10
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -92,25 +92,14 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         } else {
             
             vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
-            Y_B_Dn_init = initialize_Y(EIDs, par, par_index, A, W, Y, z, Dn_omega, 
-                                       Xn, otype, n_cores, vital_means)
+            Y_init = initialize_Y(EIDs, par, par_index, A, W, Y, z, Dn_omega, 
+                                  Xn, otype, n_cores, vital_means)
 
-            Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_B_Dn_init[[1]]
-            B = Y_B_Dn_init[[2]]
-            Dn_alpha = Y_B_Dn_init[[3]]
-
-            impute_its = 100
-
-            for(i in 1:impute_its) {
-                
-                gamma_1 = update_gamma_i(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, n_cores)
-                
-                Y = impute_Y(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, 
-                             gamma_1, otype, n_cores)
-                colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
-                                'RBC_rule', 'clinic_rule')
-            }
+            Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_init
             
+            B_Dn = mle_state_seq(EIDs, par, par_index, A, W, Y, z, Dn_omega, Xn, n_cores)
+            B = B_Dn[[1]]
+            Dn_alpha = B_Dn[[2]]
         }
         
         print("Done")

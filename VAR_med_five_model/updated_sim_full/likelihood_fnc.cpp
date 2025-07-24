@@ -2452,14 +2452,14 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 }
 
 // [[Rcpp::export]]
-Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par, 
-                        const arma::field<arma::uvec> &par_index, 
-                        const arma::field <arma::vec> &A,
-                        const arma::field <arma::vec> &W, 
-                        arma::mat &Y, const arma::mat &z,
-                        const arma::field<arma::field<arma::mat>> &Dn_omega,
-                        const arma::field<arma::field<arma::mat>> &Xn,
-                        const arma::mat &otype, int n_cores, arma::vec vital_means) {
+arma::mat initialize_Y(const arma::vec &EIDs, const arma::vec &par, 
+                       const arma::field<arma::uvec> &par_index, 
+                       const arma::field <arma::vec> &A,
+                       const arma::field <arma::vec> &W, 
+                       arma::mat &Y, const arma::mat &z,
+                       const arma::field<arma::field<arma::mat>> &Dn_omega,
+                       const arma::field<arma::field<arma::mat>> &Xn,
+                       const arma::mat &otype, int n_cores, arma::vec vital_means) {
     
     // par_index: (0) beta, (1) alpha_tilde, (2) upsilon, (3) A, (4) R, (5) zeta, 
     //            (6) init, (7) omega_tilde, (8) eta_omega, (9) G
@@ -2513,8 +2513,6 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
     
-    arma::field<arma::vec> B_return(EIDs.n_elem);
-    arma::field<arma::field<arma::mat>> Dn_return(EIDs.n_elem);
     arma::mat newY(Y.n_rows, 4); 
     
     omp_set_num_threads(n_cores);
@@ -2594,145 +2592,10 @@ Rcpp::List initialize_Y(const arma::vec &EIDs, const arma::vec &par,
             }
         }
         
-        arma::mat alpha_i(5, 4, arma::fill::zeros);
-        alpha_i.row(0) = Y_i_new.col(0).t();
-        alpha_i.row(1) = alpha_i_no_base.row(0);
-        alpha_i.row(2) = alpha_i_no_base.row(1);
-        alpha_i.row(3) = alpha_i_no_base.row(2);
-        alpha_i.row(4) = alpha_i_no_base.row(3);
-        
-        // STEP 2: Use HR and MAP to find "most likely state seq" --------------
-        for(int k = 0; k < n_i; k++) {
-
-            // Shared information across k ------------
-            arma::mat X_beta = X_i(k);
-            arma::mat X_beta_1(X_beta.n_rows, X_beta.n_cols, arma::fill::zeros);
-            arma::mat D_omega = D_omega_i(k);
-            arma::mat D_omega_1(D_omega.n_rows, D_omega.n_cols, arma::fill::zeros);
-
-            if(k == 0) {
-                
-                arma::vec init_vals = P_init;
-                
-                int selected_state;
-                if(clinic_rule < 0) {
-                    arma::vec poss_states = {1,4,5};
-                    init_vals = {init_vals(0), init_vals(3), init_vals(4)};
-                    
-                    init_vals = init_vals / arma::accu(init_vals);
-                    
-                    arma::vec select_state_vec = RcppArmadillo::sample(poss_states, 1, false, init_vals);
-                    
-                    selected_state = select_state_vec(0);
-                } else {
-                    arma::vec poss_states = {1,2,3,4,5};
-                    arma::vec select_state_vec = RcppArmadillo::sample(poss_states, 1, false, init_vals);
-                    
-                    selected_state = select_state_vec(0);
-                } 
-                
-                b_i(k) = selected_state;
-
-            } else {
-                arma::mat P_i = get_P_i(k, z_i, zeta);
-
-                // All other states --------------------------------------------
-                int prev_state = b_i(k-1);
-                arma::vec poss_next_state(arma::accu(adj_mat_i.row(prev_state-1)), arma::fill::zeros);
-                arma::vec poss_state_like(arma::accu(adj_mat_i.row(prev_state-1)), arma::fill::zeros);
-
-                int w_ind = 0;
-                for(int jj = 0; jj < adj_mat_i.n_cols; jj++) {
-                    if(adj_mat_i(prev_state-1, jj) != 0) {
-
-                        b_i(k) = jj + 1;
-
-                        arma::vec b_sub = b_i.subvec(1, k); // start = 1
-
-                        arma::vec twos(b_sub.n_elem, arma::fill::zeros);
-                        arma::vec threes(b_sub.n_elem, arma::fill::zeros);
-                        arma::vec fours(b_sub.n_elem, arma::fill::zeros);
-                        arma::vec fives(b_sub.n_elem, arma::fill::zeros);
-                        twos.elem(arma::find(b_sub == 2)) += 1;
-                        threes.elem(arma::find(b_sub == 3)) += 1;
-                        fours.elem(arma::find(b_sub == 4)) += 1;
-                        fives.elem(arma::find(b_sub == 5)) += 1;
-
-                        arma::vec g_plus_a = alpha_i.row(0).t() +
-                            arma::accu(twos)   * alpha_i.row(1).t() +
-                            arma::accu(threes) * alpha_i.row(2).t() +
-                            arma::accu(fours)  * alpha_i.row(3).t() +
-                            arma::accu(fives)  * alpha_i.row(4).t();
-
-                        arma::vec g_plus_a_1;
-                        if(k == 1) {
-                            g_plus_a_1 = alpha_i.row(0).t();
-                        } else {
-                            g_plus_a_1 = alpha_i.row(0).t() +
-                                arma::accu(twos.subvec(0,k-2))   * alpha_i.row(1).t() +
-                                arma::accu(threes.subvec(0,k-2)) * alpha_i.row(2).t() +
-                                arma::accu(fours.subvec(0,k-2))  * alpha_i.row(3).t() +
-                                arma::accu(fives.subvec(0,k-2))  * alpha_i.row(4).t();
-                        }
-
-                        arma::vec nu_k = g_plus_a + D_omega_i(k)*vec_omega_i + X_i(k)*vec_beta;
-                        arma::vec nu_k_1 = g_plus_a_1 + D_omega_i(k-1)*vec_omega_i + X_i(k-1)*vec_beta;
-
-                        arma::vec mean_b = nu_k + A_1 * (Y_i.col(k-1) - nu_k_1);
-
-                        // Only use HR and MAP because mostly all observed
-                        arma::vec mean_b_sub = mean_b.subvec(1,2);
-                        arma::vec y_k_sub = Y_i.col(k).subvec(1,2);
-                        arma::mat R_sub = R.submat(1,1,2,2);
-                        
-                        arma::vec log_y_pdf = dmvnorm(y_k_sub.t(), mean_b_sub, R_sub, true);
-
-                        poss_next_state(w_ind) = jj + 1;
-                        poss_state_like(w_ind) = log(P_i(prev_state-1, jj)) + arma::as_scalar(log_y_pdf);
-
-                        w_ind += 1;
-                    }
-                }
-
-                b_i(k) = poss_next_state(poss_state_like.index_max());
-            }
-        }
-
-        // Format the Dn_alpha list --------------------------------------------
-        arma::field<arma::mat> Dn_temp(n_i);
-        arma::vec twos(b_i.n_elem, arma::fill::zeros);
-        arma::vec threes = twos; 
-        arma::vec fours = twos;
-        arma::vec fives = twos;
-        
-        twos.elem(arma::find(b_i == 2)) += 1;
-        threes.elem(arma::find(b_i == 3)) += 1;
-        fours.elem(arma::find(b_i == 4)) += 1;
-        fives.elem(arma::find(b_i == 5)) += 1;
-        twos(0) = 0; threes(0) = 0; fours(0) = 0; fives(0) = 0;
-        
-        arma::mat bigB = arma::join_rows(arma::cumsum(twos), arma::cumsum(threes));
-        bigB = arma::join_rows(bigB, arma::cumsum(fours));
-        bigB = arma::join_rows(bigB, arma::cumsum(fives));
-        
-        arma::mat I = arma::eye(4,4);
-        for(int jj = 0; jj < n_i; jj++) {
-            // Guarantee Dn(0) = 0
-            if(jj == 0) {
-                arma::mat zero_jj(1, bigB.n_cols, arma::fill::zeros);
-                Dn_temp(jj) = arma::kron(I, zero_jj);
-            } else {
-                Dn_temp(jj) = arma::kron(I, bigB.row(jj));    
-            }
-        }
-
-        B_return(ii) = b_i;
-        Dn_return(ii) = Dn_temp;
         newY.rows(sub_ind) = Y_i_new.t();
     }
     
-    List Y_B_Dn = List::create(newY, B_return, Dn_return);
-    return Y_B_Dn;
+    return newY;
 }
 
 // [[Rcpp::export]]
