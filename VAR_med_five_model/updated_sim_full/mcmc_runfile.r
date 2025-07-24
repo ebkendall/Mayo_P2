@@ -80,7 +80,7 @@ if(simulation) {
                                       2.25, 2.25, 25, 25,
                                       0.25, 0.25,  4,  4)))
     par[par_index$A] = rep(0, 4)
-    par[par_index$R] = c(diag(c(1.414214, 2, 2, 1.414214)))
+    par[par_index$R] = c(diag(c(4, 16, 16, 4)))
     #    transitions:          1->2,         1->4,         2->3,         2->4, 
     #                          3->1,         3->2,         3->4,         4->2, 
     #                          4->5,         5->1,         5->2,         5->4
@@ -96,7 +96,7 @@ if(simulation) {
                                       -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                       -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
     par[par_index$eta_omega] = rep(1, length(par_index$eta_omega))
-    par[par_index$G] = c(diag(c(sqrt(3), sqrt(3), sqrt(3), sqrt(3))))    
+    par[par_index$G] = c(diag(c(8, 32, 32, 8)))
 }
 
 n_state = 5

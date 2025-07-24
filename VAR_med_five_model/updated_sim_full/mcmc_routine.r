@@ -44,8 +44,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                c(par_index$A),
                c(par_index$eta_omega[c(1:16, 35:56)]),  # continuous
                c(par_index$eta_omega[c(17:34, 57:84)]), # discrete
-               c(par_index$R),
-               c(par_index$G))
+               c(par_index$R))
 
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -177,11 +176,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # Gibbs: omega_i -------------------------------------------------------
         W = update_omega_i(EIDs, par, par_index, A, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
         
-        # Gibbs: alpha~, omega~, beta, & Upsilon -------------------------------
+        # Gibbs: alpha~, omega~, beta, Upsilon, and G --------------------------
         par = update_alpha_tilde(EIDs, par, par_index, A, Y)
         par = update_omega_tilde(EIDs, par, par_index, W, Y)
         par = update_beta_upsilon(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega,
                                   Xn, gamma_1, n_cores)
+        par = update_G(EIDs, par, par_index, W, Y, Dn_omega, Xn, gamma_1, n_cores)
 
         # Store current parameter updates --------------------------------------
         chain[chain_ttt,] = par
@@ -199,70 +199,124 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
 
             ind_j = mpi[[j]]
             proposal = par
-            proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-                                       sigma=pscale[[j]]*pcov[[j]])
             
-            # Evaluate proposed log-likelihood -----------------------------
-            log_target = log_post(EIDs, proposal, par_index, B, A, W, Y, z, Dn_alpha, 
-                                  Dn_omega, Xn, gamma_1, n_cores)
-            
-            if(ttt < burnin){
-                while(!is.finite(log_target)){
-                    print('bad proposal')
-                    proposal = par
-                    proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
-                                               sigma=pcov[[j]]*pscale[j])
-                    
-                    log_target = log_post(EIDs, proposal, par_index, B, A, W, Y, z, Dn_alpha, 
-                                          Dn_omega, Xn, gamma_1, n_cores)
-                }
-            }
-            
-            if(!is.finite(log_target) | is.nan(log_target)) {
-                # Ensuring that we do not have problems from C++
-                print(paste0("bad proposal post burnin: ", log_target))
-                log_target = -Inf
-            }
-            
-            # Compute Metropolis ratio -------------------------------------
-            if( log_target - log_target_prev > log(runif(1,0,1)) ){
-                log_target_prev = log_target
-                par[ind_j] = proposal[ind_j]
-                accept[j] = accept[j] +1
-            }
-            
-            chain[chain_ttt,ind_j] = par[ind_j]
-            
-            # Proposal tuning scheme ---------------------------------------
-            # During the burnin period, update the proposal covariance
-            # to capture the relationships within the parameter vectors.
-            # This helps with mixing.
-            if(ttt < burnin){
-                if(chain_ttt == 100)  pscale[j] = 1
+            # MH update: init, zeta, A, eta ------------------------------------
+            if(sum(ind_j %in% par_index$R) == 0) {
                 
-                if(100 <= chain_ttt & chain_ttt <= 2000){
-                    temp_chain = chain[1:chain_ttt,ind_j]
-                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-                    
-                } else if(2000 < chain_ttt){
-                    temp_chain = chain[(chain_ttt-2000):chain_ttt,ind_j]
-                    pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
-                }
-                if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
+                proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                           sigma=pscale[[j]]*pcov[[j]])
                 
-                # Tune the proposal covariance for each transition to achieve
-                # reasonable acceptance ratios.
-                if(chain_ttt %% 30 == 0){
-                    if(chain_ttt %% 480 == 0){
-                        accept[j] = 0
+                # Evaluate proposed log-likelihood -----------------------------
+                log_target = log_post(EIDs, proposal, par_index, B, A, W, Y, z, Dn_alpha, 
+                                      Dn_omega, Xn, gamma_1, n_cores)
+                
+                if(ttt < burnin){
+                    while(!is.finite(log_target)){
+                        print('bad proposal')
+                        proposal = par
+                        proposal[ind_j] = rmvnorm( n=1, mean=par[ind_j],
+                                                   sigma=pcov[[j]]*pscale[j])
                         
-                    } else if( accept[j] / (chain_ttt %% 480) < .4 ){
-                        pscale[j] = (.75^2)*pscale[j]
-                        
-                    } else if( accept[j] / (chain_ttt %% 480) > .5 ){
-                        pscale[j] = (1.25^2)*pscale[j]
+                        log_target = log_post(EIDs, proposal, par_index, B, A, W, Y, z, Dn_alpha, 
+                                              Dn_omega, Xn, gamma_1, n_cores)
                     }
                 }
+                
+                if(!is.finite(log_target) | is.nan(log_target)) {
+                    # Ensuring that we do not have problems from C++
+                    print(paste0("bad proposal post burnin: ", log_target))
+                    log_target = -Inf
+                }
+                
+                # Compute Metropolis ratio -------------------------------------
+                if( log_target - log_target_prev > log(runif(1,0,1)) ){
+                    log_target_prev = log_target
+                    par[ind_j] = proposal[ind_j]
+                    accept[j] = accept[j] +1
+                }
+                
+                chain[chain_ttt,ind_j] = par[ind_j]
+                
+                # Proposal tuning scheme ---------------------------------------
+                # During the burnin period, update the proposal covariance
+                # to capture the relationships within the parameter vectors.
+                # This helps with mixing.
+                if(ttt < burnin){
+                    if(chain_ttt == 100)  pscale[j] = 1
+                    
+                    if(100 <= chain_ttt & chain_ttt <= 2000){
+                        temp_chain = chain[1:chain_ttt,ind_j]
+                        pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                        
+                    } else if(2000 < chain_ttt){
+                        temp_chain = chain[(chain_ttt-2000):chain_ttt,ind_j]
+                        pcov[[j]] = cov(temp_chain[ !duplicated(temp_chain),, drop=F])
+                    }
+                    if( sum( is.na(pcov[[j]]) ) > 0)  pcov[[j]] = diag( length(ind_j) )
+                    
+                    # Tune the proposal covariance for each transition to achieve
+                    # reasonable acceptance ratios.
+                    if(chain_ttt %% 30 == 0){
+                        if(chain_ttt %% 480 == 0){
+                            accept[j] = 0
+                            
+                        } else if( accept[j] / (chain_ttt %% 480) < .4 ){
+                            pscale[j] = (.75^2)*pscale[j]
+                            
+                        } else if( accept[j] / (chain_ttt %% 480) > .5 ){
+                            pscale[j] = (1.25^2)*pscale[j]
+                        }
+                    }
+                }
+            } else {
+                
+                # MH update: R -------------------------------------------------
+                curr_R = matrix(par[ind_j], nrow = 4)
+                
+                # Prior for R
+                nu_R = 8
+                psi_R = diag(c(4, 16, 16, 4))
+                psi_R = (nu_R - 4 - 1) * psi_R
+                
+                # Proposal
+                psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 
+                                           par_index, A, W, Y, Dn_alpha, 
+                                           Dn_omega, Xn, gamma_1, n_cores)
+                psi_q_star = psi_nu_q_star[[1]]
+                nu_q_star = psi_nu_q_star[[2]]
+                
+                proposal[ind_j] = c(rinvwishart(nu = nu_q_star, S = psi_q_star))
+                prop_R = matrix(proposal[ind_j], nrow = 4)
+                
+                # Current
+                psi_nu_q_curr = proposal_R(nu_R, psi_R, prop_R, EIDs, par, 
+                                           par_index, A, W, Y, Dn_alpha, 
+                                           Dn_omega, Xn, gamma_1, n_cores)
+                psi_q_curr = psi_nu_q_curr[[1]]
+                nu_q_curr = psi_nu_q_curr[[2]]
+                
+                # q(R* | R)
+                log_q_prop = dinvwishart(Sigma = prop_R, 
+                                         nu = nu_q_star, 
+                                         S = psi_q_star, log = T)
+                
+                # q(R | R*)
+                log_q_curr = dinvwishart(Sigma = curr_R, 
+                                         nu = nu_q_curr, 
+                                         S = psi_q_curr, log = T)
+                
+                # Log-posterior at proposal
+                log_target = log_post(EIDs, proposal, par_index, B, A, W, Y, z, Dn_alpha, 
+                                      Dn_omega, Xn, gamma_1, n_cores)
+                
+                # Compute Metropolis ratio
+                if( log_target + log_q_curr - log_target_prev - log_q_prop > log(runif(1,0,1)) ){
+                    log_target_prev = log_target
+                    par[ind_j] = proposal[ind_j]
+                    accept[j] = accept[j] +1
+                }
+                
+                chain[chain_ttt,ind_j] = par[ind_j]
             }
         }
 
