@@ -15,7 +15,7 @@ states_per_step = 0
 steps_per_it = 1
 
 load('Data_sim/true_pars.rda')
-load('Data_sim/hr_map_names.rda')
+load('Data_real/hr_map_names.rda')
 load('Data_real/Dn_omega_names.rda')
 
 # Labels -----------------------------------------------------------------------
@@ -92,8 +92,7 @@ for(seed in index_seeds){
         file_name = NULL
         if(simulation) {
             file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
-                               it, '_samp', sampling_num, '_', states_per_step,
-                               '_', steps_per_it,'_sim.rda')
+                               it, '_samp', sampling_num, '_sim.rda')
         } else {
             file_name = paste0('Model_out/mcmc_out_', trialNum, '_', seed, 'it', 
                                it, '_samp', sampling_num, '_', states_per_step,

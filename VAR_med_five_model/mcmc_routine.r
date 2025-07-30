@@ -122,10 +122,10 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
         print("No missingness")
         impute_step = FALSE
         
-        # B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
-        # B = B_Dn[[1]]
-        # Dn = B_Dn[[2]]
-        Dn = initialize_Dn(EIDs, B)
+        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Xn, Dn_omega, W, n_cores)
+        B = B_Dn[[1]]
+        Dn = B_Dn[[2]]
+        # Dn = initialize_Dn(EIDs, B)
     }
     
     # Keeping track of the sampled alpha_i -------------------------------------
@@ -190,56 +190,49 @@ mcmc_routine = function( par, par_index, A, W, B, Y, x, z, steps, burnin, ind,
                             'RBC_rule', 'clinic_rule')    
         }
 
-        # # State-space update (B) -----------------------------------------------
-        # for(s in 1:steps_per_it) {
-        #     # Random sample update
-        #     if(sampling_num == 1) {
-        #         B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
-        #                      bleed_indicator, n_cores, states_per_step)
-        #         B = B_Dn[[1]]
-        #         Dn = B_Dn[[2]]
-        #     }
-        #     
-        #     # Almost-Gibbs update
-        #     else if(sampling_num == 2) {
-        #         B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
-        #                                Dn_omega, W, bleed_indicator, n_cores, 
-        #                                states_per_step)
-        #         B = B_Dn[[1]]
-        #         Dn = B_Dn[[2]]
-        #     } 
-        #     
-        #     # Gibbs update
-        #     else if(sampling_num == 3) {
-        #         B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-        #                         W, bleed_indicator, n_cores, states_per_step)
-        #         B = B_Dn[[1]]
-        #         Dn = B_Dn[[2]]
-        #     }
-        #     
-        #     # Full seq MH update
-        #     else if(sampling_num == 4) {
-        #         B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-        #                          W, bleed_indicator, n_cores)
-        #         B = B_Dn[[1]]
-        #         Dn = B_Dn[[2]]
-        #     }
-        #     
-        #     # Almost-Gibbs efficient
-        #     else if(sampling_num == 5) {
-        #         
-        #         if(states_per_step == 0) {
-        #             sps = sample(x = 20:50, size = 1, replace = T)
-        #         } else {
-        #             sps = states_per_step
-        #         }
-        #         
-        #         B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
-        #                                    Dn_omega, W, bleed_indicator,n_cores,
-        #                                    sps)
-        #         B = B_Dn[[1]] 
-        #         Dn = B_Dn[[2]]
-        #     }
+        # State-space update (B) -----------------------------------------------
+        # # Random sample update
+        # if(sampling_num == 1) {
+        #     B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W,
+        #                  bleed_indicator, n_cores, states_per_step)
+        #     B = B_Dn[[1]]
+        #     Dn = B_Dn[[2]]
+        # }
+        # 
+        # # Almost-Gibbs update
+        # else if(sampling_num == 2) {
+        #     B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn,
+        #                            Dn_omega, W, bleed_indicator, n_cores,
+        #                            states_per_step)
+        #     B = B_Dn[[1]]
+        #     Dn = B_Dn[[2]]
+        # }
+        # 
+        # # Gibbs update
+        # else if(sampling_num == 3) {
+        #     B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+        #                     W, bleed_indicator, n_cores, states_per_step)
+        #     B = B_Dn[[1]]
+        #     Dn = B_Dn[[2]]
+        # }
+        # 
+        # # Full seq MH update
+        # else if(sampling_num == 4) {
+        #     B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
+        #                      W, bleed_indicator, n_cores)
+        #     B = B_Dn[[1]]
+        #     Dn = B_Dn[[2]]
+        # }
+        # 
+        # # Almost-Gibbs efficient
+        # else if(sampling_num == 5) {
+            
+            sps = sample(x = 20:50, size = 1, replace = T)
+            B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn,
+                                       Dn_omega, W, bleed_indicator,n_cores,
+                                       sps)
+            B = B_Dn[[1]]
+            Dn = B_Dn[[2]]
         # }
         
         # Gibbs: alpha_i -------------------------------------------------------
