@@ -1,11 +1,18 @@
 library(matrixStats)
 library(plotrix)
 
-index_seeds = 1:5
+args = commandArgs(TRUE)
+plot_choice = as.numeric(args[1])
+if(plot_choice == 0) {
+    index_seeds = 1:5    
+} else {
+    index_seeds = plot_choice
+}
+
 trialNum = 1
-it_num = 1
+it_num = 8
 S = 5
-simulation = T
+simulation = F
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -25,7 +32,7 @@ seed_focus = 1
 
 for(seed in index_seeds){
     
-    it_seq = 1:it_num
+    it_seq = 1:(it_num%%5)
     
     B_chain   = NULL
     Hr_chain  = NULL
@@ -34,9 +41,11 @@ for(seed in index_seeds){
     La_chain  = NULL
     
     if(simulation) {
-        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it_num,'_sim.rda')    
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it_num,'_sim.rda')    
     } else {
-        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it_num,'.rda')
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed,
+                            'it', it_num,'.rda')
     }
     
     if(file.exists(check_name)) {
@@ -44,9 +53,11 @@ for(seed in index_seeds){
         for(it in it_seq) {
             
             if(simulation) {
-                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it,'_sim.rda'))    
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + 5*floor(it_num/5),'_sim.rda'))    
             } else {
-                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it,'.rda'))
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + 5*floor(it_num/5),'.rda'))
             }
             
             print(paste0(seed, ": ", it))
@@ -183,8 +194,8 @@ if(simulation) {
     mp_true = data_format[,"mp_true"]
     la_true = data_format[,"la_true"]    
 } else {
-    load('Data/data_format_train_miss.rda')
-    load('Data/Dn_omega_miss.rda')
+    load('Data/data_format_train_update.rda')
+    load('Data/Dn_omega_update.rda')
     load(paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))
 }
 
@@ -200,7 +211,7 @@ EID_plot = c(EID_plot, sample(x = EID_not_chosen_yet,
                               replace = F))
 
 # Plot -------------------------------------------------------------------------
-pdf_title = paste0('Plots/chart_plot_', as.numeric(simulation), '.pdf')
+pdf_title = paste0('Plots/chart_plot_', as.numeric(simulation), '_', plot_choice, '_it', it_num, '.pdf')
 pdf(pdf_title)
 panel_dim = c(4,1)
 inset_dim = c(0,-.18)

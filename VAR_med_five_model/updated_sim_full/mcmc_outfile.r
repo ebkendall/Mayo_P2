@@ -1,6 +1,6 @@
 index_seeds = 1:10
 trialNum = 1
-it_num = 1
+it_num = 8
 simulation = F
 
 # Parameter initialization -----------------------------------------------------
@@ -105,13 +105,16 @@ covg = NULL
 
 for(seed in index_seeds){
     
-    it_seq = 1:it_num
+
+    it_seq = 1:(it_num%%5)
     covg_val = FALSE
     
     if(simulation) {
-        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it_num,'_sim.rda')    
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it_num,'_sim.rda')    
     } else {
-        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it_num,'.rda')
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it_num,'.rda')
     }
     
     if(file.exists(check_name)) {
@@ -119,9 +122,11 @@ for(seed in index_seeds){
         for(it in it_seq) {
             
             if(simulation) {
-                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it,'_sim.rda'))    
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + 5*floor(it_num/5),'_sim.rda'))    
             } else {
-                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 'it', it,'.rda'))
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + 5*floor(it_num/5),'.rda'))
             }
             
             print(paste0(seed, ": ", it))
@@ -168,7 +173,7 @@ upsilon_ind = upsilon_ind[upsilon_ind != 0]
 
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('Plots/trace_plot_', as.numeric(simulation), '.pdf')
+pdf_title = paste0('Plots/trace_plot_', as.numeric(simulation), '_it', it_num, '.pdf')
 pdf(pdf_title)
 par(mfrow=c(3, 2))
 lab_ind = 0

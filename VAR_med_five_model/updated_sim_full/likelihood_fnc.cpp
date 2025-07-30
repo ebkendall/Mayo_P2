@@ -607,11 +607,10 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     
     // Zeta prior --------------------------------------------------------------
     arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
-    arma::vec vec_zeta_mean = {-7.2405, 2.5, -5.2152,   1, -2.6473,  -1, -5.1475,  -1, 
-                               -9.4459,  -1, -7.2404, 2.5, -5.2151,   1, -7.1778, 2.5, 
-                               -2.6523,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   1};
+    arma::vec vec_zeta_mean = {-7.2405, 2.5, -6.2152,   1, -2.6473,  -1, -6.1475,  -1, 
+                               -9.4459,  -1, -7.2404, 2.5, -7.2151,   1, -7.1778, 2.5, 
+                               -5.2151,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   0};
     arma::vec scalar_zeta(vec_zeta_mean.n_elem, arma::fill::ones);
-    scalar_zeta = 4 * scalar_zeta;
     arma::mat zeta_var = arma::diagmat(scalar_zeta);
     
     arma::vec prior_zeta = dmvnorm(vec_zeta_content.t(), vec_zeta_mean, zeta_var, true);
@@ -631,6 +630,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_up_omega_content = par.elem(par_index(8) - 1);
     arma::vec omega_mean(vec_up_omega_content.n_elem, arma::fill::zeros);
     arma::vec scalar_omega(vec_up_omega_content.n_elem, arma::fill::ones);
+    scalar_omega = 0.25 * scalar_omega;
     arma::mat omega_var = arma::diagmat(scalar_omega);
     
     arma::vec prior_omega = dmvnorm(vec_up_omega_content.t(), omega_mean, omega_var, true);
@@ -987,8 +987,8 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::vec scalar_beta = {1, 0.0625, 0.0625, 0.0625};
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
     
-    int nu_ups = 20;
-    // arma::mat psi_ups(16, 16, arma::fill::eye);
+    // int nu_ups = 20;
+    int nu_ups = 40;
     arma::vec scalar_ups = {0.25, 0.25,  4,  4,
                             2.25, 2.25, 25, 25,
                             2.25, 2.25, 25, 25,
@@ -2574,22 +2574,22 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
     arma::vec vec_A = exp(vec_A_total) / (1 + exp(vec_A_total));
     arma::mat A_1 = arma::diagmat(vec_A);
     
-    arma::mat gamma_var = {{R(0,0) / (1 - vec_A(0) * vec_A(0)), 
-                            R(0,1) / (1 - vec_A(0) * vec_A(1)), 
-                            R(0,2) / (1 - vec_A(0) * vec_A(2)), 
-                            R(0,3) / (1 - vec_A(0) * vec_A(3))},
-                           {R(1,0) / (1 - vec_A(1) * vec_A(0)),
-                            R(1,1) / (1 - vec_A(1) * vec_A(1)),
-                            R(1,2) / (1 - vec_A(1) * vec_A(2)),
-                            R(1,3) / (1 - vec_A(1) * vec_A(3))},
-                           {R(2,0) / (1 - vec_A(2) * vec_A(0)),
-                            R(2,1) / (1 - vec_A(2) * vec_A(1)),
-                            R(2,2) / (1 - vec_A(2) * vec_A(2)),
-                            R(2,3) / (1 - vec_A(2) * vec_A(3))},
-                           {R(3,0) / (1 - vec_A(3) * vec_A(0)),
-                            R(3,1) / (1 - vec_A(3) * vec_A(1)),
-                            R(3,2) / (1 - vec_A(3) * vec_A(2)),
-                            R(3,3) / (1 - vec_A(3) * vec_A(3))}};
+    arma::mat gamma_var = {{curr_R(0,0) / (1 - vec_A(0) * vec_A(0)), 
+                            curr_R(0,1) / (1 - vec_A(0) * vec_A(1)), 
+                            curr_R(0,2) / (1 - vec_A(0) * vec_A(2)), 
+                            curr_R(0,3) / (1 - vec_A(0) * vec_A(3))},
+                           {curr_R(1,0) / (1 - vec_A(1) * vec_A(0)),
+                            curr_R(1,1) / (1 - vec_A(1) * vec_A(1)),
+                            curr_R(1,2) / (1 - vec_A(1) * vec_A(2)),
+                            curr_R(1,3) / (1 - vec_A(1) * vec_A(3))},
+                           {curr_R(2,0) / (1 - vec_A(2) * vec_A(0)),
+                            curr_R(2,1) / (1 - vec_A(2) * vec_A(1)),
+                            curr_R(2,2) / (1 - vec_A(2) * vec_A(2)),
+                            curr_R(2,3) / (1 - vec_A(2) * vec_A(3))},
+                           {curr_R(3,0) / (1 - vec_A(3) * vec_A(0)),
+                            curr_R(3,1) / (1 - vec_A(3) * vec_A(1)),
+                            curr_R(3,2) / (1 - vec_A(3) * vec_A(2)),
+                            curr_R(3,3) / (1 - vec_A(3) * vec_A(3))}};
     arma::mat inv_gamma = arma::inv_sympd(gamma_var);
     arma::mat inv_gamma_sqrt = arma::sqrtmat_sympd(inv_gamma);
     

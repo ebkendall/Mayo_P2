@@ -16,8 +16,8 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 5
-    if(max_ind > 5) {burnin = 0}
+    max_ind = 14
+    # if(max_ind > 5) {burnin = 0}
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -84,18 +84,18 @@ if(simulation) {
     #    transitions:          1->2,         1->4,         2->3,         2->4, 
     #                          3->1,         3->2,         3->4,         4->2, 
     #                          4->5,         5->1,         5->2,         5->4
-    par[par_index$zeta] = c(-7.2405, 2.5, -5.2152,   1, -2.6473,  -1, -5.1475,  -1, 
-                            -9.4459,  -1, -7.2404, 2.5, -5.2151,   1, -7.1778, 2.5, 
-                            -2.6523,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   1)
-    # par[par_index$zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
-    #                         -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
-    #                         -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1)
+    par[par_index$zeta] = c(-7.2405, 2.5, -6.2152,   1, -2.6473,  -1, -6.1475,  -1, 
+                            -9.4459,  -1, -7.2404, 2.5, -7.2151,   1, -7.1778, 2.5, 
+                            -5.2151,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   0)
+    # par[par_index$zeta] = c(-7.2405, 2.5, -5.2152,   1, -2.6473,  -1, -5.1475,  -1, 
+    #                         -9.4459,  -1, -7.2404, 2.5, -5.2151,   1, -7.1778, 2.5, 
+    #                         -2.6523,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   1)
     par[par_index$init] = c(0, 0, 0, 0)
     par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
                                       -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
                                       -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                       -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-    par[par_index$eta_omega] = rep(1, length(par_index$eta_omega))
+    par[par_index$eta_omega] = rep(-1, length(par_index$eta_omega))
     par[par_index$G] = c(diag(c(8, 32, 32, 8)))
 }
 
@@ -114,20 +114,20 @@ if(simulation) {
     bleed_indicator = b_ind_fnc(data_format)
     
     if(max_ind > 5) {
-        # it5, samp 4: seed 4
-        # it5, samp 5: seed 1
-        if(sampling_num == 4) {
-            chosen_seed = 4
-        } else if(sampling_num == 5) {
-            chosen_seed = 1
-        }
         
+        chosen_seed = 10 # from it 1-5, 6-9
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
-                    max_ind - 5, '_samp', sampling_num, '.rda'))
-        par = mcmc_out_temp$chain[nrow(mcmc_out_temp$chain), ]
-        b_chain = mcmc_out_temp$B_chain[nrow(mcmc_out_temp$B_chain), ]
+                    max_ind - 5, '.rda'))
         
-        rm(mcmc_out_temp)
+        par = mcmc_out$chain[nrow(mcmc_out$chain), ]
+        b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
+        
+        par[par_index$upsilon] = c(diag(c(0.25, 0.25,  4,  4,
+                                          2.25, 2.25, 25, 25,
+                                          2.25, 2.25, 25, 25,
+                                          0.25, 0.25,  4,  4)))
+        
+        rm(mcmc_out)
     } else {
         b_chain = rep(1, nrow(data_format))
     }

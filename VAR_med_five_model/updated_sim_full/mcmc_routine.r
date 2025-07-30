@@ -39,8 +39,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
     mpi = list(c(par_index$init),
-               c(par_index$zeta[seq(1,23,by=2)]), # baselines
-               c(par_index$zeta[seq(2,24,by=2)]), # slopes
+               c(par_index$zeta[1:2]),   c(par_index$zeta[3:4]),
+               c(par_index$zeta[5:6]),   c(par_index$zeta[7:8]),
+               c(par_index$zeta[9:10]),  c(par_index$zeta[11:12]),
+               c(par_index$zeta[13:14]), c(par_index$zeta[15:16]),
+               c(par_index$zeta[17:18]), c(par_index$zeta[19:20]),
+               c(par_index$zeta[21:22]), c(par_index$zeta[23:24]),
                c(par_index$A),
                c(par_index$eta_omega[c(1:16, 35:56)]),  # continuous
                c(par_index$eta_omega[c(17:34, 57:84)]), # discrete
@@ -62,31 +66,26 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         print("Missing Y values - initializing")
         
         if(max_ind > 5) {
-            # it5, samp 4: seed 4
-            # it5, samp 5: seed 1
-            if(sampling_num == 4) {
-                chosen_seed = 4
-            } else if(sampling_num == 5) {
-                chosen_seed = 1
-            }
+            
+            chosen_seed = 10
 
-            load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it',
-                        max_ind - 5, '_samp', sampling_num, '.rda'))
+            load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
+                        max_ind - 5, '.rda'))
 
             # initialize Y
-            Y[,'hemo'] = mcmc_out_temp$hc_chain[nrow(mcmc_out_temp$hc_chain), ]
-            Y[,'hr'] = mcmc_out_temp$hr_chain[nrow(mcmc_out_temp$hr_chain), ]
-            Y[,'map'] = mcmc_out_temp$bp_chain[nrow(mcmc_out_temp$bp_chain), ]
-            Y[,'lactate'] = mcmc_out_temp$la_chain[nrow(mcmc_out_temp$la_chain), ]
+            Y[,'hemo'] = mcmc_out$hc_chain[nrow(mcmc_out$hc_chain), ]
+            Y[,'hr'] = mcmc_out$hr_chain[nrow(mcmc_out$hr_chain), ]
+            Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
+            Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
 
-            # initialize proposal structure
-            pcov = mcmc_out_temp$pcov
-            pscale = mcmc_out_temp$pscale
+            # # initialize proposal structure
+            # pcov = mcmc_out$pcov
+            # pscale = mcmc_out$pscale
 
-            # initialize D_alpha
+            # initialize Dn_alpha
             Dn_alpha = initialize_Dn(EIDs, B)
 
-            rm(mcmc_out_temp)
+            rm(mcmc_out)
 
         } else {
             
@@ -355,6 +354,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     hr_chain = hr_chain[index_keep_2,], 
                                     bp_chain = bp_chain[index_keep_2,], 
                                     la_chain = la_chain[index_keep_2,], 
+                                    alpha_i = A,
+                                    omega_i = W,
                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                     pscale=pscale, pcov = pcov, par_index=par_index)    
                 } else {
@@ -364,6 +365,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     hr_chain = matrix(Y[,'hr'], nrow = 1), 
                                     bp_chain = matrix(Y[,'map'], nrow = 1), 
                                     la_chain = matrix(Y[,'lactate'], nrow = 1), 
+                                    alpha_i = A,
+                                    omega_i = W,
                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                     pscale=pscale, pcov = pcov, par_index=par_index)
                 }
@@ -378,6 +381,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                 hr_chain = hr_chain[index_keep_2,],
                                 bp_chain = bp_chain[index_keep_2,], 
                                 la_chain = la_chain[index_keep_2,],
+                                alpha_i = A,
+                                omega_i = W,
                                 otype=otype, accept=accept/length((burnin+1):ttt), 
                                 pscale=pscale, pcov = pcov, par_index=par_index)
 
