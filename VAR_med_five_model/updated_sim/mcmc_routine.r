@@ -9,13 +9,12 @@ sourceCpp("likelihood_fnc.cpp")
 Sys.setenv("PKG_CXXFLAGS" = "-fopenmp")
 Sys.setenv("PKG_LIBS" = "-fopenmp")
 
-mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
-                        par, par_index, Y, B, A){
+mcmc_routine = function(steps, burnin, seed_num, par, par_index, Y, B, A, dgm){
     
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 6 #strtoi(Sys.getenv(c("LSB_DJOB_NUMPROC")))
+    n_cores = 6 
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -32,11 +31,18 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     initialize_cpp(adj_mat, adj_mat_sub)
 
     # Metropolis Parameter Index for MH within Gibbs updates -------------------
-    mpi = list(c(par_index$init),
-               c(par_index$zeta),
-               c(par_index$A),
-               c(par_index$R),
-               c(par_index$G))
+    if(dgm) {
+        mpi = list(c(par_index$init),
+                   c(par_index$zeta),
+                   c(par_index$A),
+                   c(par_index$R))
+    } else {
+        mpi = list(c(par_index$init),
+                   c(par_index$zeta),
+                   c(par_index$A),
+                   c(par_index$R),
+                   c(par_index$G))
+    }
 
     n_group = length(mpi)
     pcov = list();	for(j in 1:n_group)  pcov[[j]] = diag(length(mpi[[j]]))
@@ -53,10 +59,9 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     accept = rep( 0, n_group)
     
     # Initialization continued -------------------------------------------------
-    B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, n_cores)
+    B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, n_cores, dgm)
     B = B_Dn[[1]]
     Dn = B_Dn[[2]]
-    # Dn = initialize_Dn(EIDs, B)
 
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
@@ -77,13 +82,10 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             chain_ind = floor((new_t - 1)/10) + 1
             chain_ttt = ttt %% reset_step
         }
-        
-        # Sample gamma_1 -------------------------------------------------------
-        gamma_1 = update_gamma_i(EIDs, par, par_index, A, B, Dn, Y, n_cores)
 
         # State-space update (B) -----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(EIDs, par, par_index, A, B, Y, sps, gamma_1, n_cores)
+        B_Dn = state_sampler(EIDs, par, par_index, A, B, Y, sps, n_cores, dgm)
         B = B_Dn[[1]]
         Dn = B_Dn[[2]]
         
@@ -98,7 +100,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         chain[chain_ttt,] = par
         
         # Evaluate log-likelihood before MH step -------------------------------
-        log_target_prev = log_post(EIDs, par, par_index, A, B, Dn, Y, n_cores, gamma_1)
+        log_target_prev = log_post(EIDs, par, par_index, A, B, Dn, Y, n_cores, dgm)
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
@@ -117,7 +119,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
 
                 # Evaluate proposed log-likelihood -----------------------------
                 log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                      n_cores, gamma_1)
+                                      n_cores, dgm)
 
                 if(ttt < burnin){
                     while(!is.finite(log_target)){
@@ -127,7 +129,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                                    sigma=pcov[[j]]*pscale[j])
 
                         log_target = log_post(EIDs, proposal, par_index, A, B, Dn, Y, 
-                                              n_cores, gamma_1)
+                                              n_cores, dgm)
                     }
                 }
 
@@ -264,35 +266,18 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             index_keep = seq(10, reset_step, by = 10)
             # index_keep_2 = seq(2, chain_length_MASTER, by = 2)
             
-            if(simulation) {
-                mcmc_out = list(chain    = chain[index_keep,], 
-                                B_chain  = B_chain, 
-                                hc_chain = Y[,'hemo'],
-                                hr_chain = Y[,'hr'], 
-                                bp_chain = Y[,'map'], 
-                                la_chain = Y[,'lactate'], 
-                                accept=accept/length((burnin+1):ttt), 
-                                pscale=pscale, pcov = pcov, par_index=par_index)
+            mcmc_out = list(chain    = chain[index_keep,], 
+                            B_chain  = B_chain, 
+                            hc_chain = Y[,'hemo'],
+                            hr_chain = Y[,'hr'], 
+                            bp_chain = Y[,'map'], 
+                            la_chain = Y[,'lactate'], 
+                            accept=accept/length((burnin+1):ttt), 
+                            pscale=pscale, pcov = pcov, par_index=par_index)
 
-                save(mcmc_out, 
-                     file = paste0('Model_out/mcmc_out_', trialNum, '_', seed_num, 
-                                   'it', ttt/reset_step + (max_ind - 5), '_sim.rda'))
-            } else {
-                mcmc_out = list(chain    = chain[index_keep,], 
-                                B_chain  = B_chain[index_keep_2,], 
-                                hc_chain = hc_chain[index_keep_2,], 
-                                hr_chain = hr_chain[index_keep_2,],
-                                bp_chain = bp_chain[index_keep_2,], 
-                                la_chain = la_chain[index_keep_2,],
-                                A_chain  = A_chain,
-                                W_chain  = W_chain,
-                                otype=otype, accept=accept/length((burnin+1):ttt), 
-                                pscale=pscale, pcov = pcov, par_index=par_index)
-
-                save(mcmc_out, 
-                     file = paste0('Model_out/mcmc_out_', trialNum, '_', seed_num, 
-                                   'it', ttt/reset_step + (max_ind - 5), '.rda'))
-            }
+            save(mcmc_out, 
+                    file = paste0('Model_out/mcmc_out_', seed_num, 
+                                'it', ttt/reset_step, '_sim.rda'))
             
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 

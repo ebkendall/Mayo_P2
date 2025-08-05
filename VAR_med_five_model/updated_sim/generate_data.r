@@ -106,9 +106,11 @@ df_num = as.numeric(args[1])
             marginal_prob[k, ] = marginal_prob[k-1, ,drop=F] %*% P_i
         }
         
-        # Select n_i of the states for the true latent state sequence ----------
-        b_i = tail(big_b_i, n_i)
-        before_b_i = big_b_i[1:(m_i - n_i + 1)]
+        # # Select n_i of the states for the true latent state sequence
+        # b_i = tail(big_b_i, n_i)
+        # before_b_i = big_b_i[1:(m_i - n_i + 1)]
+        b_i = head(big_b_i, n_i)
+        before_b_i = 1
         
         # Generate data --------------------------------------------------------
         Y_i = matrix(nrow = n_i, ncol = 4)

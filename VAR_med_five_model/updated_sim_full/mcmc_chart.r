@@ -10,9 +10,12 @@ if(plot_choice == 0) {
 }
 
 trialNum = 1
-it_num = 8
 S = 5
 simulation = F
+
+it_num = 10
+max_ind = 14
+start_ind = 10
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -32,7 +35,7 @@ seed_focus = 1
 
 for(seed in index_seeds){
     
-    it_seq = 1:(it_num%%5)
+    it_seq = 1:(it_num - start_ind + 1)
     
     B_chain   = NULL
     Hr_chain  = NULL
@@ -54,10 +57,10 @@ for(seed in index_seeds){
             
             if(simulation) {
                 load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
-                            'it', it + 5*floor(it_num/5),'_sim.rda'))    
+                            'it', it + (start_ind - 1),'_sim.rda'))    
             } else {
                 load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
-                            'it', it + 5*floor(it_num/5),'.rda'))
+                            'it', it + (start_ind - 1),'.rda'))
             }
             
             print(paste0(seed, ": ", it))

@@ -1,7 +1,10 @@
 index_seeds = 1:10
 trialNum = 1
-it_num = 8
 simulation = F
+
+it_num = 10
+max_ind = 14
+start_ind = 10
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -106,7 +109,7 @@ covg = NULL
 for(seed in index_seeds){
     
 
-    it_seq = 1:(it_num%%5)
+    it_seq = 1:(it_num - start_ind + 1)
     covg_val = FALSE
     
     if(simulation) {
@@ -123,10 +126,10 @@ for(seed in index_seeds){
             
             if(simulation) {
                 load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
-                            'it', it + 5*floor(it_num/5),'_sim.rda'))    
+                            'it', it + (start_ind - 1),'_sim.rda'))    
             } else {
                 load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
-                            'it', it + 5*floor(it_num/5),'.rda'))
+                            'it', it + (start_ind - 1),'.rda'))
             }
             
             print(paste0(seed, ": ", it))
