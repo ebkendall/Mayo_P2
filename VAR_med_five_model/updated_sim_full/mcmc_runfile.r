@@ -16,8 +16,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 14
-    # if(max_ind > 5) {burnin = 0}
+    max_ind = 17
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -115,17 +114,14 @@ if(simulation) {
     
     if(max_ind > 5) {
         
-        chosen_seed = 10 # from it 1-5, 6-9
+        # 10: from it 1-5, 6-9
+        #  5: from it 10-12
+        chosen_seed = 5
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                     max_ind - 5, '.rda'))
         
         par = mcmc_out$chain[nrow(mcmc_out$chain), ]
         b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
-        
-        par[par_index$upsilon] = c(diag(c(0.25, 0.25,  4,  4,
-                                          2.25, 2.25, 25, 25,
-                                          2.25, 2.25, 25, 25,
-                                          0.25, 0.25,  4,  4)))
         
         rm(mcmc_out)
     } else {
@@ -155,6 +151,8 @@ for(ii in 1:length(EIDs)){
 
 steps  = 50000
 burnin =  5000
+
+if(max_ind > 5) {burnin = 0}
 
 s_time = Sys.time()
 mcmc_out = mcmc_routine(steps, burnin, seed_num, trialNum, simulation, max_ind,

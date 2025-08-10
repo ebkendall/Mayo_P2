@@ -13,7 +13,7 @@ trialNum = 1
 S = 5
 simulation = F
 
-it_num = 10
+it_num = 12
 max_ind = 14
 start_ind = 10
 

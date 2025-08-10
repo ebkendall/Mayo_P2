@@ -1,8 +1,8 @@
-index_seeds = 1:10
+index_seeds = 1:5
 trialNum = 1
 simulation = F
 
-it_num = 10
+it_num = 12
 max_ind = 14
 start_ind = 10
 

@@ -2358,6 +2358,24 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
                     arma::vec new_value = arma::mvnrnd(y_i_mean, W_i, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    
+                    // Prevent negatives
+                    int count_while_loop = 0;
+                    int count_while_loop_big = 0;
+                    while(arma::any(update_value <= 0)) {
+                        new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                        update_value = Y_i_new.col(k);
+                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                        count_while_loop += 1;
+                        if(count_while_loop > 10000) {
+                            count_while_loop_big += 1;
+                            count_while_loop = 0;
+                        }
+                        if(count_while_loop_big > 10) {
+                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                            break;
+                        }
+                    }
 
                 } else if(k == Y_i.n_cols - 1) {
 
@@ -2370,6 +2388,24 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
                     arma::vec new_value = arma::mvnrnd(y_i_mean, R, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    
+                    // Prevent negatives
+                    int count_while_loop = 0;
+                    int count_while_loop_big = 0;
+                    while(arma::any(update_value <= 0)) {
+                        new_value = arma::mvnrnd(y_i_mean, R, 1);
+                        update_value = Y_i_new.col(k);
+                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                        count_while_loop += 1;
+                        if(count_while_loop > 10000) {
+                            count_while_loop_big += 1;
+                            count_while_loop = 0;
+                        }
+                        if(count_while_loop_big > 10) {
+                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                            break;
+                        }
+                    }
 
                 } else {
                     
@@ -2397,6 +2433,24 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
                     arma::vec new_value = arma::mvnrnd(y_i_mean, W_i, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    
+                    // Prevent negatives
+                    int count_while_loop = 0;
+                    int count_while_loop_big = 0;
+                    while(arma::any(update_value <= 0)) {
+                        new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                        update_value = Y_i_new.col(k);
+                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                        count_while_loop += 1;
+                        if(count_while_loop > 10000) {
+                            count_while_loop_big += 1;
+                            count_while_loop = 0;
+                        }
+                        if(count_while_loop_big > 10) {
+                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                            break;
+                        }
+                    }
 
                 }
                 
