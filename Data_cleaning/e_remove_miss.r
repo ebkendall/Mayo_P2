@@ -131,3 +131,23 @@ for(df_name in 1:2) {
     rm(new_data_format)
     rm(new_Dn_omega)
 }
+
+
+# load('Data/hr_map_names.rda')
+# load('Data/Dn_omega_names.rda')
+# library(stringr)
+# 
+# unique_names = unique(Dn_omega_names)
+# new_names = NULL
+# for(i in 1:length(unique_names)) {
+#     temp = str_split(unique_names[i], '0')
+#     if(length(temp[[1]]) > 1) {
+#         new_names = c(new_names, temp[[1]][[1]])
+#     } else {
+#         temp = str_split(unique_names[i], '1')
+#         new_names = c(new_names, temp[[1]][[1]])
+#     }
+# }
+# new_names = unique(new_names)
+# new_names = sort(new_names)
+#     

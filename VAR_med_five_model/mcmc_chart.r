@@ -2,33 +2,20 @@ library(matrixStats)
 library(plotrix)
 
 args = commandArgs(TRUE)
-sampling_num = as.numeric(args[1])
-simulation = as.logical(as.numeric(args[2]))
-one_chart = as.numeric(args[3])
-
-if(simulation) {
-    it_seq = 1:1
-    if(one_chart != 0) {
-        index_seeds = one_chart
-        df_num = one_chart
-    } else {
-        index_seeds = c(1:5)
-        df_num = 1  
-    }
+plot_choice = as.numeric(args[1])
+if(plot_choice == 0) {
+    index_seeds = 1:5    
 } else {
-    it_seq = 6:10
-    if(one_chart != 0) {
-        index_seeds = one_chart
-    } else {
-        index_seeds = c(1:5)
-    }
-    df_num = 1
+    index_seeds = plot_choice
 }
 
 trialNum = 1
-states_per_step = 0
-steps_per_it = 1
 S = 5
+simulation = F
+
+it_num = 3
+max_ind = 5
+start_ind = 1
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -36,7 +23,146 @@ Mode <- function(x) {
     return(ux[which.max(tabulate(match(x, ux)))])
 }
 
-# Function to change transparency of colors # ----------------------------------
+# Load the model output -------------------------------------------------------
+state_results = vector(mode = 'list', length = length(index_seeds))
+hemo_results = vector(mode = 'list', length = length(index_seeds))
+hr_results = vector(mode = 'list', length = length(index_seeds))
+map_results = vector(mode = 'list', length = length(index_seeds))
+lact_results = vector(mode = 'list', length = length(index_seeds))
+
+ind = 0
+seed_focus = 1
+
+for(seed in index_seeds){
+    
+    it_seq = 1:(it_num - start_ind + 1)
+    
+    B_chain   = NULL
+    Hr_chain  = NULL
+    Map_chain = NULL
+    Hc_chain  = NULL
+    La_chain  = NULL
+    
+    if(simulation) {
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it_num,'_sim.rda')    
+    } else {
+        check_name = paste0('Model_out/mcmc_out_',trialNum, '_', seed,
+                            'it', it_num,'.rda')
+    }
+    
+    if(file.exists(check_name)) {
+        
+        for(it in it_seq) {
+            
+            if(simulation) {
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + (start_ind - 1),'_sim.rda'))    
+            } else {
+                load(paste0('Model_out/mcmc_out_',trialNum, '_', seed, 
+                            'it', it + (start_ind - 1),'.rda'))
+            }
+            
+            print(paste0(seed, ": ", it))
+            par_index = mcmc_out$par_index
+            
+            if(it == 1) {
+                ind = ind + 1
+                
+                B_chain = mcmc_out$B_chain[250:500, ]
+                
+                if(length(c(mcmc_out$hr_chain)) > ncol(B_chain)) {
+                    Hr_chain  = mcmc_out$hr_chain[250:500, ]
+                    Map_chain = mcmc_out$bp_chain[250:500, ]
+                    Hc_chain  = mcmc_out$hc_chain[250:500, ]
+                    La_chain  = mcmc_out$la_chain[250:500, ]
+                } else {
+                    Hr_chain  = matrix(mcmc_out$hr_chain, nrow = 1)
+                    Map_chain = matrix(mcmc_out$bp_chain, nrow = 1)
+                    Hc_chain  = matrix(mcmc_out$hc_chain, nrow = 1)
+                    La_chain  = matrix(mcmc_out$la_chain, nrow = 1)
+                }
+            } else {
+                B_chain = rbind(B_chain, mcmc_out$B_chain)
+                Hr_chain  = rbind(Hr_chain, mcmc_out$hr_chain)
+                Map_chain = rbind(Map_chain, mcmc_out$bp_chain)
+                Hc_chain  = rbind(Hc_chain, mcmc_out$hc_chain)
+                La_chain  = rbind(La_chain, mcmc_out$la_chain)
+            }
+            
+            rm(mcmc_out)
+        }
+        
+        seed_focus = seed
+        
+        state_results[[seed]] = matrix(nrow = S+1, ncol = ncol(B_chain))
+        for(jj in 1:S) {
+            state_results[[seed]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+        }
+        state_results[[seed]][S+1, ] = apply(B_chain, 2, Mode)
+        
+        hemo_results[[seed]] = Hc_chain
+        hr_results[[seed]] = Hr_chain
+        map_results[[seed]] = Map_chain
+        lact_results[[seed]] = La_chain
+        
+    } else {
+        print(paste0("Missing! ", check_name))
+    }
+    
+    rm(B_chain)
+    rm(Hc_chain)
+    rm(Hr_chain)
+    rm(Map_chain)
+    rm(La_chain)
+}
+
+state_counts_col_sum = colSums(state_results[[seed_focus]][1:S,])
+state_proportions = matrix(nrow = S, ncol = ncol(state_results[[seed_focus]]))
+for(s in 1:S) {
+    state_proportions[s,] = state_results[[seed_focus]][s, ] / state_counts_col_sum
+}
+
+# Summary stats of state identification (simulation) ---------------------------
+if(simulation) {
+    for(seed in index_seeds) {
+        
+        load(paste0('Data/sim_data_', seed, '.rda'))
+        ss_true = data_format[,"b_true"]
+        
+        if(length(ss_true) != length(state_results[[seed]][S+1, ])) {
+            print(paste0("ERROR (seed ", seed, ")"))
+        } else {
+            prop_all = sum(ss_true == state_results[[seed]][S+1, ]) / length(state_results[[seed]][S+1, ])
+            print(paste0("Across all subjects (seed ", seed, ") = ", prop_all))
+        }
+        
+        EIDs = unique(data_format[,"EID"])
+        
+        prop_sub = rep(0, length(EIDs))
+        
+        for(j in 1:length(EIDs)) {
+            sub_ind_j = which(data_format[,"EID"] == EIDs[j])
+            ss_true_j = ss_true[sub_ind_j]
+            state_seq_mode_j = state_results[[seed]][S+1, sub_ind_j]
+            
+            prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
+        }
+        
+        print(paste0("Subject specific (seed ", seed, ")"))
+        print(summary(prop_sub))
+        
+        # Sensitivity of state 2: Pr(predict S2 | true S2)
+        predict_at_true_S2 = state_results[[seed]][S+1, (ss_true == 2)]
+        print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
+        
+        # Specificity of state 2: Pr(predict not S2 | true not S2)
+        predict_not_S2 =  state_results[[seed]][S+1, (ss_true != 2)]
+        print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
+    }    
+} 
+
+# Plot Chart Plots for Seed 1 data ---------------------------------------------
 makeTransparent = function(..., alpha=0.35) {
     
     if(alpha<0 | alpha>1) stop("alpha must be between 0 and 1")
@@ -54,225 +180,66 @@ makeTransparent = function(..., alpha=0.35) {
     
 }
 
-# Load the model output -------------------------------------------------------
-state_results = vector(mode = 'list', length = length(index_seeds))
-hemo_results = vector(mode = 'list', length = length(index_seeds))
-hr_results = vector(mode = 'list', length = length(index_seeds))
-map_results = vector(mode = 'list', length = length(index_seeds))
-lact_results = vector(mode = 'list', length = length(index_seeds))
-
-for(s in 1:length(index_seeds)) {
-    
-    B_chain   = NULL
-    Hr_chain  = NULL
-    Map_chain = NULL
-    Hc_chain  = NULL
-    La_chain  = NULL
-    
-    seed_num = index_seeds[s]
-    for(it in it_seq) {
-        
-        file_name = NULL
-        if(simulation) {
-            file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
-                               'it', it, '_samp', sampling_num, '_', states_per_step,
-                               '_', steps_per_it,'_sim.rda')
-        } else {
-            file_name = paste0('Model_out/mcmc_out_', trialNum,'_', seed_num,
-                               'it', it, '_samp', sampling_num, '_', states_per_step,
-                               '_', steps_per_it,'.rda')
-        }
-        
-        load(file_name)
-        print(file_name)
-        
-        par_index = mcmc_out_temp$par_index
-        
-        B_chain   = rbind(B_chain, mcmc_out_temp$B_chain)
-        Hr_chain  = rbind(Hr_chain, mcmc_out_temp$hr_chain)
-        Map_chain = rbind(Map_chain, mcmc_out_temp$bp_chain)
-        Hc_chain  = rbind(Hc_chain, mcmc_out_temp$hc_chain)
-        La_chain  = rbind(La_chain, mcmc_out_temp$la_chain)
-        
-        rm(mcmc_out_temp)
-    }    
-    
-    state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
-    for(jj in 1:S) {
-        state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
-    }
-    state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
-    
-    hemo_results[[s]] = Hc_chain
-    hr_results[[s]] = Hr_chain
-    map_results[[s]] = Map_chain
-    lact_results[[s]] = La_chain
-    
-    rm(B_chain)
-    rm(Hc_chain)
-    rm(Hr_chain)
-    rm(Map_chain)
-    rm(La_chain)
-}
-
-# Summarize data into combo and indiv results ----------------------------------
-combo_counts = state_results[[1]]
-if(one_chart == 0) {
-    for(i in 2:length(state_results)) {
-        combo_counts = combo_counts + state_results[[i]]
-    }
-}
-combo_counts[S+1, ] = apply(combo_counts[1:S,], 2, which.max)
-
-combo_counts_col_sum = colSums(combo_counts[1:S,])
-combo_counts_props = matrix(nrow = S, ncol = ncol(combo_counts))
-for(s in 1:S) {
-    combo_counts_props[s,] = combo_counts[s, ] / combo_counts_col_sum
-}
-
-all_seeds_state_mode = matrix(nrow = length(index_seeds)+1, ncol = ncol(combo_counts))
-for(i in 1:length(index_seeds)) {
-    all_seeds_state_mode[i, ] = state_results[[i]][S+1,]
-}
-all_seeds_state_mode[length(index_seeds)+1, ] = apply(combo_counts, 2, which.max)
-
 # Load data --------------------------------------------------------------------
-load('Data_sim/hr_map_names.rda')
+load('Data/hr_map_names.rda')
 
 if(simulation) {
-    load(paste0('Data_sim/use_data_', df_num, '.rda'))
-    load(paste0('Data_sim/alpha_i_mat_', df_num, '.rda'))
-    load(paste0('Data_sim/omega_i_mat_', df_num, '.rda'))
-    load('Data_sim/Dn_omega_sim.rda')
+    load(paste0('Data/sim_data_', seed_focus, '.rda'))
+    load(paste0('Data/alpha_i_mat_', seed_focus, '.rda'))
+    load(paste0('Data/omega_i_mat_', seed_focus, '.rda'))
+    load('Data/Dn_omega_sim.rda')
     Dn_omega = Dn_omega_sim
     rm(Dn_omega_sim)
     
-    ss_true = use_data[,"b_true"]
-    hc_true = use_data[,"hm_true"]
-    hr_true = use_data[,"hr_true"]
-    mp_true = use_data[,"mp_true"]
-    la_true = use_data[,"la_true"]    
+    ss_true = data_format[,"b_true"]
+    hc_true = data_format[,"hm_true"]
+    hr_true = data_format[,"hr_true"]
+    mp_true = data_format[,"mp_true"]
+    la_true = data_format[,"la_true"]    
 } else {
-    load('Data_real/data_format_train.rda')
-    load('Data_real/Dn_omega.rda')
-    load(paste0('Model_out/post_means_samp', sampling_num, '_it', max(it_seq), '_real.rda'))
-    
-    use_data = data_format
-    rm(data_format)
+    load('Data/data_format_train_update.rda')
+    load('Data/Dn_omega_update.rda')
+    load(paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))
 }
 
-EIDs = unique(use_data[,'EID'])
-
-# Summary stats of state identification ----------------------------------------
-if(simulation) {
-    print("Summary of identifying correct states with mode")
-    for(s in 1:(length(index_seeds)+1)) {
-        if(s <= length(index_seeds)) {
-            print(paste0("Seed ", s))
-        } else {
-            print("Combo")
-        }
-        
-        if(length(ss_true) != length(all_seeds_state_mode[s, ])) {
-            print("ERROR")
-        } else {
-            print(sum(ss_true == all_seeds_state_mode[s, ]) / length(all_seeds_state_mode[s, ]))   
-        }
-    }
-    
-    print("Average (across subject) of proportion of correct states with mode")
-    mode_correctness = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
-    sensitivity_S2 = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
-    specificity_S2 = matrix(nrow = length(EIDs), ncol = length(index_seeds)+1)
-    for(s in 1:(length(index_seeds)+1)) {
-        
-        prop_sub = rep(0, length(EIDs))
-        
-        for(j in 1:length(EIDs)) {
-            sub_ind_j = which(use_data[,"EID"] == EIDs[j])
-            ss_true_j = ss_true[sub_ind_j]
-            state_seq_mode_j = all_seeds_state_mode[s, sub_ind_j]
-            
-            prop_sub[j] = sum(ss_true_j == state_seq_mode_j) / length(state_seq_mode_j)
-        }
-        
-        if(s <= length(index_seeds)) {
-            print(paste0("Seed ", s))
-        } else {
-            print("Combo")
-        }
-        
-        print(summary(prop_sub))
-        mode_correctness[,s] = prop_sub
-        
-        # eid_poor = NULL
-        # eid_poor = EIDs[prop_sub < 0.9]
-        
-        # Sensitivity of state 2: Pr(predict S2 | true S2)
-        predict_at_true_S2 = all_seeds_state_mode[s, (ss_true == 2)]
-        print(paste0("Sensitivity of S2 = ", mean(predict_at_true_S2 == 2)))
-        
-        # Specificity of state 2: Pr(predict not S2 | true not S2)
-        predict_not_S2 =  all_seeds_state_mode[s, (ss_true != 2)]
-        print(paste0("Specificity of S2 = ", mean(predict_not_S2 != 2)))
-    }    
-}
+EIDs = unique(data_format[,"EID"])
 
 # Choose a subset of the subjects to plot --------------------------------------
 set.seed(2025)
-EID_plot = unique(c(use_data[use_data[,"RBC_rule"] != 0,"EID"],
-                    use_data[use_data[,"clinic_rule"] != 0,"EID"]))
+EID_plot = unique(c(data_format[data_format[,"RBC_rule"] != 0,"EID"],
+                    data_format[data_format[,"clinic_rule"] != 0,"EID"]))
 EID_not_chosen_yet = EIDs[!(EIDs %in% EID_plot)]
 EID_plot = c(EID_plot, sample(x = EID_not_chosen_yet, 
                               size = 300 - length(EID_plot), 
                               replace = F))
 
-# Model evaluation plots -------------------------------------------------------
-state_proportions = NULL
-if(one_chart == 0) {
-    state_proportions = combo_counts_props
-} else {
-    state_counts_col_sum = colSums(state_results[[1]][1:S,])
-    state_proportions = matrix(nrow = S, ncol = ncol(state_results[[1]]))
-    for(s in 1:S) {
-        state_proportions[s,] = state_results[[1]][s, ] / state_counts_col_sum
-    }
-}
-
-pdf_file = NULL
-if(simulation) {
-    pdf_file = paste0('Plots/sim_chart_', trialNum, '_seed', one_chart, '_samp', 
-                      sampling_num, '_it', max(it_seq), '.pdf')
-} else {
-    pdf_file = paste0('Plots/real_chart_', trialNum, '_seed', one_chart, '_samp', 
-                      sampling_num, '_it', max(it_seq), '.pdf')
-}
-
-pdf(pdf_file)
+# Plot -------------------------------------------------------------------------
+pdf_title = paste0('Plots/chart_plot_', as.numeric(simulation), '_', plot_choice, '_it', it_num, '.pdf')
+pdf(pdf_title)
 panel_dim = c(4,1)
 inset_dim = c(0,-.18)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
+
 for(i in EID_plot){
     
     if(which(EID_plot == i) %% 100 == 0) print(which(EID_plot == i))
     
-    indices_i = (use_data[,'EID']==i)
+    indices_i = (data_format[,'EID']==i)
     n_i = sum(indices_i)
     
-    t_grid = round(use_data[indices_i, 'time'] / 60, digits = 3)
-    t_grid_bar = 1:length(t_grid)
-    rbc_times_bar = which(use_data[use_data[,'EID']==i, 'RBC_ordered'] != 0)
+    t_grid_bar = 1:n_i
+    t_grid = (t_grid_bar - 1) * 0.25;
+    rbc_times_bar = which(data_format[data_format[,'EID']==i, 'RBC_ordered'] != 0)
     
-    rbc_admin = c(head(use_data[use_data[,'EID']==i, "n_RBC_admin"], 1),
-                  diff(use_data[use_data[,'EID']==i, "n_RBC_admin"]))
+    rbc_admin = c(head(data_format[data_format[,'EID']==i, "n_RBC_admin"], 1),
+                  diff(data_format[data_format[,'EID']==i, "n_RBC_admin"]))
     rbc_admin_times_bar = which(rbc_admin != 0)
     
     rbc_times = t_grid[rbc_times_bar]
     rbc_admin_times = t_grid[rbc_admin_times_bar]
     
-    # Change background color to the true state sequence in simulation ---------
     if(simulation) {
-        b_i = ss_true[indices_i]
+        b_i = data_format[ indices_i,"b_true"]
         to_s1 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==1]
         to_s2 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==2]
         to_s3 = (2:n_i)[diff(b_i)!=0 & b_i[-1]==3]
@@ -325,7 +292,7 @@ for(i in EID_plot){
             
             if(length(to_s5) > 0) {
                 s5_coords = data.frame(s = 5, t = to_s5)
-                if(length(to_s1) > 0 || length(to_s2) > 0 || 
+                if(length(to_s1) > 0 || length(to_s2) > 0 ||
                    length(to_s3) > 0 || length(to_s4) > 0) {
                     rect_coords = rbind(rect_coords, s5_coords)
                 } else {
@@ -340,7 +307,7 @@ for(i in EID_plot){
             rect_coords = rect_coords[order(rect_coords$t), ]
             col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
                         'green', 'darkgray')[rect_coords$s]
-            col_vec = makeTransparent(col_vec, alpha = 0.35)   
+            col_vec = makeTransparent(col_vec, alpha = 0.35)
         } else {
             rect_coords = data.frame(s = rep(b_i[1], 2), t = c(1,n_i+1))
             rect_coords$t = rect_coords$t - 1
@@ -348,27 +315,27 @@ for(i in EID_plot){
             col_vec = c('dodgerblue', 'firebrick1', 'yellow2', 
                         'green', 'darkgray')[rect_coords$s]
             col_vec = makeTransparent(col_vec, alpha = 0.35)  
-        }
+        }    
     }
     
     pb = barplot(state_proportions[,indices_i], 
                  col=c( 'dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray'), 
-                 xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F) 
+                 xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F)
     
     # Heart Rate and MAP double plot -----------------------------------------
-    if(mean(use_data[indices_i, 'clinic_rule']) != 0) {
+    if(mean(data_format[indices_i, 'clinic_rule']) != 0) {
         title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                            mean(use_data[indices_i, 'RBC_rule']),
-                            ', clinic = ', mean(use_data[indices_i, 'clinic_rule']))
+                            mean(data_format[indices_i, 'RBC_rule']),
+                            ', clinic = ', mean(data_format[indices_i, 'clinic_rule']))
     } else {
         title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                            mean(use_data[indices_i, 'RBC_rule']))
+                            mean(data_format[indices_i, 'RBC_rule']))
     }
     
-    hr_upper = colQuantiles( hr_results[[1]][, indices_i, drop=F], probs=.975)
-    hr_lower = colQuantiles( hr_results[[1]][, indices_i, drop=F], probs=.025)
-    bp_upper = colQuantiles( map_results[[1]][, indices_i, drop=F], probs=.975)
-    bp_lower = colQuantiles( map_results[[1]][, indices_i, drop=F], probs=.025)
+    hr_upper = colQuantiles( hr_results[[seed_focus]][, indices_i, drop=F], probs=.975)
+    hr_lower = colQuantiles( hr_results[[seed_focus]][, indices_i, drop=F], probs=.025)
+    bp_upper = colQuantiles( map_results[[seed_focus]][, indices_i, drop=F], probs=.975)
+    bp_lower = colQuantiles( map_results[[seed_focus]][, indices_i, drop=F], probs=.025)
     
     if(simulation) {
         hr_map_ylim = c(min(hr_lower, bp_lower, hr_true[indices_i], mp_true[indices_i]), 
@@ -394,12 +361,12 @@ for(i in EID_plot){
         points( x = pb, y = mp_true[indices_i], pch = 5, cex = 1, col = 'black')    
     }
     
-    plotCI( x = pb, y=colMeans(hr_results[[1]][, indices_i, drop=F]), 
+    plotCI( x = pb, y=colMeans(hr_results[[seed_focus]][, indices_i, drop=F]), 
             ui=hr_upper, li=hr_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', col.main='green',
             col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
             xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-    plotCI( x = pb, y=colMeans(map_results[[1]][, indices_i, drop=F]), 
+    plotCI( x = pb, y=colMeans(map_results[[seed_focus]][, indices_i, drop=F]), 
             ui=bp_upper, li=bp_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
             col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
@@ -411,21 +378,20 @@ for(i in EID_plot){
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
-    
     # Hemoglobin and Lactate double plot -------------------------------------
-    if(mean(use_data[indices_i, 'clinic_rule']) != 0) {
+    if(mean(data_format[indices_i, 'clinic_rule']) != 0) {
         title_name = paste0('Hemoglobin & Lactate: ', i, ', RBC Rule = ', 
-                            mean(use_data[indices_i, 'RBC_rule']),
-                            ', clinic = ', mean(use_data[indices_i, 'clinic_rule']))
+                            mean(data_format[indices_i, 'RBC_rule']),
+                            ', clinic = ', mean(data_format[indices_i, 'clinic_rule']))
     } else {
         title_name = paste0('Hemoglobin & Lactate: ', i, ', RBC Rule = ',
-                            mean(use_data[indices_i, 'RBC_rule']))
+                            mean(data_format[indices_i, 'RBC_rule']))
     }
     
-    hc_upper = colQuantiles( hemo_results[[1]][, indices_i, drop=F], probs=.975)
-    hc_lower = colQuantiles( hemo_results[[1]][, indices_i, drop=F], probs=.025)
-    la_upper = colQuantiles( lact_results[[1]][, indices_i, drop=F], probs=.975)
-    la_lower = colQuantiles( lact_results[[1]][, indices_i, drop=F], probs=.025)
+    hc_upper = colQuantiles( hemo_results[[seed_focus]][, indices_i, drop=F], probs=.975)
+    hc_lower = colQuantiles( hemo_results[[seed_focus]][, indices_i, drop=F], probs=.025)
+    la_upper = colQuantiles( lact_results[[seed_focus]][, indices_i, drop=F], probs=.975)
+    la_lower = colQuantiles( lact_results[[seed_focus]][, indices_i, drop=F], probs=.025)
     
     if(simulation) {
         hr_map_ylim = c(min(hc_lower, la_lower, hc_true[indices_i], la_true[indices_i]), 
@@ -450,12 +416,12 @@ for(i in EID_plot){
         points( x = pb, y = la_true[indices_i], pch = 5, cex = 1, col = 'black')    
     }
     
-    plotCI(x = pb, y = colMeans(hemo_results[[1]][, indices_i, drop=F]), 
+    plotCI(x = pb, y = colMeans(hemo_results[[seed_focus]][, indices_i, drop=F]), 
            ui=hc_upper, li=hc_lower, main=title_name,
            xlab='time', ylab=NA, xaxt='n', col.main='green',
            col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
            xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add = T) 
-    plotCI(x = pb, y=colMeans(lact_results[[1]][, indices_i, drop=F]),
+    plotCI(x = pb, y=colMeans(lact_results[[seed_focus]][, indices_i, drop=F]),
            ui=la_upper, li=la_lower, main=title_name,
            xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
            col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
@@ -473,7 +439,7 @@ for(i in EID_plot){
     if(simulation) {
         omega_i = omega_i_mat[[which(EIDs == i)]]    
     } else {
-        omega_i = par_means[par_index$omega_tilde]
+        omega_i = par_means[[seed_focus]][par_index$omega_tilde]
     }
     
     hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
@@ -563,7 +529,6 @@ for(i in EID_plot){
             col=c( 'darkorchid1', 'aquamarine'))				
     axis( side=1, at=t_grid_bar-0.5, col.axis='green', labels = t_grid)
     axis( side=2, at=0:1, col.axis='green')
-    
     
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)

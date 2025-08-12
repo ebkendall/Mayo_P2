@@ -178,12 +178,17 @@ clinical_id_yes = clinical_id[clinic_review$Bleeding.event. %in% c("Yes", "Y")]
 clinical_id_no = clinical_id[clinic_review$Bleeding.event. %in% c("No", "N")]
 
 clinical_patients = clinical_id[clinical_id %in% EIDs_sub]
-set.seed(2025)
-TEST_SET = c(sample(clinical_patients[clinical_patients %in% clinical_id_no], 
-                  size = 2, replace = F),
-             sample(clinical_patients[clinical_patients %in% clinical_id_yes], 
-                    size = 3, replace = F))
-save(TEST_SET, file = "Data/TEST_SET_update.rda")
+
+if(final_train_size == 500) {
+    set.seed(2025)
+    TEST_SET = c(sample(clinical_patients[clinical_patients %in% clinical_id_no], 
+                        size = 2, replace = F),
+                 sample(clinical_patients[clinical_patients %in% clinical_id_yes], 
+                        size = 3, replace = F))
+    save(TEST_SET, file = "Data/TEST_SET_update.rda")    
+} else {
+    load('Data/TEST_SET_update.rda')
+}
 
 clinical_patients = clinical_patients[!(clinical_patients %in% TEST_SET)]
 rbc_patients = rbc_patients[!(rbc_patients %in% TEST_SET)]

@@ -1,10 +1,10 @@
-index_seeds = 1:5
+index_seeds = 1:10
 trialNum = 1
 simulation = F
 
-it_num = 12
-max_ind = 14
-start_ind = 10
+it_num = 14
+max_ind = 17
+start_ind = 13
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -140,7 +140,8 @@ for(seed in index_seeds){
             
             if(it == 1) {
                 ind = ind + 1
-                chain_list[[ind]] = mcmc_out$chain[500:1000, ]
+                # chain_list[[ind]] = mcmc_out$chain[500:1000, ]
+                chain_list[[ind]] = mcmc_out$chain
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
             }

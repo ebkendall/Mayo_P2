@@ -16,7 +16,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 12
+    n_cores = 10
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
