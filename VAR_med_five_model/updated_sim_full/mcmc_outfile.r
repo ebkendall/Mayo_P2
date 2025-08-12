@@ -101,6 +101,7 @@ if(simulation) {
 # -----------------------------------------------------------------------------
 
 chain_list = list()
+A_list = list()
 par_means = vector(mode = 'list', length = length(index_seeds))
 ind = 0
 post_means_mat = NULL
@@ -142,8 +143,10 @@ for(seed in index_seeds){
                 ind = ind + 1
                 # chain_list[[ind]] = mcmc_out$chain[500:1000, ]
                 chain_list[[ind]] = mcmc_out$chain
+                A_list[[ind]] = t(do.call(cbind, mcmc_out$alpha_i))
             } else {
                 chain_list[[ind]] = rbind(chain_list[[ind]], mcmc_out$chain)
+                A_list[[ind]] = rbind(A_list[[ind]], t(do.call(cbind, mcmc_out$alpha_i)))
             }
             
             rm(mcmc_out)
@@ -234,6 +237,32 @@ if(simulation) {
                     ylab = paste0('truth = ', true_par[r]))
             abline(h = true_par[r], col = 'red')
         }
+    }
+}
+
+# Plot the sampled alpha_i
+alpha_i_names = c("slope S2 (hemo)", "slope S3 (hemo)", "slope S4 (hemo)", "slope S5 (hemo)",
+                  "slope S2 (hr)", "slope S3 (hr)", "slope S4 (hr)", "slope S5 (hr)",
+                  "slope S2 (map)", "slope S3 (map)", "slope S4 (map)", "slope S5 (map)",
+                  "slope S2 (lact)", "slope S3 (lact)", "slope S4 (lact)", "slope S5 (lact)")
+par(mfrow = c(2,2))
+for(a in 1:16) {
+    all_a = NULL
+    freq_counts = NULL
+    for(i in 1:length(A_list)) {
+        all_a = cbind(all_a, A_list[[i]][,a])
+        
+        temp_hist = hist(A_list[[i]][,a], breaks = sqrt(nrow(A_list[[i]])), plot = F)
+        freq_counts = c(freq_counts, max(temp_hist$counts))
+    }
+    
+    x_margin = c(min(c(all_a)), max(c(all_a)))
+    y_margin = c(0, max(freq_counts))
+    
+    hist(all_a[,1], main = alpha_i_names[a], xlab = paste0('alpha_i(', a, ')'),
+         breaks = sqrt(nrow(all_a)), col = 1, xlim = x_margin, ylim = y_margin)
+    for(i in 2:length(A_list)) {
+        hist(all_a[,i], breaks = sqrt(nrow(all_a)), col = i, add = T)
     }
 }
 

@@ -5,26 +5,25 @@ par_index = list()
 par_index$beta = 1:4
 par_index$alpha_tilde = 5:24
 par_index$upsilon = 25:424
-par_index$A = 425:428
-par_index$R = 429:444
-par_index$zeta = 445:468
-par_index$init = 469:472
-par_index$omega_tilde = 473:556
-par_index$eta_omega = 557:640
+par_index$A = 425:444
+par_index$R = 445:460
+par_index$zeta = 461:484
+par_index$init = 485:488
+par_index$omega_tilde = 489:572
 
-# Initializing true parameter values ---------------------------------------
+# Initializing true parameter values -------------------------------------------
 par = rep(0, max(do.call('c', par_index)))
 
 par[par_index$beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
 par[par_index$alpha_tilde] = c( 50,  -5,   5, -2,  2,
-                                100,  10, -10,  2, -2,
-                                100, -10,  10,  2, -2,
+                               100,  10, -10,  2, -2,
+                               100, -10,  10,  2, -2,
                                 50,   5,  -5, -2,  2)
 par[par_index$upsilon] = c(diag(c(25, 4, 4, 1, 1, 
                                   25, 4, 4, 1, 1, 
                                   25, 4, 4, 1, 1, 
                                   25, 4, 4, 1, 1)))
-par[par_index$A] = rep(0, 4)
+par[par_index$A] = c(rep(1, 4), rep(-3, 4), rep(-1, 4), rep(-2, 4), rep(0, 4))
 par[par_index$R] = c(diag(c(9, 9, 9, 9)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
 #                          3->1,         3->2,         3->4,         4->2, 
@@ -37,7 +36,6 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
                                   -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
                                   -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                   -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-par[par_index$eta_omega] = rep(1, length(par_index$eta_omega))
 
 n_state = 5
 
@@ -46,7 +44,8 @@ beta = par[par_index$beta]
 alpha_tilde = matrix(par[par_index$alpha_tilde], ncol = 4)
 Upsilon = matrix(par[par_index$upsilon], ncol = 20)
 vec_A = par[par_index$A]
-A_mat_scale = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
+A_scaled = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
+A_total = matrix(A_scaled, ncol = 5)
 
 # columns: hemo, hr, map, lactate
 R = matrix(par[par_index$R], ncol = 4)
@@ -60,10 +59,6 @@ init_logit = par[par_index$init]
 init_logit = c(0, init_logit)
 
 omega_tilde = par[par_index$omega_tilde]
-eta_omega = exp(par[par_index$eta_omega])
-
-true_pars = par
-save(true_pars, file = 'Data/true_pars.rda')
 # ------------------------------------------------------------------------------
 
 # for(df_num in 1:50) {
@@ -73,10 +68,8 @@ df_num = as.numeric(args[1])
 print(paste0("Df ", df_num))
 set.seed(df_num)
 
-# load('Data/data_format_train_large.rda')
-# load('Data/Dn_omega_large.rda')
-load('Data/data_format_train_miss.rda')
-load('Data/Dn_omega_miss.rda')
+load('Data/data_format_train_update.rda')
+load('Data/Dn_omega_update.rda')
 load('Data/Dn_omega_names.rda')
 
 EIDs = unique(data_format[,"EID"])
@@ -149,7 +142,6 @@ rm(data_format)
 # --------------------------------------------------------------------------
 
 alpha_i_mat = vector(mode = "list", length = N)
-omega_i_mat = vector(mode = "list", length = N)
 Dn_omega_sim = vector(mode = 'list', length = N)
 
 data_format = NULL
@@ -240,27 +232,26 @@ for(i in 1:N) {
     X_i = vector(mode = 'list', length = n_i)
     
     vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
-    vec_omega_i = rmvnorm( n=1, mean=c(omega_tilde), sigma=diag(eta_omega))
     
     alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
-    omega_i_mat[[i]] = matrix(vec_omega_i, ncol = 1)
     
-    Gamma = matrix(c(R[1,1] / (1 - A_mat_scale[1] * A_mat_scale[1]), 
-                     R[1,2] / (1 - A_mat_scale[1] * A_mat_scale[2]),
-                     R[1,3] / (1 - A_mat_scale[1] * A_mat_scale[3]), 
-                     R[1,4] / (1 - A_mat_scale[1] * A_mat_scale[4]),
-                     R[2,1] / (1 - A_mat_scale[2] * A_mat_scale[1]), 
-                     R[2,2] / (1 - A_mat_scale[2] * A_mat_scale[2]),
-                     R[2,3] / (1 - A_mat_scale[2] * A_mat_scale[3]), 
-                     R[2,4] / (1 - A_mat_scale[2] * A_mat_scale[4]),
-                     R[3,1] / (1 - A_mat_scale[3] * A_mat_scale[1]), 
-                     R[3,2] / (1 - A_mat_scale[3] * A_mat_scale[2]),
-                     R[3,3] / (1 - A_mat_scale[3] * A_mat_scale[3]), 
-                     R[3,4] / (1 - A_mat_scale[3] * A_mat_scale[4]),
-                     R[4,1] / (1 - A_mat_scale[4] * A_mat_scale[1]), 
-                     R[4,2] / (1 - A_mat_scale[4] * A_mat_scale[2]),
-                     R[4,3] / (1 - A_mat_scale[4] * A_mat_scale[3]), 
-                     R[4,4] / (1 - A_mat_scale[4] * A_mat_scale[4])), 
+    A_init = A_total[,b_i[1]]
+    Gamma = matrix(c(R[1,1] / (1 - A_init[1] * A_init[1]), 
+                     R[1,2] / (1 - A_init[1] * A_init[2]),
+                     R[1,3] / (1 - A_init[1] * A_init[3]), 
+                     R[1,4] / (1 - A_init[1] * A_init[4]),
+                     R[2,1] / (1 - A_init[2] * A_init[1]), 
+                     R[2,2] / (1 - A_init[2] * A_init[2]),
+                     R[2,3] / (1 - A_init[2] * A_init[3]), 
+                     R[2,4] / (1 - A_init[2] * A_init[4]),
+                     R[3,1] / (1 - A_init[3] * A_init[1]), 
+                     R[3,2] / (1 - A_init[3] * A_init[2]),
+                     R[3,3] / (1 - A_init[3] * A_init[3]), 
+                     R[3,4] / (1 - A_init[3] * A_init[4]),
+                     R[4,1] / (1 - A_init[4] * A_init[1]), 
+                     R[4,2] / (1 - A_init[4] * A_init[2]),
+                     R[4,3] / (1 - A_init[4] * A_init[3]), 
+                     R[4,4] / (1 - A_init[4] * A_init[4])), 
                    ncol = 4, byrow = T)
     
     for(k in 1:n_i) {
@@ -276,7 +267,7 @@ for(i in 1:N) {
             
             mean_vecY_i_k = D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k]] %*% matrix(vec_omega_i,ncol=1)
+                D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
             
             Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
             
@@ -288,14 +279,15 @@ for(i in 1:N) {
                               nrow = 1, ncol = 5)
             D_i[[k]] = diag(4) %x% D_i_temp
             
-            A_1 = diag(A_mat_scale)
+            A_curr = A_total[,b_i[k]]
+            A_1 = diag(A_curr)
             
             nu_k = D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k]] %*% matrix(vec_omega_i,ncol=1)
+                D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
             nu_k_1 = D_i[[k-1]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k-1]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k-1]] %*% matrix(vec_omega_i,ncol=1)
+                D_i_omega[[k-1]] %*% matrix(omega_tilde,ncol=1)
             diff_vec = c(Y_i[k-1,] - nu_k_1)
             
             mean_vecY_i_k = nu_k + A_1 %*% matrix(diff_vec,ncol=1)
@@ -412,8 +404,6 @@ cat('\n')
 save(data_format, file=paste0('Data/sim_data_', df_num, '.rda'))
 
 save(alpha_i_mat, file = paste0('Data/alpha_i_mat_', df_num, '.rda'))
-
-save(omega_i_mat, file = paste0('Data/omega_i_mat_', df_num, '.rda'))
 
 save(bleed_indicator, file = paste0('Data/bleed_indicator_sim_', df_num, '.rda'))
 

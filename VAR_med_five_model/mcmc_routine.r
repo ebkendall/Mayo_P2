@@ -15,7 +15,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 10
+    n_cores = 6
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -160,12 +160,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                             'RBC_rule', 'clinic_rule')    
         }
         
-        # State-space update (B) -----------------------------------------------
-        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(EIDs, par, par_index, B, A, Y, z, Dn_alpha, 
-                             Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
-        B = B_Dn[[1]]
-        Dn_alpha = B_Dn[[2]]
+        # # State-space update (B) -----------------------------------------------
+        # sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        # B_Dn = state_sampler(EIDs, par, par_index, B, A, Y, z, Dn_alpha, 
+        #                      Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
+        # B = B_Dn[[1]]
+        # Dn_alpha = B_Dn[[2]]
         
         # Gibbs: alpha_i -------------------------------------------------------
         A = update_alpha_i(EIDs, par, par_index, B, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
@@ -355,7 +355,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     pscale=pscale, pcov = pcov, par_index=par_index)    
                 } else {
                     mcmc_out = list(chain    = chain[index_keep,], 
-                                    B_chain  = B_chain, 
+                                    B_chain  = B_chain[index_keep_2,], 
                                     hc_chain = matrix(Y[,'hemo'], nrow = 1),
                                     hr_chain = matrix(Y[,'hr'], nrow = 1), 
                                     bp_chain = matrix(Y[,'map'], nrow = 1), 
