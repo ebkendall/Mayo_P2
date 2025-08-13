@@ -62,8 +62,6 @@ init_logit = c(0, init_logit)
 omega_tilde = par[par_index$omega_tilde]
 eta_omega = exp(par[par_index$eta_omega])
 
-true_pars = par
-save(true_pars, file = 'Data/true_pars.rda')
 # ------------------------------------------------------------------------------
 
 # for(df_num in 1:50) {
@@ -73,10 +71,8 @@ df_num = as.numeric(args[1])
     print(paste0("Df ", df_num))
     set.seed(df_num)
 
-    # load('Data/data_format_train_large.rda')
-    # load('Data/Dn_omega_large.rda')
-    load('Data/data_format_train_miss.rda')
-    load('Data/Dn_omega_miss.rda')
+    load('Data/data_format_train_update.rda')
+    load('Data/Dn_omega_update.rda')
     load('Data/Dn_omega_names.rda')
     
     EIDs = unique(data_format[,"EID"])
