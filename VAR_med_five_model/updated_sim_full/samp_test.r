@@ -17,6 +17,11 @@ load('Data/bleed_indicator_sim_1.rda')
 load('Data/Dn_omega_sim.rda')
 EIDs_all = unique(data_format[,'EID'])
 
+Mode <- function(x) {
+    ux <- unique(x)
+    return(ux[which.max(tabulate(match(x, ux)))])
+}
+
 # Take 10 simulated subjects ---------------------------------------------------
 EIDs = sort(sample(EIDs_all, size = 10, replace = F))
 
@@ -37,18 +42,13 @@ b_chain = rep(1, sum(index_sub))
 
 A = list()
 W = list()
-B = list()
 
 for(ii in 1:length(EIDs)){
-    i = EIDs[ii]
-    
     A[[ii]] = alpha_i_mat[[ii]][-c(1,6,11,16),,drop=F] # Remove baseline
     W[[ii]] = omega_i_mat[[ii]]
-    B[[ii]] = matrix(b_chain[Y[,"EID"] == i], ncol = 1)
 }
 
 Xn = initialize_Xn(EIDs, Y, x)
-Dn_alpha = initialize_Dn(EIDs, B)
 
 par_index = list()
 par_index$beta = 1:4
@@ -96,86 +96,122 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
 par[par_index$eta_omega] = rep(1, length(par_index$eta_omega))
 par[par_index$G] = c(diag(c(9, 9, 9, 9)))
 
+adj_mat = matrix(c(1, 1, 0, 1, 0,
+                   0, 1, 1, 1, 0,
+                   1, 1, 1, 1, 0,
+                   0, 1, 0, 1, 1,
+                   1, 1, 0, 1, 1), nrow=5, byrow = T)
+
+adj_mat_sub = matrix(c(1, 0, 0, 1, 0,
+                       0, 1, 0, 0, 0,
+                       0, 0, 1, 0, 0,
+                       0, 0, 0, 1, 1,
+                       1, 0, 0, 1, 1), nrow=5, byrow = T)
+
+# Run time experiment ----------------------------------------------------------
+
+compute_times = list()
+steps = 100
+n_cores = 1
 
 for(samp_ind in 1:4) {
     
-    if(samp_ind == 1) {
-        sps = 2
-    } else if(samp_ind == 2) {
-        sps = 2
-    } else if(samp_ind == 3) {
-        sps = 2
+    if(samp_ind < 4) {
+        sps = c(2,4,6)
     } else {
-        sps = 2       
+        sps = 2
     }
     
-    adj_mat = matrix(c(1, 1, 0, 1, 0,
-                       0, 1, 1, 1, 0,
-                       1, 1, 1, 1, 0,
-                       0, 1, 0, 1, 1,
-                       1, 1, 0, 1, 1), nrow=5, byrow = T)
-    adj_mat_sub = matrix(c(1, 0, 0, 1, 0,
-                           0, 1, 0, 0, 0,
-                           0, 0, 1, 0, 0,
-                           0, 0, 0, 1, 1,
-                           1, 0, 0, 1, 1), nrow=5, byrow = T)
+    compute_times[[samp_ind]] = list()
     
-    initialize_cpp(adj_mat, adj_mat_sub, sps)
-    
-    B_chain = matrix(NA, 1000, nrow(Y)) 
-    B_chain[1, ] = do.call( 'c', B)
-    
-    for(ttt in 2:steps) {
+    for(s in 1:length(sps)) {
         
-        # Random sample update
-        if(sampling_num == 1) {
-            B_Dn = mh_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega, W, 
-                         bleed_indicator, n_cores, states_per_step)
-            B = B_Dn[[1]]
-            Dn = B_Dn[[2]]
+        initialize_cpp(adj_mat, adj_mat_sub, sps[s])
+        
+        B = list()
+        for(ii in 1:length(EIDs)){
+            i = EIDs[ii]
+            B[[ii]] = matrix(b_chain[Y[,"EID"] == i], ncol = 1)
         }
         
-        # Almost-Gibbs update
-        else if(sampling_num == 2) {
-            B_Dn = almost_gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, 
-                                   Dn_omega, W, bleed_indicator, n_cores, 
-                                   states_per_step)
-            B = B_Dn[[1]]
-            Dn = B_Dn[[2]]
-        } 
+        Dn_alpha = initialize_Dn(EIDs, B)
         
-        # Gibbs update
-        else if(sampling_num == 3) {
-            B_Dn = gibbs_up(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-                            W, bleed_indicator, n_cores, states_per_step)
-            B = B_Dn[[1]]
-            Dn = B_Dn[[2]]
-        }
+        B_chain = matrix(NA, steps, nrow(Y)) 
+        B_chain[1, ] = do.call( 'c', B)
         
-        # Full seq MH update
-        else if(sampling_num == 4) {
-            B_Dn = mh_up_all(EIDs, par, par_index, A, B, Y, z, Xn, Dn_omega,
-                             W, bleed_indicator, n_cores)
-            B = B_Dn[[1]]
-            Dn = B_Dn[[2]]
-        }
+        compute_times[[samp_ind]][[s]] = matrix(nrow = steps, ncol = 2)
+        colnames(compute_times[[samp_ind]][[s]]) = c('time', 'accuracy')
+        compute_times[[samp_ind]][[s]][1,] = c(0, mean(B_chain[1,] == true_b_chain))
         
-        # Almost-Gibbs efficient
-        else if(sampling_num == 5) {
+        for(ttt in 2:steps) {
             
-            if(states_per_step == 0) {
-                sps = sample(x = 20:50, size = 1, replace = T)
-            } else {
-                sps = states_per_step
+            ttt_start_t = Sys.time()
+            
+            # Coin Flip
+            if(samp_ind == 1) {
+                B_Dn = state_coin_flip(EIDs, par, par_index, B, A, W, Y, z, 
+                                       Dn_omega, Xn, bleed_indicator, 
+                                       sps[s], n_cores)
+                B = B_Dn[[1]]
+                Dn_alpha = B_Dn[[2]]
             }
             
-            B_Dn = almost_gibbs_fast_b(EIDs, par, par_index, A, B, Y, z, Xn, 
-                                       Dn_omega, W, bleed_indicator,n_cores,
-                                       sps)
-            B = B_Dn[[1]] 
-            Dn = B_Dn[[2]]
+            # Almost-Gibbs update
+            else if(samp_ind == 2) {
+                B_Dn = state_almost_gibbs(EIDs, par, par_index, B, A, W, Y, z, 
+                                          Dn_omega, Xn, bleed_indicator, 
+                                          sps[s], n_cores)
+                B = B_Dn[[1]]
+                Dn_alpha = B_Dn[[2]]
+            } 
+            
+            # Gibbs update
+            else if(samp_ind == 3) {
+                B_Dn = state_gibbs(EIDs, par, par_index, B, A, W, Y, z, 
+                                   Dn_omega, Xn, bleed_indicator, 
+                                   sps[s], n_cores)
+                B = B_Dn[[1]]
+                Dn_alpha = B_Dn[[2]]
+            }
+            
+            # Our Sampler
+            else {
+                state_per_step = sample(x = 2:50, size = 1, replace = T)
+                B_Dn = state_sampler(EIDs, par, par_index, B, A, W, Y, z, 
+                                     Dn_omega, Xn, bleed_indicator, 
+                                     state_per_step, n_cores)
+                B = B_Dn[[1]]
+                Dn_alpha = B_Dn[[2]]
+            }
+            
+            B_chain[ttt, ] = do.call( 'c', B)
+            mode_chain = apply(B_chain[1:ttt, ], 2, Mode)
+            
+            ttt_end_t = Sys.time()
+            
+            ttt_elapsed = as.numeric(difftime(ttt_end_t, ttt_start_t, units = "secs"))
+            
+            compute_times[[samp_ind]][[s]][ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
+            
+            cat('--> samp ind ', samp_ind, ', sps ', sps[s], ', ', ttt, '\n')
+            cat("Elapsed time:", ttt_elapsed, "seconds\n")
         }
     }
 }
+
+save(compute_times, file = 'Model_out/compute_times.rda')
+
+
+pdf("Plots/compute_times.pdf")
+par(mfcol = c(3, 2))
+plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
+for(i in 1:4) {
+    for(j in 1:length(compute_times[[i]])) {
+        plot(compute_times[[i]][[j]][,2], main = plot_names[i], ylim = c(0,1),
+             ylab = "Percent Correct", 
+             xlab = paste0("Median Step Time = ", round(median(compute_times[[i]][[j]][,2]), 4)))
+    }
+}
+dev.off()
 
 
