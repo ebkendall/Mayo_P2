@@ -119,7 +119,7 @@ compute_num = as.numeric(args[1])
 samp_ind = compute_num_combos[compute_num, "samp_ind"]
 s = compute_num_combos[compute_num, "s"]
 
-# compute_times = list()
+compute_times = list()
 steps = 100
 n_cores = 1
 
@@ -136,6 +136,7 @@ n_cores = 1
     # for(s in 1:length(sps)) {
         
         initialize_cpp(adj_mat, adj_mat_sub, sps[s])
+        get_dimension()
         
         B = list()
         for(ii in 1:length(EIDs)){
@@ -203,12 +204,14 @@ n_cores = 1
             ttt_end_t = Sys.time()
             
             ttt_elapsed = as.numeric(difftime(ttt_end_t, ttt_start_t, units = "secs"))
+            ttt_accuracy = mean(mode_chain == true_b_chain)
             
-            interm_compute_time[ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
+            interm_compute_time[ttt,] = c(ttt_elapsed, ttt_accuracy)
             # compute_times[[samp_ind]][[s]][ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
             
             cat('--> samp ind ', samp_ind, ', sps ', sps[s], ', ', ttt, '\n')
             cat("Elapsed time:", ttt_elapsed, "seconds\n")
+            cat("Accuracy:", ttt_accuracy, "\n")
         }
     # }
 # }
@@ -217,18 +220,33 @@ n_cores = 1
 save(interm_compute_time, file = paste0('Model_out/int_comp_', samp_ind, '_', s, '.rda'))
 # save(compute_times, file = 'Model_out/compute_times.rda')
 
+compute_times = list()
+for(i in 1:4) {
+    compute_times[[i]] = list()
+    for(s in 1:5) {
+        file_name = paste0('Model_out/int_comp_', i, '_', s, '.rda')
+        if(file.exists(file_name)) {
+            load(file_name)
+            compute_times[[i]][[s]] = interm_compute_time
+        }
+    }
+}
 
-# pdf("Plots/compute_times.pdf")
-# par(mfcol = c(3, 2))
-# plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
-# for(i in 1:4) {
-#     for(j in 1:length(compute_times[[i]])) {
-#         plot(compute_times[[i]][[j]][,2], main = plot_names[i], ylim = c(0,1),
-#              ylab = "Percent Correct",
-#              xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
-#                            ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
-#     }
-# }
-# dev.off()
+compute_times_10 = c(2044.382, 2980.456, 3057.474, 2951.142, 2920.848, 2886.341, 
+                     2901.076, 2901.327, 2904.976)
+compute_times_14 = c(1806.233, 2950.803, 2939.701, 2836.083, 2851.392, 2798.996,
+                     2799.846, 2881.293, 2888.603)
+compute_times_15 = c(20185.28)
 
-
+pdf("Plots/compute_times_update.pdf")
+par(mfrow = c(3, 2))
+plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
+for(i in 1:4) {
+    for(j in 1:length(compute_times[[i]])) {
+        plot(compute_times[[i]][[j]][,2], main = paste0(plot_names[i], ", p = ", sps[j]),
+             ylim = c(0,1), ylab = "Percent Correct",
+             xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
+                           ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
+    }
+}
+dev.off()

@@ -443,10 +443,6 @@ bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i,
                 int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
 
                 arma::vec check_vec = s_i.subvec(0, first_bleed_ind);
-                // arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                // if(first_bleed_ind > 0) {
-                //     check_vec(0) = s_i(first_bleed_ind-1);
-                // }
 
                 if(arma::any(check_vec == 2)) {
                     eval_like = true;
@@ -468,10 +464,6 @@ bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i,
                 int first_bleed_ind = arma::as_scalar(bleed_ind_ind);
 
                 arma::vec check_vec = s_i.subvec(0, first_bleed_ind);
-                // arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                // if(first_bleed_ind > 0) {
-                //     check_vec(0) = s_i(first_bleed_ind-1);
-                // }
 
                 if(arma::any(check_vec == 2)) {
                     eval_like = true;
@@ -496,13 +488,7 @@ bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i,
 
                 arma::vec check_vec = s_i.subvec(0, first_bleed_ind);
                 arma::vec check_vec_ind = arma::linspace(0, first_bleed_ind, first_bleed_ind + 1);
-                // arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                // arma::vec check_vec_ind = {0, first_bleed_ind};
-                // if(first_bleed_ind > 0) {
-                //     check_vec(0) = s_i(first_bleed_ind-1);
-                //     check_vec_ind(0) = first_bleed_ind - 1;
-                // }
-
+                
                 arma::vec k_inds = arma::linspace(k, k + states_per_step - 1, states_per_step);
                 arma::vec bleed_k_int = arma::intersect(k_inds, check_vec_ind);
 
@@ -531,13 +517,7 @@ bool rule_check(int clinic_rule, int rbc_rule, arma::vec bleed_ind_i,
 
                 arma::vec check_vec = s_i.subvec(0, first_bleed_ind);
                 arma::vec check_vec_ind = arma::linspace(0, first_bleed_ind, first_bleed_ind + 1);
-                // arma::vec check_vec = {0, s_i(first_bleed_ind)};
-                // arma::vec check_vec_ind = {0, first_bleed_ind};
-                // if(first_bleed_ind > 0) {
-                //     check_vec(0) = s_i(first_bleed_ind-1);
-                //     check_vec_ind(0) = first_bleed_ind - 1;
-                // }
-
+                
                 arma::vec k_inds = arma::linspace(k, k + states_per_step - 1, states_per_step);
                 arma::vec bleed_k_int = arma::intersect(k_inds, check_vec_ind);
 
@@ -1222,8 +1202,6 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         // Subject-specific information ----------------------------------------
@@ -1360,8 +1338,6 @@ Rcpp::List state_coin_flip(const arma::vec EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------
@@ -1616,8 +1592,6 @@ Rcpp::List state_almost_gibbs(const arma::vec EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------
@@ -1948,8 +1922,6 @@ Rcpp::List state_gibbs(const arma::vec EIDs, const arma::vec &par,
         arma::vec clinic_rule_vec = Y.col(6);
         // -------------------------------------------------------------------------
     
-        // omp_set_num_threads(n_cores);
-        // # pragma omp parallel for
         for (int ii = 0; ii < EIDs.n_elem; ii++) {
             
             // Subject-specific information ----------------------------------------
@@ -2125,3 +2097,26 @@ Rcpp::List state_gibbs(const arma::vec EIDs, const arma::vec &par,
         List B_Dn = List::create(B_return, Dn_return);
         return B_Dn;
     }
+
+// [[Rcpp::export]]
+void get_dimension(){
+    
+    int N = 5;
+    
+    Rcpp::Rcout << "Case (c) Full" << std::endl;
+    for(int w=0; w < N; w++) {
+        Rcpp::Rcout << "() -> () -> " << w+1 << " : " << Omega_List_GLOBAL_multi(0)(w).n_rows << " combos" << std::endl;
+    }
+
+    Rcpp::Rcout << "Case (b) Full" << std::endl;
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < N; j++) {
+            Rcpp::Rcout << i+1 << " --> " << j+1 << " : " << Omega_List_GLOBAL_multi(1)(i, j).n_rows << " combos" << std::endl;
+        }
+    }
+
+    Rcpp::Rcout << "Case (a) Full" << std::endl;
+    for(int w=0; w < N; w++) {
+        Rcpp::Rcout << w + 1 << " -> () -> () : " << Omega_List_GLOBAL_multi(2)(w).n_rows << " combos" << std::endl;
+    }
+}
