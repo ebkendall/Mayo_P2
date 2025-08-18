@@ -16,7 +16,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 17
+    max_ind = 20
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -116,7 +116,8 @@ if(simulation) {
         
         # 10: from it 1-5, 6-9
         #  5: from it 10-12
-        chosen_seed = 5
+        #  7: from it 13-15
+        chosen_seed = 7
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                     max_ind - 5, '.rda'))
         

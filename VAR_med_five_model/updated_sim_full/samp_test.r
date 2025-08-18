@@ -109,22 +109,31 @@ adj_mat_sub = matrix(c(1, 0, 0, 1, 0,
                        1, 0, 0, 1, 1), nrow=5, byrow = T)
 
 # Run time experiment ----------------------------------------------------------
+compute_num_combos = cbind(rep(1:3, each = 5), rep(1:5, 3))
+colnames(compute_num_combos) = c("samp_ind", "s")
+compute_num_combos = rbind(compute_num_combos, c(4, 1))
 
-compute_times = list()
+args = commandArgs(TRUE)
+compute_num = as.numeric(args[1])
+
+samp_ind = compute_num_combos[compute_num, "samp_ind"]
+s = compute_num_combos[compute_num, "s"]
+
+# compute_times = list()
 steps = 100
 n_cores = 1
 
-for(samp_ind in 1:4) {
+# for(samp_ind in 1:4) {
     
     if(samp_ind < 4) {
-        sps = c(2,4,6)
+        sps = c(2,4,6,8,10)
     } else {
         sps = 2
     }
     
-    compute_times[[samp_ind]] = list()
+    # compute_times[[samp_ind]] = list()
     
-    for(s in 1:length(sps)) {
+    # for(s in 1:length(sps)) {
         
         initialize_cpp(adj_mat, adj_mat_sub, sps[s])
         
@@ -139,9 +148,13 @@ for(samp_ind in 1:4) {
         B_chain = matrix(NA, steps, nrow(Y)) 
         B_chain[1, ] = do.call( 'c', B)
         
-        compute_times[[samp_ind]][[s]] = matrix(nrow = steps, ncol = 2)
-        colnames(compute_times[[samp_ind]][[s]]) = c('time', 'accuracy')
-        compute_times[[samp_ind]][[s]][1,] = c(0, mean(B_chain[1,] == true_b_chain))
+        interm_compute_time = matrix(nrow = steps, ncol = 2)
+        colnames(interm_compute_time) = c('time', 'accuracy')
+        interm_compute_time[1,] = c(0, mean(B_chain[1,] == true_b_chain))
+        
+        # compute_times[[samp_ind]][[s]] = matrix(nrow = steps, ncol = 2)
+        # colnames(compute_times[[samp_ind]][[s]]) = c('time', 'accuracy')
+        # compute_times[[samp_ind]][[s]][1,] = c(0, mean(B_chain[1,] == true_b_chain))
         
         for(ttt in 2:steps) {
             
@@ -191,27 +204,31 @@ for(samp_ind in 1:4) {
             
             ttt_elapsed = as.numeric(difftime(ttt_end_t, ttt_start_t, units = "secs"))
             
-            compute_times[[samp_ind]][[s]][ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
+            interm_compute_time[ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
+            # compute_times[[samp_ind]][[s]][ttt,] = c(ttt_elapsed, mean(mode_chain == true_b_chain))
             
             cat('--> samp ind ', samp_ind, ', sps ', sps[s], ', ', ttt, '\n')
             cat("Elapsed time:", ttt_elapsed, "seconds\n")
         }
-    }
-}
+    # }
+# }
+        
+        
+save(interm_compute_time, file = paste0('Model_out/int_comp_', samp_ind, '_', s, '.rda'))
+# save(compute_times, file = 'Model_out/compute_times.rda')
 
-save(compute_times, file = 'Model_out/compute_times.rda')
 
-
-pdf("Plots/compute_times.pdf")
-par(mfcol = c(3, 2))
-plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
-for(i in 1:4) {
-    for(j in 1:length(compute_times[[i]])) {
-        plot(compute_times[[i]][[j]][,2], main = plot_names[i], ylim = c(0,1),
-             ylab = "Percent Correct", 
-             xlab = paste0("Median Step Time = ", round(median(compute_times[[i]][[j]][,2]), 4)))
-    }
-}
-dev.off()
+# pdf("Plots/compute_times.pdf")
+# par(mfcol = c(3, 2))
+# plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
+# for(i in 1:4) {
+#     for(j in 1:length(compute_times[[i]])) {
+#         plot(compute_times[[i]][[j]][,2], main = plot_names[i], ylim = c(0,1),
+#              ylab = "Percent Correct",
+#              xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
+#                            ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
+#     }
+# }
+# dev.off()
 
 

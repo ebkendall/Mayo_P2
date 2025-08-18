@@ -1,8 +1,8 @@
-index_seeds = 1:10
+index_seeds = 1:50
 trialNum = 1
-simulation = F
+simulation = T
 
-it_num = 3
+it_num = 2
 start_ind = 1
 
 # Parameter initialization -----------------------------------------------------
@@ -28,7 +28,7 @@ true_par[par_index$upsilon] = c(diag(c(4, 4, 1, 1,
                                        4, 4, 1, 1, 
                                        4, 4, 1, 1)))
 true_par[par_index$A] = rep(0, 20)
-true_par[par_index$R] = c(diag(c(sqrt(3), sqrt(3), sqrt(3), sqrt(3))))
+true_par[par_index$R] = c(diag(c(9, 9, 9, 9)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
 #                          3->1,         3->2,         3->4,         4->2, 
 #                          4->5,         5->1,         5->2,         5->4
@@ -40,7 +40,7 @@ true_par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1
                                        -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
                                        -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                        -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-true_par[par_index$G] = c(diag(c(sqrt(3), sqrt(3), sqrt(3), sqrt(3))))
+true_par[par_index$G] = c(diag(c(9, 9, 9, 9)))
 
 load('Data/Dn_omega_names.rda')
 
