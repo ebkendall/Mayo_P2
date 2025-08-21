@@ -5,7 +5,7 @@ load('Data/cov_info.rda')
 
 EIDs = unique(data_format[,"EID"])
 
-final_train_size = 1000
+final_train_size = 500 # 1000
 
 # ------------------------------------------------------------------------------
 # FINAL FORMATTING TO DETERMINE TRAINING SET -----------------------------------
