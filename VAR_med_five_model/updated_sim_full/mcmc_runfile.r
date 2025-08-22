@@ -16,7 +16,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 20
+    max_ind = 23
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -100,6 +100,10 @@ if(simulation) {
 
 n_state = 5
 
+A = list()
+W = list()
+B = list()
+
 if(simulation) {
     load(paste0('Data/alpha_i_mat_', seed_num, '.rda'))
     load(paste0('Data/omega_i_mat_', seed_num, '.rda'))
@@ -108,6 +112,14 @@ if(simulation) {
     
     Dn_omega = Dn_omega_sim
     b_chain = data_format[, "b_true"]
+    
+    for(ii in 1:length(EIDs)){
+        i = EIDs[ii]
+        
+        A[[ii]] = alpha_i_mat[[ii]][-c(1,6,11,16),,drop=F] # Remove baseline
+        W[[ii]] = omega_i_mat[[ii]]
+        B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+    }
 } else {
     load('Data/Dn_omega_update.rda')
     bleed_indicator = b_ind_fnc(data_format)
@@ -117,36 +129,35 @@ if(simulation) {
         # 10: from it 1-5, 6-9
         #  5: from it 10-12
         #  7: from it 13-15
-        chosen_seed = 7
+        # 10: from it 16-18
+        chosen_seed = 10
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                     max_ind - 5, '.rda'))
         
         par = mcmc_out$chain[nrow(mcmc_out$chain), ]
         b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
         
+        A = mcmc_out$alpha_i
+        W = mcmc_out$omega_i
+        
+        for(ii in 1:length(EIDs)){
+            i = EIDs[ii]
+            
+            B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+        }
+        
         rm(mcmc_out)
     } else {
         b_chain = rep(1, nrow(data_format))
+        
+        for(ii in 1:length(EIDs)){
+            i = EIDs[ii]
+            
+            A[[ii]] = matrix(par[par_index$alpha_tilde], ncol =1)
+            W[[ii]] = matrix(par[par_index$omega_tilde], ncol =1)
+            B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+        }
     }
-}
-# -----------------------------------------------------------------------------
-
-A = list()
-W = list()
-B = list()
-
-for(ii in 1:length(EIDs)){
-    i = EIDs[ii]
-    
-    if(simulation) {
-        A[[ii]] = alpha_i_mat[[ii]][-c(1,6,11,16),,drop=F] # Remove baseline
-        W[[ii]] = omega_i_mat[[ii]]
-    } else {
-        A[[ii]] = matrix(par[par_index$alpha_tilde], ncol =1)
-        W[[ii]] = matrix(par[par_index$omega_tilde], ncol =1)
-    }
-    
-    B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
 }
 # -----------------------------------------------------------------------------
 

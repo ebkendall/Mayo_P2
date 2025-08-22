@@ -13,9 +13,9 @@ trialNum = 1
 S = 5
 simulation = F
 
-it_num = 14
-max_ind = 17
-start_ind = 13
+it_num = 16
+max_ind = 20
+start_ind = 16
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
