@@ -63,8 +63,8 @@ A = list()
 W = list()
 B = list()
 
-chosen_seed = 10
-chosen_it = 19
+chosen_seed = 5
+chosen_it = 21
 load(paste0('Model_out/mcmc_out_1_', chosen_seed, 'it', chosen_it, '.rda'))
 
 par = mcmc_out$chain[nrow(mcmc_out$chain), ]

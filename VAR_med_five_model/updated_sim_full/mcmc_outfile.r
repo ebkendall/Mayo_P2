@@ -2,7 +2,7 @@ index_seeds = 1:10
 trialNum = 1
 simulation = F
 
-it_num = 19
+it_num = 21
 max_ind = 23
 start_ind = 19
 

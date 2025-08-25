@@ -168,12 +168,11 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                             la_chain = la_chain[index_keep_2,],
                             alpha_i = A,
                             omega_i = W,
-                            otype=otype, accept=accept/length((burnin+1):ttt), 
-                            pscale=pscale, pcov = pcov, par_index=par_index)
+                            otype=otype, par_index=par_index)
             
             save(mcmc_out, 
                  file = paste0('Model_out/mcmc_out_1_', seed_num, 
-                               'it', ttt/reset_step + (max_ind - 5), '_TEST.rda'))
+                               'it', ttt/reset_step, '_TEST.rda'))
             
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 

@@ -1,8 +1,8 @@
 #include <RcppDist.h>
 // [[Rcpp::depends(RcppArmadillo, RcppDist)]]
 
-// #include <omp.h>
-// // [[Rcpp::plugins(openmp)]]
+#include <omp.h>
+// [[Rcpp::plugins(openmp)]]
 
 #include <RcppArmadilloExtensions/sample.h>
 
@@ -495,8 +495,8 @@ double log_like(const arma::vec &EIDs, const arma::vec &par,
     
     arma::vec in_vals(EIDs.n_elem, arma::fill::zeros);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         // "i" is the numeric EID number
         // "ii" is the index of the EID
@@ -693,8 +693,8 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
 
     arma::mat gamma_1(EIDs.n_elem, 4, arma::fill::zeros);
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         int i = EIDs(ii);
@@ -777,8 +777,8 @@ arma::field <arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &p
     
     arma::field<arma::vec> A(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
@@ -883,8 +883,8 @@ arma::field <arma::vec> update_omega_i(const arma::vec &EIDs, const arma::vec &p
     
     arma::field<arma::vec> W(EIDs.n_elem);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
@@ -1002,8 +1002,8 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::field<arma::vec> beta_V_list(N_id);
     arma::field<arma::mat> ups_list(N_id);
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < N_id; ii++) {
         
         int i = EIDs(ii);
@@ -1954,8 +1954,8 @@ Rcpp::List state_sampler(const arma::vec EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
 
         // Subject-specific information ----------------------------------------
@@ -2091,8 +2091,8 @@ Rcpp::List mle_state_seq(const arma::vec &EIDs, const arma::vec &par,
     arma::vec clinic_rule_vec = Y.col(6);
     // -------------------------------------------------------------------------
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         // Subject-specific information ----------------------------------------
@@ -2304,8 +2304,8 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
     
     arma::mat newY(Y.n_rows, 4);
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
@@ -2523,8 +2523,8 @@ arma::mat initialize_Y(const arma::vec &EIDs, const arma::vec &par,
     
     arma::mat newY(Y.n_rows, 4); 
     
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
@@ -2654,8 +2654,8 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
 
     arma::field<arma::mat> psi_q_list(EIDs.n_elem);
 
-    // omp_set_num_threads(n_cores);
-    // # pragma omp parallel for
+    omp_set_num_threads(n_cores);
+    # pragma omp parallel for
     for (int ii = 0; ii < EIDs.n_elem; ii++) {
         
         int i = EIDs(ii);
