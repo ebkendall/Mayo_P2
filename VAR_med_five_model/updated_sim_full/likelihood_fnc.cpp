@@ -2812,29 +2812,29 @@ void test_fnc() {
     //     bleed_ind_checks(0) = first_bleed_ind - 1;
     // }
     // 
-    // int N = 5;
-    // 
-    // Rcpp::Rcout << "Case (c) Full" << std::endl;
-    // for(int w=0; w < N; w++) {
-    //     Rcpp::Rcout << "() -> () -> " << w+1 << std::endl;
-    //     Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(w).n_rows << " combos" << std::endl;
-    //     Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(w) << std::endl;
-    // }
-    // 
-    // Rcpp::Rcout << "Case (b) Full" << std::endl;
-    // for(int i = 0; i < N; i++) {
-    //     for(int j = 0; j < N; j++) {
-    //         Rcpp::Rcout << i+1 << "-->" << j+1 << std::endl;
-    //         Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(i, j).n_rows << " combos" << std::endl;
-    //         Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(i, j) << std::endl;
-    //     }
-    // }
-    // 
-    // Rcpp::Rcout << "Case (a) Full" << std::endl;
-    // for(int w=0; w < N; w++) {
-    //     Rcpp::Rcout << w + 1 << " -> () -> ()" << std::endl;
-    //     Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(w).n_rows << " combos" << std::endl;
-    //     Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(w) << std::endl;
-    // }
+    int N = 5;
+
+    Rcpp::Rcout << "Case (c) Full" << std::endl;
+    for(int w=0; w < N; w++) {
+        Rcpp::Rcout << "() -> () -> " << w+1 << std::endl;
+        Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(w).n_rows << " combos" << std::endl;
+        Rcpp::Rcout << Omega_List_GLOBAL_multi(0)(w) << std::endl;
+    }
+
+    Rcpp::Rcout << "Case (b) Full" << std::endl;
+    for(int i = 0; i < N; i++) {
+        for(int j = 0; j < N; j++) {
+            Rcpp::Rcout << i+1 << "-->" << j+1 << std::endl;
+            Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(i, j).n_rows << " combos" << std::endl;
+            Rcpp::Rcout << Omega_List_GLOBAL_multi(1)(i, j) << std::endl;
+        }
+    }
+
+    Rcpp::Rcout << "Case (a) Full" << std::endl;
+    for(int w=0; w < N; w++) {
+        Rcpp::Rcout << w + 1 << " -> () -> ()" << std::endl;
+        Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(w).n_rows << " combos" << std::endl;
+        Rcpp::Rcout << Omega_List_GLOBAL_multi(2)(w) << std::endl;
+    }
     
 } 

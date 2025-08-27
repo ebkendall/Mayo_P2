@@ -6,6 +6,11 @@ set.seed(seed_num)
 
 # Load data --------------------------------------------------------------------
 load('Data/data_format_TEST.rda')
+
+# Remove clinic and RBC rule to leave this as uninformed
+data_format[,'RBC_rule'] = 0
+data_format[,'clinic_rule'] = 0
+
 load('Data/Dn_omega_TEST.rda')
 
 Y = data_format[, c('EID', 'hemo', 'hr', 'map', 'lactate', 'RBC_rule', 'clinic_rule')] 
@@ -83,7 +88,7 @@ rm(mcmc_out)
 
 # -----------------------------------------------------------------------------
 
-steps  = 50000
+steps  = 500000
 burnin =  0
 
 s_time = Sys.time()

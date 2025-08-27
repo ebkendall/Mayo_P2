@@ -67,7 +67,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         if(max_ind > 5) {
             
-            chosen_seed = 10
+            chosen_seed = seed_num
 
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))
@@ -78,10 +78,10 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
             Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
             
-            Y[Y[,'hemo'] < 0, 'hemo'] = 1
-            Y[Y[,'hr'] < 0, 'hr'] = 1
-            Y[Y[,'map'] < 0, 'map'] = 1
-            Y[Y[,'lactate'] < 0, 'lactate'] = 1
+            # Y[Y[,'hemo'] < 0, 'hemo'] = 1
+            # Y[Y[,'hr'] < 0, 'hr'] = 1
+            # Y[Y[,'map'] < 0, 'map'] = 1
+            # Y[Y[,'lactate'] < 0, 'lactate'] = 1
 
             # initialize proposal structure
             pcov = mcmc_out$pcov

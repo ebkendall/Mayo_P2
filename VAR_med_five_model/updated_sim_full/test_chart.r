@@ -12,8 +12,8 @@ if(plot_choice == 0) {
 trialNum = 1
 S = 5
 
-it_num = 5
-start_ind = 3
+it_num = 50
+start_ind = 31
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -29,9 +29,10 @@ map_results = vector(mode = 'list', length = length(index_seeds))
 lact_results = vector(mode = 'list', length = length(index_seeds))
 
 ind = 0
-seed_focus = 1
 
-for(seed in index_seeds){
+for(s in 1:length(index_seeds)) {
+    
+    seed = index_seeds[s]
     
     it_seq = 1:(it_num - start_ind + 1)
     
@@ -79,18 +80,16 @@ for(seed in index_seeds){
             rm(mcmc_out)
         }
         
-        seed_focus = seed
-        
-        state_results[[seed]] = matrix(nrow = S+1, ncol = ncol(B_chain))
+        state_results[[s]] = matrix(nrow = S+1, ncol = ncol(B_chain))
         for(jj in 1:S) {
-            state_results[[seed]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
+            state_results[[s]][jj, ] = apply(B_chain, 2, function(x,jj){sum(x == jj)}, jj)
         }
-        state_results[[seed]][S+1, ] = apply(B_chain, 2, Mode)
+        state_results[[s]][S+1, ] = apply(B_chain, 2, Mode)
         
-        hemo_results[[seed]] = Hc_chain
-        hr_results[[seed]] = Hr_chain
-        map_results[[seed]] = Map_chain
-        lact_results[[seed]] = La_chain
+        hemo_results[[s]] = Hc_chain
+        hr_results[[s]] = Hr_chain
+        map_results[[s]] = Map_chain
+        lact_results[[s]] = La_chain
         
     } else {
         print(paste0("Missing! ", check_name))
@@ -103,10 +102,35 @@ for(seed in index_seeds){
     rm(La_chain)
 }
 
-state_counts_col_sum = colSums(state_results[[seed_focus]][1:S,])
-state_proportions = matrix(nrow = S, ncol = ncol(state_results[[seed_focus]]))
-for(s in 1:S) {
-    state_proportions[s,] = state_results[[seed_focus]][s, ] / state_counts_col_sum
+if(plot_choice == 0) {
+    
+    state_count = matrix(0, nrow = S, ncol = ncol(state_results[[1]]))
+    
+    for(s in 1:length(index_seeds)) {
+        state_count = state_count + state_results[[s]][1:S,]
+    }
+    
+    state_counts_col_sum = colSums(state_count)
+    state_proportions = matrix(nrow = S, ncol = ncol(state_count))
+    for(s in 1:S) {
+        state_proportions[s,] = state_count[s, ] / state_counts_col_sum
+    }
+    
+    temp_hemo_results = do.call('rbind', hemo_results)
+    temp_hr_results = do.call('rbind', hr_results)
+    temp_map_results = do.call('rbind', map_results)
+    temp_lact_results = do.call('rbind', lact_results)
+    
+    hemo_results = list(); hemo_results[[1]] = temp_hemo_results
+    hr_results   = list();   hr_results[[1]] = temp_hr_results
+    map_results  = list();  map_results[[1]] = temp_map_results
+    lact_results = list(); lact_results[[1]] = temp_lact_results
+} else {
+    state_counts_col_sum = colSums(state_results[[1]][1:S,])
+    state_proportions = matrix(nrow = S, ncol = ncol(state_results[[1]]))
+    for(s in 1:S) {
+        state_proportions[s,] = state_results[[1]][s, ] / state_counts_col_sum
+    }
 }
 
 # Plot Chart Plots for Seed 1 data ---------------------------------------------
@@ -183,10 +207,10 @@ for(i in EID_plot){
                             mean(data_format[indices_i, 'RBC_rule']))
     }
     
-    hr_upper = colQuantiles( hr_results[[seed_focus]][, indices_i, drop=F], probs=.975)
-    hr_lower = colQuantiles( hr_results[[seed_focus]][, indices_i, drop=F], probs=.025)
-    bp_upper = colQuantiles( map_results[[seed_focus]][, indices_i, drop=F], probs=.975)
-    bp_lower = colQuantiles( map_results[[seed_focus]][, indices_i, drop=F], probs=.025)
+    hr_upper = colQuantiles( hr_results[[1]][, indices_i, drop=F], probs=.975)
+    hr_lower = colQuantiles( hr_results[[1]][, indices_i, drop=F], probs=.025)
+    bp_upper = colQuantiles( map_results[[1]][, indices_i, drop=F], probs=.975)
+    bp_lower = colQuantiles( map_results[[1]][, indices_i, drop=F], probs=.025)
     
     hr_map_ylim = c(min(hr_lower, bp_lower), max(hr_upper, bp_upper))
     
@@ -195,12 +219,12 @@ for(i in EID_plot){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    plotCI( x = pb, y=colMeans(hr_results[[seed_focus]][, indices_i, drop=F]), 
+    plotCI( x = pb, y=colMeans(hr_results[[1]][, indices_i, drop=F]), 
             ui=hr_upper, li=hr_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', col.main='green',
             col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
             xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add =T) 
-    plotCI( x = pb, y=colMeans(map_results[[seed_focus]][, indices_i, drop=F]), 
+    plotCI( x = pb, y=colMeans(map_results[[1]][, indices_i, drop=F]), 
             ui=bp_upper, li=bp_lower, main=title_name,
             xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
             col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
@@ -222,10 +246,10 @@ for(i in EID_plot){
                             mean(data_format[indices_i, 'RBC_rule']))
     }
     
-    hc_upper = colQuantiles( hemo_results[[seed_focus]][, indices_i, drop=F], probs=.975)
-    hc_lower = colQuantiles( hemo_results[[seed_focus]][, indices_i, drop=F], probs=.025)
-    la_upper = colQuantiles( lact_results[[seed_focus]][, indices_i, drop=F], probs=.975)
-    la_lower = colQuantiles( lact_results[[seed_focus]][, indices_i, drop=F], probs=.025)
+    hc_upper = colQuantiles( hemo_results[[1]][, indices_i, drop=F], probs=.975)
+    hc_lower = colQuantiles( hemo_results[[1]][, indices_i, drop=F], probs=.025)
+    la_upper = colQuantiles( lact_results[[1]][, indices_i, drop=F], probs=.975)
+    la_lower = colQuantiles( lact_results[[1]][, indices_i, drop=F], probs=.025)
     
     hr_map_ylim = c(min(hc_lower, la_lower), max(hc_upper, la_upper))
     
@@ -233,12 +257,12 @@ for(i in EID_plot){
          xlab='time', ylab=NA, xaxt='n', col.main='green',
          col.axis='green')
     
-    plotCI(x = pb, y = colMeans(hemo_results[[seed_focus]][, indices_i, drop=F]), 
+    plotCI(x = pb, y = colMeans(hemo_results[[1]][, indices_i, drop=F]), 
            ui=hc_upper, li=hc_lower, main=title_name,
            xlab='time', ylab=NA, xaxt='n', col.main='green',
            col.axis='green', pch=20, cex=1, sfrac=.0025, col = 'aquamarine',
            xlim = range(pb) + c(-0.5,0.5), ylim = hr_map_ylim, add = T) 
-    plotCI(x = pb, y=colMeans(lact_results[[seed_focus]][, indices_i, drop=F]),
+    plotCI(x = pb, y=colMeans(lact_results[[1]][, indices_i, drop=F]),
            ui=la_upper, li=la_lower, main=title_name,
            xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
            col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 

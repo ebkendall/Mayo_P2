@@ -2,8 +2,8 @@ index_seeds = 1:10
 trialNum = 1
 simulation = F
 
-it_num = 21
-max_ind = 23
+it_num = 24
+max_ind = 24
 start_ind = 19
 
 # Parameter initialization -----------------------------------------------------
