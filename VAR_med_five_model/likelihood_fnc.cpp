@@ -597,7 +597,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::reshape(par.elem(par_index(4) - 1), 4, 4);
 
     int nu_R = 8;
-    arma::vec scalar_vec_R = {4, 16, 16, 4};
+    arma::vec scalar_vec_R = {9, 9, 9, 9};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat psi_R = arma::diagmat(scalar_vec_R);
 
@@ -605,9 +605,9 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
 
     // Zeta prior --------------------------------------------------------------
     arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
-    arma::vec vec_zeta_mean = {-7.2405, 2.5, -6.2152,   1, -2.6473,  -1, -6.1475,  -1,
-                               -9.4459,  -1, -7.2404, 2.5, -7.2151,   1, -7.1778, 2.5,
-                               -5.2151,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   0};
+    arma::vec vec_zeta_mean = {-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
+                               -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
+                               -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1};
     arma::vec scalar_zeta(vec_zeta_mean.n_elem, arma::fill::ones);
     arma::mat zeta_var = arma::diagmat(scalar_zeta);
     

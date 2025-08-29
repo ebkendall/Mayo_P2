@@ -157,6 +157,7 @@ n_cores = 1
         # colnames(compute_times[[samp_ind]][[s]]) = c('time', 'accuracy')
         # compute_times[[samp_ind]][[s]][1,] = c(0, mean(B_chain[1,] == true_b_chain))
         
+        total_time_start = Sys.time()
         for(ttt in 2:steps) {
             
             ttt_start_t = Sys.time()
@@ -213,6 +214,9 @@ n_cores = 1
             cat("Elapsed time:", ttt_elapsed, "seconds\n")
             cat("Accuracy:", ttt_accuracy, "\n")
         }
+        total_time_end = Sys.time()
+        total_time_elapsed = as.numeric(difftime(total_time_end, total_time_start, units = "secs"))
+        cat("Total elapsed time:", total_time_elapsed, "seconds\n")
     # }
 # }
         

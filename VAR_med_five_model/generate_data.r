@@ -23,7 +23,7 @@ par[par_index$upsilon] = c(diag(c(25, 4, 4, 1, 1,
                                   25, 4, 4, 1, 1, 
                                   25, 4, 4, 1, 1, 
                                   25, 4, 4, 1, 1)))
-par[par_index$A] = c(rep(1, 4), rep(-3, 4), rep(-1, 4), rep(-2, 4), rep(0, 4))
+par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
 par[par_index$R] = c(diag(c(9, 9, 9, 9)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
 #                          3->1,         3->2,         3->4,         4->2, 
@@ -160,7 +160,9 @@ for(i in 1:N) {
     if(rbc_rule) {correct_bleed = F}
     
     n_i = sum(Y[,'EID']==as.numeric(id_num))
-    m_i = n_i + rpois(n = 1, lambda = 50)
+    
+    # m_i = n_i + rpois(n = 1, lambda = 50)
+    m_i = n_i
     
     x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
     z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
@@ -408,7 +410,7 @@ save(alpha_i_mat, file = paste0('Data/alpha_i_mat_', df_num, '.rda'))
 save(bleed_indicator, file = paste0('Data/bleed_indicator_sim_', df_num, '.rda'))
 
 if(df_num == 1) {
-    save(Dn_omega_sim, file = paste0('Data/Dn_omega_sim.rda'))    
+    save(Dn_omega_sim, file = paste0('Data/Dn_omega_sim.rda'))
 }
 # }
 

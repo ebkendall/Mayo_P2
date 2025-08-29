@@ -106,9 +106,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         print("No missingness")
         impute_step = FALSE
         
-        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
-        B = B_Dn[[1]]
-        Dn_alpha = B_Dn[[2]]
+        # B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
+        # B = B_Dn[[1]]
+        # Dn_alpha = B_Dn[[2]]
+        if(simulation) {
+            Dn_alpha = initialize_Dn(EIDs, B) 
+        }
         
     }
     
@@ -172,8 +175,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         # Gibbs: alpha~, omega~, beta, Upsilon, and G --------------------------
         par = update_alpha_tilde(EIDs, par, par_index, A, Y)
-        par = update_omega(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, 
-                           Xn, gamma_1, n_cores)
+        # par = update_omega(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, 
+        #                    Xn, gamma_1, n_cores)
         par = update_beta_upsilon(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega,
                                   Xn, gamma_1, n_cores)
         par = update_G(EIDs, par, par_index, Y, Dn_omega, Xn, gamma_1, n_cores)
@@ -270,7 +273,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 
                 # Prior for R
                 nu_R = 8
-                psi_R = diag(c(4, 16, 16, 4))
+                psi_R = diag(c(9, 9, 9, 9))
                 psi_R = (nu_R - 4 - 1) * psi_R
                 
                 # Proposal
