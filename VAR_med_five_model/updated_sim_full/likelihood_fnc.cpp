@@ -1790,7 +1790,7 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::mat z_i, arma::imat adj_
         // Step 3: compute MH-ratio to accept/reject -------------------
         if(arma::accu(arma::abs(s_i - b_i)) != 0) {
             
-            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 2, t_max);
+            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, sps, k);
             
             if(eval_like) {
                 

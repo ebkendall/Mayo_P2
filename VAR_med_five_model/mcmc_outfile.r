@@ -1,4 +1,4 @@
-index_seeds = 1:50
+index_seeds = 1:10
 trialNum = 1
 simulation = T
 
@@ -27,7 +27,7 @@ true_par[par_index$upsilon] = c(diag(c(4, 4, 1, 1,
                                        4, 4, 1, 1, 
                                        4, 4, 1, 1, 
                                        4, 4, 1, 1)))
-true_par[par_index$A] = rep(0, 20)
+true_par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
 true_par[par_index$R] = c(diag(c(9, 9, 9, 9)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
 #                          3->1,         3->2,         3->4,         4->2, 

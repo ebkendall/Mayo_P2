@@ -157,48 +157,82 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         }
         
         # Sample gamma_1 -------------------------------------------------------
+        int_start_t = Sys.time()
         gamma_1 = update_gamma_i(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("gamma_1 time:", elaps_ttt, "sec\n")
 
         # Imputing the missing Y values ----------------------------------------
+        int_start_t = Sys.time()
         if(impute_step) {
             Y = impute_Y(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, 
                          gamma_1, otype, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("Y impute time:", elaps_ttt, "sec\n")
 
         # State-space update (B) -----------------------------------------------
+        int_start_t = Sys.time()
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
         B_Dn = state_sampler(EIDs, par, par_index, B, A, W, Y, z, Dn_alpha, 
                              Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
         B = B_Dn[[1]]
         Dn_alpha = B_Dn[[2]]
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("B sample time:", elaps_ttt, "sec\n")
         
         # Gibbs: alpha_i -------------------------------------------------------
+        int_start_t = Sys.time()
         A = update_alpha_i(EIDs, par, par_index, W, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("alpha_i time:", elaps_ttt, "sec\n")
 
         # Gibbs: omega_i -------------------------------------------------------
+        int_start_t = Sys.time()
         W = update_omega_i(EIDs, par, par_index, A, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("omega_i time:", elaps_ttt, "sec\n")
         
         # Gibbs: alpha~, omega~, beta, Upsilon, and G --------------------------
+        int_start_t = Sys.time()
         par = update_alpha_tilde(EIDs, par, par_index, A, Y)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("alpha_tilde time:", elaps_ttt, "sec\n")
+
+        int_start_t = Sys.time()
         par = update_omega_tilde(EIDs, par, par_index, W, Y)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("omega_tilde time:", elaps_ttt, "sec\n")
+
+        int_start_t = Sys.time()
         par = update_beta_upsilon(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega,
                                   Xn, gamma_1, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("beta_upsilon time:", elaps_ttt, "sec\n")
+
+        int_start_t = Sys.time()
         par = update_G(EIDs, par, par_index, W, Y, Dn_omega, Xn, gamma_1, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("G var time:", elaps_ttt, "sec\n")
 
         # Store current parameter updates --------------------------------------
         chain[chain_ttt,] = par
         
         # Evaluate log-likelihood before MH step -------------------------------
+        int_start_t = Sys.time()
         log_target_prev = log_post(EIDs, par, par_index, B, A, W, Y, z, Dn_alpha, 
                                    Dn_omega, Xn, gamma_1, n_cores)
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("likelihood time:", elaps_ttt, "sec\n")
 
         if(!is.finite(log_target_prev)){
             print(paste0("Infinite log-posterior: ", log_target_prev)); stop();
         }
 
         # Metropolis-Hastings updates ------------------------------------------
+        int_start_t = Sys.time()
         for(j in 1:n_group) {
 
             ind_j = mpi[[j]]
@@ -323,6 +357,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 chain[chain_ttt,ind_j] = par[ind_j]
             }
         }
+        int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
+        cat("MH Step:", elaps_ttt, "sec\n")
 
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)

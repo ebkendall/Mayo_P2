@@ -986,10 +986,10 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
 
     int nu_ups = 40;
-    arma::vec scalar_ups = {0.25, 0.25,  4,  4,
-                            2.25, 2.25, 25, 25,
-                            2.25, 2.25, 25, 25,
-                            0.25, 0.25,  4,  4};
+    arma::vec scalar_ups = {4, 4, 1, 1,
+                            4, 4, 1, 1,
+                            4, 4, 1, 1,
+                            4, 4, 1, 1};
     scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
     arma::mat psi_ups = arma::diagmat(scalar_ups);
 
@@ -1887,7 +1887,7 @@ arma::vec p_flex_sampler(int n_i, arma::mat &Y_i, arma::mat z_i, arma::imat adj_
         // Step 3: compute MH-ratio to accept/reject -------------------
         if(arma::accu(arma::abs(s_i - b_i)) != 0) {
 
-            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 2, t_max);
+            bool eval_like = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, sps, k);
 
             if(eval_like) {
 

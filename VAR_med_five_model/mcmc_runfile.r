@@ -2,6 +2,7 @@ source('mcmc_routine.r')
 
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
+# seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 set.seed(seed_num)
 simulation = T
 
@@ -117,7 +118,7 @@ for(ii in 1:length(EIDs)){
 }
 # -----------------------------------------------------------------------------
 
-steps  = 50000
+steps  = 20000
 burnin =  5000
 
 s_time = Sys.time()
