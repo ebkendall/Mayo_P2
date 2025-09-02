@@ -65,7 +65,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         if(max_ind > 5) {
             
-            chosen_seed = 10
+            chosen_seed = 1
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))
@@ -76,6 +76,11 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
             Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
             
+            Y[Y[,'hemo'] < 0, 'hemo'] = 1
+            Y[Y[,'hr'] < 0, 'hr'] = 1
+            Y[Y[,'map'] < 0, 'map'] = 1
+            Y[Y[,'lactate'] < 0, 'lactate'] = 1
+
             # initialize proposal structure
             pcov = mcmc_out$pcov
             pscale = mcmc_out$pscale
@@ -162,20 +167,20 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # int_start_t = Sys.time()
         if(impute_step) {
             Y = impute_Y(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, 
-                         gamma_1, otype, n_cores)
+                         gamma_1, otype, n_cores, simulation)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
         # int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
         # cat("Y impute time:", elaps_ttt, "sec\n")
         
-        # # State-space update (B) -----------------------------------------------
+        # State-space update (B) -----------------------------------------------
         # int_start_t = Sys.time()
-        # sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        # B_Dn = state_sampler(EIDs, par, par_index, B, A, Y, z, Dn_alpha, 
-        #                      Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
-        # B = B_Dn[[1]]
-        # Dn_alpha = B_Dn[[2]]
+        sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
+        B_Dn = state_sampler(EIDs, par, par_index, B, A, Y, z, Dn_alpha, 
+                             Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
+        B = B_Dn[[1]]
+        Dn_alpha = B_Dn[[2]]
         # int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
         # cat("B sample time:", elaps_ttt, "sec\n")
         
@@ -304,7 +309,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 
                 # Prior for R
                 nu_R = 8
-                psi_R = diag(c(9, 9, 9, 9))
+                psi_R = diag(c(4, 16, 16, 4))
                 psi_R = (nu_R - 4 - 1) * psi_R
                 
                 # Proposal

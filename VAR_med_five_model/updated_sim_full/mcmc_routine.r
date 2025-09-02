@@ -166,7 +166,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         int_start_t = Sys.time()
         if(impute_step) {
             Y = impute_Y(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, 
-                         gamma_1, otype, n_cores)
+                         gamma_1, otype, n_cores, simulation)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
@@ -401,7 +401,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     pscale=pscale, pcov = pcov, par_index=par_index)    
                 } else {
                     mcmc_out = list(chain    = chain[index_keep,], 
-                                    B_chain  = B_chain, 
+                                    B_chain  = B_chain[index_keep_2,], 
                                     hc_chain = matrix(Y[,'hemo'], nrow = 1),
                                     hr_chain = matrix(Y[,'hr'], nrow = 1), 
                                     bp_chain = matrix(Y[,'map'], nrow = 1), 

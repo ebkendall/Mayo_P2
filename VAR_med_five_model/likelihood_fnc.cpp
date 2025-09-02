@@ -597,7 +597,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::mat R = arma::reshape(par.elem(par_index(4) - 1), 4, 4);
 
     int nu_R = 8;
-    arma::vec scalar_vec_R = {9, 9, 9, 9};
+    arma::vec scalar_vec_R = {4, 16, 16, 4};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat psi_R = arma::diagmat(scalar_vec_R);
 
@@ -605,9 +605,9 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
 
     // Zeta prior --------------------------------------------------------------
     arma::vec vec_zeta_content = par.elem(par_index(5) - 1);
-    arma::vec vec_zeta_mean = {-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
-                               -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
-                               -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1};
+    arma::vec vec_zeta_mean = {-7.2405, 2.5, -6.2152,   1, -2.6473,  -1, -6.1475,  -1, 
+                               -9.4459,  -1, -7.2404, 2.5, -7.2151,   1, -7.1778, 2.5, 
+                               -5.2151,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   0};
     arma::vec scalar_zeta(vec_zeta_mean.n_elem, arma::fill::ones);
     arma::mat zeta_var = arma::diagmat(scalar_zeta);
     
@@ -986,10 +986,10 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
 
     int nu_ups = 40;
-    arma::vec scalar_ups = {4, 4, 1, 1,
-                            4, 4, 1, 1,
-                            4, 4, 1, 1,
-                            4, 4, 1, 1};
+    arma::vec scalar_ups = {0.25, 0.25,  4,  4,
+                            2.25, 2.25, 25, 25,
+                            2.25, 2.25, 25, 25,
+                            0.25, 0.25,  4,  4};
     scalar_ups = (nu_ups - 16 - 1) * scalar_ups;
     arma::mat psi_ups = arma::diagmat(scalar_ups);
 
@@ -2368,7 +2368,8 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                    arma::mat &Y, const arma::field<arma::field<arma::mat>> &Dn_alpha,
                    const arma::field<arma::field<arma::mat>> &Dn_omega,
                    const arma::field<arma::field<arma::mat>> &Xn,
-                   const arma::mat &gamma_1, const arma::mat &otype, int n_cores) {
+                   const arma::mat &gamma_1, const arma::mat &otype, int n_cores,
+                   bool sim_yes) {
 
     // par_index: (0) beta, (1) alpha_tilde, (2) upsilon, (3) A, (4) R, (5) zeta,
     //            (6) init, (7) omega, (8) G
@@ -2474,6 +2475,26 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                     arma::vec new_value = arma::mvnrnd(y_i_mean, W_i, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
 
+                    // if(!sim_yes) {
+                    //     // Prevent negatives
+                    //     int count_while_loop = 0;
+                    //     int count_while_loop_big = 0;
+                    //     while(arma::any(update_value <= 0)) {
+                    //         new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                    //         update_value = Y_i_new.col(k);
+                    //         update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //         count_while_loop += 1;
+                    //         if(count_while_loop > 10000) {
+                    //             count_while_loop_big += 1;
+                    //             count_while_loop = 0;
+                    //         }
+                    //         if(count_while_loop_big > 10) {
+                    //             Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //             break;
+                    //         }
+                    //     }
+                    // }
+
                 } else if(k == Y_i.n_cols - 1) {
 
                     arma::mat A_1 = arma::diagmat(curr_A);
@@ -2487,6 +2508,26 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
                     arma::vec new_value = arma::mvnrnd(y_i_mean, R, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+
+                    // if(!sim_yes) {
+                    //     // Prevent negatives
+                    //     int count_while_loop = 0;
+                    //     int count_while_loop_big = 0;
+                    //     while(arma::any(update_value <= 0)) {
+                    //         new_value = arma::mvnrnd(y_i_mean, R, 1);
+                    //         update_value = Y_i_new.col(k);
+                    //         update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //         count_while_loop += 1;
+                    //         if(count_while_loop > 10000) {
+                    //             count_while_loop_big += 1;
+                    //             count_while_loop = 0;
+                    //         }
+                    //         if(count_while_loop_big > 10) {
+                    //             Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //             break;
+                    //         }
+                    //     }
+                    // }
 
                 } else {
                     
@@ -2520,6 +2561,26 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
                     arma::vec new_value = arma::mvnrnd(y_i_mean, W_i, 1);
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
+
+                    // if(!sim_yes) {
+                    //     // Prevent negatives
+                    //     int count_while_loop = 0;
+                    //     int count_while_loop_big = 0;
+                    //     while(arma::any(update_value <= 0)) {
+                    //         new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                    //         update_value = Y_i_new.col(k);
+                    //         update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                    //         count_while_loop += 1;
+                    //         if(count_while_loop > 10000) {
+                    //             count_while_loop_big += 1;
+                    //             count_while_loop = 0;
+                    //         }
+                    //         if(count_while_loop_big > 10) {
+                    //             Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                    //             break;
+                    //         }
+                    //     }
+                    // }
 
                 }
 

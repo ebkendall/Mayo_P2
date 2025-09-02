@@ -1,8 +1,8 @@
-index_seeds = 1:10
+index_seeds = c(1:6, 10)
 trialNum = 1
-simulation = T
+simulation = F
 
-it_num = 2
+it_num = 3
 start_ind = 1
 
 # Parameter initialization -----------------------------------------------------
