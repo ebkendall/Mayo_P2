@@ -17,8 +17,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 8
-    # if(max_ind > 5) {burnin = 0}
+    max_ind = 5
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -121,13 +120,36 @@ if(simulation) {
     bleed_indicator = b_ind_fnc(data_format)
 
     if(max_ind > 5) {
-        
+
         # 10: from it 1-3
         chosen_seed = 1
-        load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
+        load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it',
                     max_ind - 5, '.rda'))
-        
+
         par = mcmc_out$chain[nrow(mcmc_out$chain), ]
+        b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
+
+        A = mcmc_out$alpha_i
+
+        for(ii in 1:length(EIDs)){
+            i = EIDs[ii]
+
+            B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+        }
+
+        rm(mcmc_out)
+    } else {
+        
+        # For the first iteration
+        load('Model_out/mcmc_out_1_1it28.rda')
+        
+        par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
+        par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
+        par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
+        par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+        par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
+        par[par_index$G] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$G]
+        
         b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
         
         A = mcmc_out$alpha_i
@@ -139,15 +161,15 @@ if(simulation) {
         }
         
         rm(mcmc_out)
-    } else {
-        b_chain = rep(1, nrow(data_format))
         
-        for(ii in 1:length(EIDs)){
-            i = EIDs[ii]
-            
-            A[[ii]] = matrix(par[par_index$alpha_tilde], ncol =1)
-            B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
-        }
+        # b_chain = rep(1, nrow(data_format))
+        # 
+        # for(ii in 1:length(EIDs)){
+        #     i = EIDs[ii]
+        # 
+        #     A[[ii]] = matrix(par[par_index$alpha_tilde], ncol =1)
+        #     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
+        # }
     }
 }
 # -----------------------------------------------------------------------------

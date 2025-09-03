@@ -15,7 +15,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8
+    n_cores = 10
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -65,6 +65,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         if(max_ind > 5) {
             
+            print("max ind > 5")
+            
             chosen_seed = 1
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
@@ -76,10 +78,10 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
             Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
             
-            Y[Y[,'hemo'] < 0, 'hemo'] = 1
-            Y[Y[,'hr'] < 0, 'hr'] = 1
-            Y[Y[,'map'] < 0, 'map'] = 1
-            Y[Y[,'lactate'] < 0, 'lactate'] = 1
+            # Y[Y[,'hemo'] < 0, 'hemo'] = 1
+            # Y[Y[,'hr'] < 0, 'hr'] = 1
+            # Y[Y[,'map'] < 0, 'map'] = 1
+            # Y[Y[,'lactate'] < 0, 'lactate'] = 1
 
             # initialize proposal structure
             pcov = mcmc_out$pcov
@@ -92,15 +94,27 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
         } else {
             
-            vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
-            Y_init = initialize_Y(EIDs, par, par_index, A, Y, z, Dn_omega, 
-                                  Xn, otype, n_cores, vital_means)
+            print("max ind = 5")
             
-            Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_init
+            load('Model_out/mcmc_out_1_1it28.rda')
             
-            B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
-            B = B_Dn[[1]]
-            Dn_alpha = B_Dn[[2]]
+            # initialize Y
+            Y[,'hemo'] = mcmc_out$hc_chain[nrow(mcmc_out$hc_chain), ]
+            Y[,'hr'] = mcmc_out$hr_chain[nrow(mcmc_out$hr_chain), ]
+            Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
+            Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
+            
+            Dn_alpha = initialize_Dn(EIDs, B)
+            
+            # vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
+            # Y_init = initialize_Y(EIDs, par, par_index, A, Y, z, Dn_omega, 
+            #                       Xn, otype, n_cores, vital_means)
+            # 
+            # Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_init
+            # 
+            # B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
+            # B = B_Dn[[1]]
+            # Dn_alpha = B_Dn[[2]]
         }
         
         print("Done")

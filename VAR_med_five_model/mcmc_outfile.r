@@ -1,9 +1,9 @@
-index_seeds = c(1:6, 10)
+index_seeds = c(1:10)
 trialNum = 1
 simulation = F
 
-it_num = 3
-start_ind = 1
+it_num = 4
+start_ind = 4
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
