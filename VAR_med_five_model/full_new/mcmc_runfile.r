@@ -4,7 +4,7 @@ args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 # seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 set.seed(seed_num)
-simulation = F
+simulation = T
 
 # Load data --------------------------------------------------------------------
 data_format = NULL
@@ -44,29 +44,25 @@ par_index$G = 425:440
 par = rep(0, max(do.call('c', par_index)))
 
 if(simulation) {
-    par[par_index$beta] = c(0.25, -2, 2, -0.25) 
-    par[par_index$alpha_tilde] = c( -5,   5, -2,  2,
-                                    10, -10,  2, -2,
-                                    10,  10,  2, -2,
-                                     5,  -5, -2,  2)
-    par[par_index$upsilon] = c(diag(c(4, 4, 1, 1,
-                                      4, 4, 1, 1,
-                                      4, 4, 1, 1,
-                                      4, 4, 1, 1)))
-    par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
-    par[par_index$R] = c(diag(c(9, 9, 9, 9)))
-    #    transitions:          1->2,         1->4,         2->3,         2->4, 
-    #                          3->1,         3->2,         3->4,         4->2, 
-    #                          4->5,         5->1,         5->2,         5->4
-    par[par_index$zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
-                            -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
-                            -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1)
-    par[par_index$init] = c(-2, -2, -2, -2)
-    par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                                    -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                                    -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                                    -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    load('Model_out/mcmc_out_1_1it1.rda')
+    par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
+    par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
+    par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
+    par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
+    par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
+    par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+    
+    init_par_est = c(378, 42, 41, 16, 23); init_par_est = init_par_est/sum(init_par_est)
+    par[par_index$init][1] = log(init_par_est[2] / (1 - sum(init_par_est[2:5])))
+    par[par_index$init][2] = log(init_par_est[3] / (1 - sum(init_par_est[2:5])))
+    par[par_index$init][3] = log(init_par_est[4] / (1 - sum(init_par_est[2:5])))
+    par[par_index$init][4] = log(init_par_est[5] / (1 - sum(init_par_est[2:5])))
+    
+    par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
+    
     par[par_index$G] = c(diag(c(9, 9, 9, 9)))
+    
+    rm(mcmc_out)
 } else {
     par[par_index$beta] = c(0.25, -2, 2, -0.25) 
     par[par_index$alpha_tilde] = c(-1,  1, 0, 0,
@@ -106,13 +102,13 @@ if(simulation) {
     load('Data/Dn_omega_sim.rda')
     load(paste0('Data/bleed_indicator_sim_', seed_num, '.rda'))
     
+    A = alpha_i_mat
     Dn_omega = Dn_omega_sim
     b_chain = data_format[, "b_true"]
     
     for(ii in 1:length(EIDs)){
         i = EIDs[ii]
         
-        A[[ii]] = alpha_i_mat[[ii]][-c(1,6,11,16),,drop=F] # Remove baseline
         B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
     }
 } else {
@@ -139,28 +135,6 @@ if(simulation) {
 
         rm(mcmc_out)
     } else {
-        
-        # # For the first iteration
-        # load('Model_out/mcmc_out_1_1it28.rda')
-        # 
-        # par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
-        # par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
-        # par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
-        # par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
-        # par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
-        # par[par_index$G] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$G]
-        # 
-        # b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
-        # 
-        # A = mcmc_out$alpha_i
-        # 
-        # for(ii in 1:length(EIDs)){
-        #     i = EIDs[ii]
-        # 
-        #     B[[ii]] = matrix(b_chain[data_format[,"EID"] == i], ncol = 1)
-        # }
-        # 
-        # rm(mcmc_out)
         
         b_chain = rep(1, nrow(data_format))
 

@@ -3,26 +3,26 @@ library(mvtnorm, quietly=T)
 # Parameter initialization -----------------------------------------------------
 par_index = list()
 par_index$beta = 1:4
-par_index$alpha_tilde = 5:24
-par_index$upsilon = 25:424
-par_index$A = 425:444
-par_index$R = 445:460
-par_index$zeta = 461:484
-par_index$init = 485:488
-par_index$omega_tilde = 489:572
+par_index$alpha_tilde = 5:20
+par_index$upsilon = 21:276
+par_index$A = 277:296
+par_index$R = 297:312
+par_index$zeta = 313:336
+par_index$init = 337:340
+par_index$omega_tilde = 341:424
 
 # Initializing true parameter values -------------------------------------------
 par = rep(0, max(do.call('c', par_index)))
 
 par[par_index$beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
-par[par_index$alpha_tilde] = c( 50,  -5,   5, -2,  2,
-                               100,  10, -10,  2, -2,
-                               100, -10,  10,  2, -2,
-                                50,   5,  -5, -2,  2)
-par[par_index$upsilon] = c(diag(c(25, 4, 4, 1, 1, 
-                                  25, 4, 4, 1, 1, 
-                                  25, 4, 4, 1, 1, 
-                                  25, 4, 4, 1, 1)))
+par[par_index$alpha_tilde] = c( -5,   5, -2,  2,
+                                10, -10,  2, -2,
+                               -10,  10,  2, -2,
+                                 5,  -5, -2,  2)
+par[par_index$upsilon] = c(diag(c(4, 4, 1, 1, 
+                                  4, 4, 1, 1, 
+                                  4, 4, 1, 1, 
+                                  4, 4, 1, 1)))
 par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
 par[par_index$R] = c(diag(c(9, 9, 9, 9)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
@@ -37,12 +37,28 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
                                   -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                                   -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
+# Using values from the real data analysis
+load('Model_out/mcmc_out_1_1it1.rda')
+par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
+par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
+par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
+par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
+par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
+par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
+par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
+rm(mcmc_out)
+
 n_state = 5
 
 # Parameter initialization -----------------------------------------------------
 beta = par[par_index$beta]
 alpha_tilde = matrix(par[par_index$alpha_tilde], ncol = 4)
-Upsilon = matrix(par[par_index$upsilon], ncol = 20)
+Upsilon = matrix(par[par_index$upsilon], ncol = 16)
+
+baseline_mean = c(50, 100, 100, 50)
+baseline_var = diag(c(25,25,25,25))
+
 vec_A = par[par_index$A]
 A_scaled = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
 A_total = matrix(A_scaled, ncol = 5)
@@ -161,8 +177,7 @@ for(i in 1:N) {
     
     n_i = sum(Y[,'EID']==as.numeric(id_num))
     
-    # m_i = n_i + rpois(n = 1, lambda = 50)
-    m_i = n_i
+    m_i = n_i + sample(0:50, size = 1, replace = F)
     
     x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
     z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
@@ -234,6 +249,7 @@ for(i in 1:N) {
     X_i = vector(mode = 'list', length = n_i)
     
     vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
+    vec_base = rmvnorm(n=1, mean = baseline_mean, sigma = baseline_var)
     
     alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
     
@@ -262,32 +278,32 @@ for(i in 1:N) {
         X_i[[k]] = diag(4) %x% x_i[k,]
         
         if(k == 1)  {
-            D_i_temp = matrix(c(1, sum(before_b_i==2), sum(before_b_i==3), 
+            D_i_temp = matrix(c(sum(before_b_i==2), sum(before_b_i==3), 
                                 sum(before_b_i==4), sum(before_b_i==5)), 
-                              nrow = 1, ncol = 5)
+                              nrow = 1, ncol = 4)
             D_i[[k]] = diag(4) %x% D_i_temp
             
-            mean_vecY_i_k = D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
+            mean_vecY_i_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k]] %*% matrix(beta,ncol=1) + 
                 D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
             
             Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
             
         } else {
-            D_i_temp = matrix(c(1, sum(before_b_i==2) + sum(b_i[2:k]==2), 
+            D_i_temp = matrix(c(sum(before_b_i==2) + sum(b_i[2:k]==2), 
                                 sum(before_b_i==3) + sum(b_i[2:k]==3), 
                                 sum(before_b_i==4) + sum(b_i[2:k]==4), 
                                 sum(before_b_i==5) + sum(b_i[2:k]==5)), 
-                              nrow = 1, ncol = 5)
+                              nrow = 1, ncol = 4)
             D_i[[k]] = diag(4) %x% D_i_temp
             
             A_curr = A_total[,b_i[k]]
             A_1 = diag(A_curr)
             
-            nu_k = D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
+            nu_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k]] %*% matrix(beta,ncol=1) + 
                 D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
-            nu_k_1 = D_i[[k-1]] %*% matrix(vec_alpha_i,ncol=1) + 
+            nu_k_1 = matrix(vec_base,ncol=1) + D_i[[k-1]] %*% matrix(vec_alpha_i,ncol=1) + 
                 X_i[[k-1]] %*% matrix(beta,ncol=1) + 
                 D_i_omega[[k-1]] %*% matrix(omega_tilde,ncol=1)
             diff_vec = c(Y_i[k-1,] - nu_k_1)
@@ -367,10 +383,10 @@ for(apc in 1:nrow(all_poss_combo)) {
 # Impose missingness like real data ----------------------------------------
 true_vitals = data_format[,c("hemo", "hr", "map", "lactate")]
 colnames(true_vitals) = c('hm_true', 'hr_true', 'mp_true', 'la_true')
-# data_format[!otype[,"hemo"], "hemo"] = NA
-# data_format[!otype[,"hr"], "hr"] = NA
-# data_format[!otype[,"map"], "map"] = NA
-# data_format[!otype[,"lactate"], "lactate"] = NA
+data_format[!otype[,"hemo"], "hemo"] = NA
+data_format[!otype[,"hr"], "hr"] = NA
+data_format[!otype[,"map"], "map"] = NA
+data_format[!otype[,"lactate"], "lactate"] = NA
 data_format = cbind(data_format, true_vitals)
 
 # Print transition frequencies for the simulated data set ------------------

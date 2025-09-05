@@ -96,16 +96,6 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
             print("max ind = 5")
             
-            # load('Model_out/mcmc_out_1_1it28.rda')
-            # 
-            # # initialize Y
-            # Y[,'hemo'] = mcmc_out$hc_chain[nrow(mcmc_out$hc_chain), ]
-            # Y[,'hr'] = mcmc_out$hr_chain[nrow(mcmc_out$hr_chain), ]
-            # Y[,'map'] = mcmc_out$bp_chain[nrow(mcmc_out$bp_chain), ]
-            # Y[,'lactate'] = mcmc_out$la_chain[nrow(mcmc_out$la_chain), ]
-            # 
-            # Dn_alpha = initialize_Dn(EIDs, B)
-            
             vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
             Y_init = initialize_Y(EIDs, par, par_index, A, Y, z, Dn_omega,
                                   Xn, otype, n_cores, vital_means)

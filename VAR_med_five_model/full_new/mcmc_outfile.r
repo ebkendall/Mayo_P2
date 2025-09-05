@@ -2,7 +2,7 @@ index_seeds = c(1:10)
 trialNum = 1
 simulation = F
 
-it_num = 1
+it_num = 2
 start_ind = 1
 
 # Parameter initialization -----------------------------------------------------
@@ -194,6 +194,8 @@ for(s in names(par_index)){
         parMedian = round( median(stacked_chains[,r], na.rm = T), 4)
         upper = quantile( stacked_chains[,r], prob=.975, na.rm = T)
         lower = quantile( stacked_chains[,r], prob=.025, na.rm = T)
+        
+        print(paste0(labels[lab_ind], ": ", round(parMedian, 3), " [", round(lower, 3), ", ", round(upper, 3), "]"))
         
         y_limit = range(stacked_chains[,r])
         plot( NULL, ylab=NA, main=labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
