@@ -13,9 +13,8 @@ trialNum = 1
 S = 5
 simulation = F
 
-it_num = 1
-max_ind = 5
-start_ind = 1
+it_num = 4
+start_ind = 4
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -186,7 +185,6 @@ load('Data/hr_map_names.rda')
 if(simulation) {
     load(paste0('Data/sim_data_', seed_focus, '.rda'))
     load(paste0('Data/alpha_i_mat_', seed_focus, '.rda'))
-    load(paste0('Data/omega_i_mat_', seed_focus, '.rda'))
     load('Data/Dn_omega_sim.rda')
     Dn_omega = Dn_omega_sim
     rm(Dn_omega_sim)
@@ -199,8 +197,9 @@ if(simulation) {
 } else {
     load('Data/data_format_train_update.rda')
     load('Data/Dn_omega_update.rda')
-    load(paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))
 }
+
+load(paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))
 
 EIDs = unique(data_format[,"EID"])
 
@@ -436,11 +435,8 @@ for(i in EID_plot){
     # Medication admin plot ----------------------------------------------------
     med_i = Dn_omega[[which(EIDs == i)]]
     med_i_mat = do.call( rbind, med_i)
-    if(simulation) {
-        omega_i = omega_i_mat[[which(EIDs == i)]]    
-    } else {
-        omega_i = par_means[[seed_focus]][par_index$omega_tilde]
-    }
+    
+    omega_i = par_means[[seed_focus]][par_index$omega_tilde]
     
     hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
     map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]

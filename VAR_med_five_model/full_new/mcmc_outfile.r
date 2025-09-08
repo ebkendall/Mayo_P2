@@ -2,8 +2,8 @@ index_seeds = c(1:10)
 trialNum = 1
 simulation = F
 
-it_num = 2
-start_ind = 1
+it_num = 4
+start_ind = 4
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -18,29 +18,39 @@ par_index$omega_tilde = 341:424
 par_index$G = 425:440
 
 true_par = rep(0, max(do.call('c', par_index)))
-true_par[par_index$beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
-true_par[par_index$alpha_tilde] = c( -5,   5, -2,  2,
-                                     10, -10,  2, -2,
-                                    -10,  10,  2, -2,
-                                      5,  -5, -2,  2)
-true_par[par_index$upsilon] = c(diag(c(4, 4, 1, 1, 
-                                       4, 4, 1, 1, 
-                                       4, 4, 1, 1, 
-                                       4, 4, 1, 1)))
-true_par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
-true_par[par_index$R] = c(diag(c(9, 9, 9, 9)))
-#    transitions:          1->2,         1->4,         2->3,         2->4, 
-#                          3->1,         3->2,         3->4,         4->2, 
-#                          4->5,         5->1,         5->2,         5->4
-true_par[par_index$zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
-                             -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
-                             -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1)
-true_par[par_index$init] = c(0, 0, 0, 0)
-true_par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                                       -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                                       -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                                       -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-true_par[par_index$G] = c(diag(c(9, 9, 9, 9)))
+if(simulation) {
+    load('Model_out/mcmc_out_1_1it1.rda')
+    true_par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
+    true_par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
+    true_par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
+    true_par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
+    true_par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
+    true_par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+    true_par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
+    true_par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
+    rm(mcmc_out)    
+} else {
+    true_par[par_index$beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
+    true_par[par_index$alpha_tilde] = c( -5,   5, -2,  2,
+                                         10, -10,  2, -2,
+                                         -10,  10,  2, -2,
+                                         5,  -5, -2,  2)
+    true_par[par_index$upsilon] = c(diag(c(4, 4, 1, 1, 
+                                           4, 4, 1, 1, 
+                                           4, 4, 1, 1, 
+                                           4, 4, 1, 1)))
+    true_par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
+    true_par[par_index$R] = c(diag(c(9, 9, 9, 9)))
+    true_par[par_index$zeta] = c(-3.7405, 2.5, -4.2152,   1, -2.6473,-0.5, -2.1475, -0.2, 
+                                 -3.4459,  -1, -2.9404,   1, -3.2151,   1, -3.1778,  1.5, 
+                                 -2.0523,   0, -3.4459,-0.2, -3.2404, 2.5, -3.2151,    1)
+    true_par[par_index$init] = c(0, 0, 0, 0)
+    true_par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                           -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                           -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                           -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    true_par[par_index$G] = c(diag(c(9, 9, 9, 9)))    
+}
 
 load('Data/Dn_omega_names.rda')
 
@@ -103,7 +113,7 @@ chain_list = list()
 A_list = list()
 par_means = vector(mode = 'list', length = length(index_seeds))
 ind = 0
-post_means_mat = NULL
+post_median_mat = NULL
 covg = NULL
 
 for(seed in index_seeds){
@@ -156,9 +166,10 @@ for(seed in index_seeds){
     }
     
     if(covg_val) {
-        post_means_temp = matrix(colMeans(chain_list[[ind]]), nrow = 1)
-        post_means_mat = rbind(post_means_mat, post_means_temp)
-        par_means[[seed]] = c(post_means_temp)
+        post_median_temp = matrix(apply(chain_list[[ind]], 2, median), nrow = 1)
+        post_median_mat = rbind(post_median_mat, post_median_temp)
+        
+        par_means[[seed]] = colMeans(chain_list[[ind]])
         
         covg_low = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.025)})
         covg_high = apply(chain_list[[ind]], 2, function(x){quantile(x, prob=.975)})
@@ -167,19 +178,21 @@ for(seed in index_seeds){
     }
 }
 
-if(!simulation) {save(par_means, file = paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))}
+save(par_means, file = paste0('Model_out/par_means_it', it_num, '_', as.numeric(simulation), '.rda'))
 
 upsilon_ind = matrix(1:length(par_index$upsilon), ncol = 16)
 upsilon_ind[upper.tri(upsilon_ind, diag = F)] = 0
 upsilon_ind = c(upsilon_ind)
 upsilon_ind = upsilon_ind[upsilon_ind != 0]
 
-
 stacked_chains = do.call( rbind, chain_list)
 
-pdf_title = paste0('Plots/trace_plot_', as.numeric(simulation), '_it', it_num, '.pdf')
-pdf(pdf_title)
+post_med_stack = c(apply(stacked_chains, 2, median))
+save(post_med_stack, file = paste0('Model_out/post_med_stack_it', it_num, '_', as.numeric(simulation), '.rda'))
+
+pdf(paste0('Plots/trace_plot_', as.numeric(simulation), '_it', it_num, '.pdf'))
 par(mfrow=c(3, 2))
+
 lab_ind = 0
 for(s in names(par_index)){
     temp_par = par_index[[s]]
@@ -195,7 +208,14 @@ for(s in names(par_index)){
         upper = quantile( stacked_chains[,r], prob=.975, na.rm = T)
         lower = quantile( stacked_chains[,r], prob=.025, na.rm = T)
         
-        print(paste0(labels[lab_ind], ": ", round(parMedian, 3), " [", round(lower, 3), ", ", round(upper, 3), "]"))
+        if(s == "A") {
+            med_trans = exp(parMedian) / (1 + exp(parMedian))
+            low_trans = exp(lower) / (1 + exp(lower))
+            upp_trans = exp(upper) / (1 + exp(upper))
+            print(paste0(labels[lab_ind], ": ", round(med_trans, 3), " [", round(low_trans, 3), ", ", round(upp_trans, 3), "]"))
+        } else {
+            print(paste0(labels[lab_ind], ": ", round(parMedian, 3), " [", round(lower, 3), ", ", round(upper, 3), "]"))    
+        }
         
         y_limit = range(stacked_chains[,r])
         plot( NULL, ylab=NA, main=labels[lab_ind], xlim=c(1,nrow(chain_list[[1]])),
@@ -219,24 +239,6 @@ for(s in names(par_index)){
         abline( v=lower, col='purple', lwd=2, lty=2)
         if(simulation) { abline( v=true_par[r], col='green', lwd=2, lty=2) }
     }   
-}
-
-if(simulation) {
-    par(mfrow=c(3, 3))
-    lab_ind = 0
-    for(s in names(par_index)){
-        temp_par = par_index[[s]]
-        if(s == "upsilon") {
-            temp_par = temp_par[upsilon_ind]
-        }
-        for(r in temp_par){
-            lab_ind = r
-            boxplot(post_means_mat[,r], main = labels[r],
-                    xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)),
-                    ylab = paste0('truth = ', true_par[r]))
-            abline(h = true_par[r], col = 'red')
-        }
-    }
 }
 
 # Plot the sampled alpha_i
@@ -267,10 +269,42 @@ for(a in 1:16) {
 
 dev.off()
 
-# main = paste0("(GR, sGR) = (", round(GR_univ[r,1], digits = 4),
-#                                           ", ", round(GR_univ[r,2], digits = 4),"), (",
-#                                           round(GR_mult[1], digits = 3),", ",
-#                                           round(GR_mult[2], digits = 3),")")
+if(simulation) {
+    pdf(paste0('Plots/box_plots_it', it_num, '_sim.pdf'))
+    par(mfrow=c(3, 3))
+    lab_ind = 0
+    for(s in names(par_index)){
+        temp_par = par_index[[s]]
+        if(s == "upsilon") {
+            temp_par = temp_par[upsilon_ind]
+        }
+        for(r in temp_par){
+            
+            lab_ind = r
+            boxplot(post_median_mat[,r], main = labels[r],
+                    xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)),
+                    ylab = paste0('truth = ', true_par[r]))
+            abline(h = true_par[r], col = 'red')
+        }
+    }
+    dev.off()
+    
+    pdf(paste0('Plots/box_plots_alpha_it', it_num, '_sim.pdf'))
+    par(mfrow=c(4, 4))
+    
+    temp_par = par_index[[2]]
+    
+    for(r in temp_par){
+        
+        lab_ind = r
+        boxplot(post_median_mat[,r], main = labels[r],
+                xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)))
+        abline(h = true_par[r], col = 'red')
+    }
+    
+    dev.off()
+}
+
 
 
 

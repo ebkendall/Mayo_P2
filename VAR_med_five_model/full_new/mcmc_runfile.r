@@ -2,9 +2,9 @@ source('mcmc_routine.r')
 
 args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
-# seed_num = as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 set.seed(seed_num)
-simulation = T
+
+simulation = F
 
 # Load data --------------------------------------------------------------------
 data_format = NULL
@@ -17,7 +17,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 5
+    max_ind = 8
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -117,8 +117,8 @@ if(simulation) {
 
     if(max_ind > 5) {
 
-        # 10: from it 1-3
-        chosen_seed = 1
+        # 9: from it 1-3
+        chosen_seed = 9
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it',
                     max_ind - 5, '.rda'))
 
@@ -151,7 +151,7 @@ if(simulation) {
 steps  = 50000
 burnin =  5000
 
-# if(max_ind > 5) {burnin = 0}
+if(max_ind > 5) {burnin = 0}
 
 s_time = Sys.time()
 mcmc_out = mcmc_routine(steps, burnin, seed_num, trialNum, simulation, max_ind,

@@ -10,8 +10,7 @@ Sys.setenv("PKG_CXXFLAGS" = "-fopenmp")
 Sys.setenv("PKG_LIBS" = "-fopenmp")
 
 mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
-                        par, par_index, Y, x, z, B, A, W, Dn_omega, 
-                        bleed_indicator) {
+                        par, par_index, Y, x, z, B, A, Dn_omega, bleed_indicator) {
     
     EIDs = as.numeric(unique(Y[,'EID']))
     
@@ -48,13 +47,12 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         print("Missing Y values - initializing")
         
         vital_means = colMeans(Y[,c('hemo', 'hr', 'map', 'lactate')], na.rm = T)
-        Y_init = initialize_Y(EIDs, par, par_index, A, W, Y, z, Dn_omega, 
+        Y_init = initialize_Y(EIDs, par, par_index, A, Y, z, Dn_omega, 
                               Xn, otype, n_cores, vital_means)
         
         Y[, c('hemo', 'hr', 'map', 'lactate')] = Y_init
         
-        B_Dn = mle_state_seq(EIDs, par, par_index, A, W, Y, z, 
-                             Dn_omega, Xn, n_cores)
+        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
         B = B_Dn[[1]]
         Dn_alpha = B_Dn[[2]]
         
@@ -66,8 +64,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         print("No missingness")
         impute_step = FALSE
         
-        B_Dn = mle_state_seq(EIDs, par, par_index, A, W, Y, z, 
-                             Dn_omega, Xn, n_cores)
+        B_Dn = mle_state_seq(EIDs, par, par_index, A, Y, z, Dn_omega, Xn, n_cores)
         B = B_Dn[[1]]
         Dn_alpha = B_Dn[[2]]
         
@@ -111,31 +108,25 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         }
         
         # Sample gamma_1 -------------------------------------------------------
-        gamma_1 = update_gamma_i(EIDs, par, par_index, A, W, Y, 
-                                 Dn_alpha, Dn_omega, Xn, n_cores)
+        gamma_1 = update_gamma_i(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, n_cores)
         
         # Imputing the missing Y values ----------------------------------------
         if(impute_step) {
-            Y = impute_Y(EIDs, par, par_index, A, W, Y, Dn_alpha, Dn_omega, Xn, 
-                         gamma_1, otype, n_cores)
+            Y = impute_Y(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, 
+                         gamma_1, otype, n_cores, simulation)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
         
         # State-space update (B) -----------------------------------------------
         sps = sample(x = 2:50, size = 1, replace = T) # sps >= 2
-        B_Dn = state_sampler(EIDs, par, par_index, B, A, W, Y, z, Dn_alpha, 
+        B_Dn = state_sampler(EIDs, par, par_index, B, A, Y, z, Dn_alpha, 
                              Dn_omega, Xn, bleed_indicator, gamma_1, sps, n_cores)
         B = B_Dn[[1]]
         Dn_alpha = B_Dn[[2]]
         
         # Gibbs: alpha_i -------------------------------------------------------
-        A = update_alpha_i(EIDs, par, par_index, W, Y, Dn_alpha, 
-                           Dn_omega, Xn, gamma_1, n_cores)
-        
-        # Gibbs: omega_i -------------------------------------------------------
-        W = update_omega_i(EIDs, par, par_index, A, Y, Dn_alpha, 
-                           Dn_omega, Xn, gamma_1, n_cores)
+        A = update_alpha_i(EIDs, par, par_index, B, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
         
         # Store information ----------------------------------------------------
         B_chain[ chain_ind, ] = do.call( 'c', B)
@@ -167,7 +158,6 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                             bp_chain = bp_chain[index_keep_2,], 
                             la_chain = la_chain[index_keep_2,],
                             alpha_i = A,
-                            omega_i = W,
                             otype=otype, par_index=par_index)
             
             save(mcmc_out, 
