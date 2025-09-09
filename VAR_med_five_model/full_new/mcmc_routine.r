@@ -67,7 +67,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
             print("max ind > 5")
             
-            chosen_seed = 9
+            chosen_seed = seed_num
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))

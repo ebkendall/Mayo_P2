@@ -13,7 +13,7 @@ trialNum = 1
 S = 5
 simulation = F
 
-it_num = 4
+it_num = 5
 start_ind = 4
 
 # Mode of the state sequences -------------------------------------------------

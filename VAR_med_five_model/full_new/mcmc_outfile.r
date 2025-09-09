@@ -1,8 +1,8 @@
-index_seeds = c(1:10)
+index_seeds = c(1:20)
 trialNum = 1
 simulation = F
 
-it_num = 4
+it_num = 6
 start_ind = 4
 
 # Parameter initialization -----------------------------------------------------
@@ -191,7 +191,11 @@ post_med_stack = c(apply(stacked_chains, 2, median))
 save(post_med_stack, file = paste0('Model_out/post_med_stack_it', it_num, '_', as.numeric(simulation), '.rda'))
 
 pdf(paste0('Plots/trace_plot_', as.numeric(simulation), '_it', it_num, '.pdf'))
-par(mfrow=c(3, 2))
+if(simulation) {
+    par(mfrow=c(4, 2))    
+} else {
+    par(mfrow=c(3, 2))
+}
 
 lab_ind = 0
 for(s in names(par_index)){
@@ -271,7 +275,7 @@ dev.off()
 
 if(simulation) {
     pdf(paste0('Plots/box_plots_it', it_num, '_sim.pdf'))
-    par(mfrow=c(3, 3))
+    par(mfrow=c(4, 4), mar = c(2, 2, 3, 1))
     lab_ind = 0
     for(s in names(par_index)){
         temp_par = par_index[[s]]
@@ -282,15 +286,20 @@ if(simulation) {
             
             lab_ind = r
             boxplot(post_median_mat[,r], main = labels[r],
-                    xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)),
-                    ylab = paste0('truth = ', true_par[r]))
+                    xlab = " ",
+                    ylab = " ",
+                    xaxs = "i",
+                    yaxs = "i")
+            title(xlab=paste0('95% Covg = ', round(mean(covg[,r]), 4), 
+                           '\n', 'True value = ', round(true_par[r], 4)), 
+                  line=1)
             abline(h = true_par[r], col = 'red')
         }
     }
     dev.off()
     
     pdf(paste0('Plots/box_plots_alpha_it', it_num, '_sim.pdf'))
-    par(mfrow=c(4, 4))
+    par(mfrow=c(4, 4), mar = c(2, 2, 3, 1))
     
     temp_par = par_index[[2]]
     
@@ -298,10 +307,14 @@ if(simulation) {
         
         lab_ind = r
         boxplot(post_median_mat[,r], main = labels[r],
-                xlab = paste0('95% Covg = ', round(mean(covg[,r]), 4)))
+                xlab = " ",
+                ylab = " ",
+                xaxs = "i",
+                yaxs = "i")
+        title(xlab=paste0('95% Covg = ', round(mean(covg[,r]), 4), 
+                          '\n', 'True value = ', round(true_par[r], 4)), line=1)
         abline(h = true_par[r], col = 'red')
     }
-    
     dev.off()
 }
 

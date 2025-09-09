@@ -15,6 +15,8 @@ S = 5
 it_num = 50
 start_ind = 31
 
+for_paper = T
+
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
     ux <- unique(x)
@@ -157,10 +159,8 @@ load('Data/hr_map_names.rda')
 load('Data/data_format_TEST.rda')
 load('Data/Dn_omega_TEST.rda')
 
-chosen_seed = 5
-chosen_it = 21
-load(paste0('Model_out/mcmc_out_1_', chosen_seed, 'it', chosen_it, '.rda'))
-par_vals = mcmc_out$chain[nrow(mcmc_out$chain), ]
+load('Model_out/post_med_stack_it4_0.rda')
+par_vals = post_med_stack
 
 EIDs = unique(data_format[,"EID"])
 
@@ -172,7 +172,7 @@ EID_plot = EIDs
 pdf_title = paste0('Plots/chart_plot_', plot_choice, '_it', it_num, '_TEST.pdf')
 pdf(pdf_title)
 panel_dim = c(4,1)
-inset_dim = c(0,-.18)
+inset_dim = c(0,-.18) #c(0,-.28)
 par(mfrow=panel_dim, mar=c(2,4,2,4), bg='black', fg='green')
 
 for(i in EID_plot){
@@ -198,13 +198,12 @@ for(i in EID_plot){
                  xlab='time', space=0, col.main='green', border=NA, axes = F, plot = F)
     
     # Heart Rate and MAP double plot -----------------------------------------
-    if(mean(data_format[indices_i, 'clinic_rule']) != 0) {
+    if(for_paper) {
+        title_name = paste0('Heart Rate & MAP (ID: ', i, ')')
+    } else {
         title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
                             mean(data_format[indices_i, 'RBC_rule']),
                             ', clinic = ', mean(data_format[indices_i, 'clinic_rule']))
-    } else {
-        title_name = paste0('Heart Rate & MAP: ', i, ', RBC Rule = ', 
-                            mean(data_format[indices_i, 'RBC_rule']))
     }
     
     hr_upper = colQuantiles( hr_results[[1]][, indices_i, drop=F], probs=.975)
@@ -229,7 +228,7 @@ for(i in EID_plot){
             xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
             col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-            legend=c( 'HR', 'MAP'), pch=15, pt.cex=1.5, 
+            legend=c( 'Heart Rate', 'MAP'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
     
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
@@ -237,13 +236,12 @@ for(i in EID_plot){
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
     # Hemoglobin and Lactate double plot -------------------------------------
-    if(mean(data_format[indices_i, 'clinic_rule']) != 0) {
+    if(for_paper) {
+        title_name = paste0('Hemoglobin & Lactate (ID: ', i, ')')
+    } else {
         title_name = paste0('Hemoglobin & Lactate: ', i, ', RBC Rule = ', 
                             mean(data_format[indices_i, 'RBC_rule']),
                             ', clinic = ', mean(data_format[indices_i, 'clinic_rule']))
-    } else {
-        title_name = paste0('Hemoglobin & Lactate: ', i, ', RBC Rule = ',
-                            mean(data_format[indices_i, 'RBC_rule']))
     }
     
     hc_upper = colQuantiles( hemo_results[[1]][, indices_i, drop=F], probs=.975)
@@ -267,79 +265,10 @@ for(i in EID_plot){
            xlab='time', ylab=NA, xaxt='n', pch=20, cex=1, sfrac=.0025,
            col = 'orange', xlim = range(pb) + c(-0.5,0.5), add = T) 
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-            legend=c( 'hemo', 'lactate'), pch=15, pt.cex=1.5, 
+            legend=c( 'Hemoglobin', 'Lactate'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
     
     axis( side=1, at=pb, col.axis='green', labels=t_grid)
-    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
-    abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
-    
-    # Medication admin plot ----------------------------------------------------
-    med_i = Dn_omega[[which(EIDs == i)]]
-    med_i_mat = do.call( rbind, med_i)
-    
-    omega_i = par_vals[par_index$omega_tilde]
-    
-    hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
-    map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
-    
-    hr_mean_effect = hr_med_i_mat %*% omega_i
-    map_mean_effect = map_med_i_mat %*% omega_i
-    
-    hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
-    map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
-    
-    upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
-                 -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
-                 -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-                 -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
-    
-    hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
-    map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
-    
-    hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
-    hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
-    map_upp_i  = map_med_i_mat[,map_upp_down == 1]
-    map_down_i = map_med_i_mat[,map_upp_down == -1]
-    
-    total_hr_up  = rowSums(hr_upp_i)
-    total_hr_dn  = rowSums(hr_down_i)
-    total_map_up = rowSums(map_upp_i)
-    total_map_dn = rowSums(map_down_i)
-    
-    hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-                        hr_mean_effect, map_mean_effect), 
-                    max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-                        hr_mean_effect, map_mean_effect))
-    if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
-    
-    plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main='Med. admin',
-         xlab='time', ylab=NA, xaxt='n', col.main='green',
-         col.axis='green')
-    
-    points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
-           col.main='green', col.axis='green', 
-           col = 'aquamarine', pch = 16) 
-    points(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
-           col = 'orange', pch = 16) 
-    lines(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
-          lwd=2, lty = 1, col = 'aquamarine') 
-    lines(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
-          lwd=2, lty = 1, col = 'orange') 
-    
-    lines(x = pb, y = total_hr_up, xlab='time', ylab=NA, 
-          lwd=1, lty = 2, col = 'aquamarine4') 
-    lines(x = pb, y = total_map_up, xlab='time', ylab=NA,
-          lwd=1, lty = 3, col = 'darkolivegreen2') 
-    lines(x = pb, y = total_hr_dn, xlab='time', ylab=NA,
-          lwd=1, lty = 4, col = 'deeppink')
-    lines(x = pb, y = total_map_dn, xlab='time', ylab=NA,
-          lwd=1, lty = 5, col = 'palevioletred')
-    legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
-            legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
-            col=c( 'aquamarine', 'orange'))
-    axis( side=1, at=pb, col.axis='green', labels=t_grid)
-    
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
     
@@ -348,7 +277,7 @@ for(i in EID_plot){
             col=c( 'dodgerblue', 'firebrick1', 'yellow2', 'green', 'darkgray'), 
             xlab='time', space=0, col.main='green', border=NA,
             xlim=range(pb) + c(-0.5,0.5)) 
-    grid( nx=20, NULL, col='white')
+    # grid( nx=20, NULL, col='white')
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'Baseline', 'State 2', 'State 3', 'State 4', 'State 5'), 
             pch=15, pt.cex=1.5, 
@@ -361,5 +290,112 @@ for(i in EID_plot){
     
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
+    
+    # Cumulative PLOTS ---------------------------------------------------------
+    cumulative_post_prob = matrix(nrow = 2, ncol = n_i)
+    cumulative_post_prob[1,] = state_proportions[2,indices_i]
+    cumulative_post_prob[2,] = 1 - state_proportions[2,indices_i]
+    c = 0.02171
+    
+    barplot(cumulative_post_prob,
+            col=c('firebrick1', 'black'),
+            main=paste0('Posterior Probabilitiy of Bleeding'), xlab='time', space=0, 
+            col.main='green', border=NA,
+            xlim=range(pb) + c(-0.5,0.5))
+    # grid( nx=20, NULL, col='white')
+    legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
+            legend=c( 'State 2', 'ALERT'), pch=c(15, 8), pt.cex=c(1.5,1),
+            col=c('firebrick1', 'white'))
+    axis( side=1, at=t_grid_bar-0.5, col.axis='green', labels = t_grid)
+    axis( side=2, at=0:1, col.axis='green')
+    
+    abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
+    abline(h = c, col = 'yellow', lwd = 1, lty=2)
+    
+    bleed_or_no = as.numeric(cumulative_post_prob[1,] >= c)
+    points(x=pb[bleed_or_no == 1], y=(bleed_or_no[bleed_or_no == 1]-0.05), pch=8,
+           col = 'white')
+    
+    # # State verification  ------------------------------------------------------
+    # bleed_or_no = as.numeric(cumulative_post_prob[1,] >= c)
+    # plot(x=pb[bleed_or_no == 1], y=bleed_or_no[bleed_or_no == 1], main = 'State 2 Alert Times',
+    #      xlab='time', ylab = ' ', col.main='green', col.lab = 'green',
+    #      xlim = range(pb) + c(-0.5,0.5), pch=8,
+    #      xaxt='n', yaxt='n', ylim = c(-0.25,1.25), col = (bleed_or_no[bleed_or_no == 1]+1))
+    # axis( side=1, at=pb, col.axis='green', labels=t_grid)
+    # axis( side=2, at=0:1, col.axis='green', labels = c("S1,3,4,5", "S2"),
+    #       cex.axis=1)
+    
+    # # Medication admin plot ----------------------------------------------------
+    # med_i = Dn_omega[[which(EIDs == i)]]
+    # med_i_mat = do.call( rbind, med_i)
+    # 
+    # omega_i = par_vals[par_index$omega_tilde]
+    # 
+    # hr_med_i_mat = med_i_mat[seq(2, nrow(med_i_mat), by = 4), ]
+    # map_med_i_mat = med_i_mat[seq(3, nrow(med_i_mat), by = 4), ]
+    # 
+    # hr_mean_effect = hr_med_i_mat %*% omega_i
+    # map_mean_effect = map_med_i_mat %*% omega_i
+    # 
+    # hr_med_i_mat = hr_med_i_mat[, hr_map_names %in% c('hr_cont', 'hr_disc')]
+    # map_med_i_mat = map_med_i_mat[, hr_map_names %in% c('map_cont', 'map_disc')]
+    # 
+    # upp_down = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+    #              -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+    #              -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+    #              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
+    # 
+    # hr_upp_down = upp_down[hr_map_names %in% c('hr_cont', 'hr_disc')]
+    # map_upp_down = upp_down[hr_map_names %in% c('map_cont', 'map_disc')]
+    # 
+    # hr_upp_i   = hr_med_i_mat[,hr_upp_down == 1]
+    # hr_down_i  = hr_med_i_mat[,hr_upp_down == -1]
+    # map_upp_i  = map_med_i_mat[,map_upp_down == 1]
+    # map_down_i = map_med_i_mat[,map_upp_down == -1]
+    # 
+    # total_hr_up  = rowSums(hr_upp_i)
+    # total_hr_dn  = rowSums(hr_down_i)
+    # total_map_up = rowSums(map_upp_i)
+    # total_map_dn = rowSums(map_down_i)
+    # 
+    # hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+    #                     hr_mean_effect, map_mean_effect), 
+    #                 max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+    #                     hr_mean_effect, map_mean_effect))
+    # if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
+    # 
+    # plot(NULL, xlim=range(pb) + c(-0.5,0.5), ylim=hr_map_ylim, main='Med. admin',
+    #      xlab='time', ylab=NA, xaxt='n', col.main='green',
+    #      col.axis='green')
+    # 
+    # points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
+    #        col.main='green', col.axis='green', 
+    #        col = 'aquamarine', pch = 16) 
+    # points(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
+    #        col = 'orange', pch = 16) 
+    # lines(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
+    #       lwd=2, lty = 1, col = 'aquamarine') 
+    # lines(x = pb, y = map_mean_effect, xlab='time', ylab=NA, 
+    #       lwd=2, lty = 1, col = 'orange') 
+    # 
+    # lines(x = pb, y = total_hr_up, xlab='time', ylab=NA, 
+    #       lwd=1, lty = 2, col = 'aquamarine4') 
+    # lines(x = pb, y = total_map_up, xlab='time', ylab=NA,
+    #       lwd=1, lty = 3, col = 'darkolivegreen2') 
+    # lines(x = pb, y = total_hr_dn, xlab='time', ylab=NA,
+    #       lwd=1, lty = 4, col = 'deeppink')
+    # lines(x = pb, y = total_map_dn, xlab='time', ylab=NA,
+    #       lwd=1, lty = 5, col = 'palevioletred')
+    # legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
+    #         legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
+    #         col=c( 'aquamarine', 'orange'))
+    # axis( side=1, at=pb, col.axis='green', labels=t_grid)
+    # 
+    # abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
+    # abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
+    
+    
 }
 dev.off()

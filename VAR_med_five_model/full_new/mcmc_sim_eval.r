@@ -193,18 +193,6 @@ for(seed in seed_list) {
 
         chosen_c[[seed]][[www]] = poss_c
 
-        # slope_mat = cbind(diff(c_results$true_pos), diff(c_results$false_pos))
-        # slope_mat = cbind(c[1:nrow(slope_mat)], slope_mat)
-        # colnames(slope_mat) = c("c", "delta_y", "delta_x")
-        #
-        # slope_mat = slope_mat[slope_mat[,"delta_x"] != 0, ]
-        # slopes = slope_mat[,"delta_y"] / slope_mat[,"delta_x"]
-        # slope_mat = cbind(slope_mat, slopes)
-        #
-        # approx_1_slope = slope_mat[order(abs(slope_mat[,"slopes"] - 1))[1], "slopes"]
-        # c_slope_1 = slope_mat[slope_mat[,"slopes"] == approx_1_slope, "c"]
-        # chosen_c = rbind(chosen_c, c_results[c_results$c %in% c_slope_1, ])
-
         # AUC (estimated using Trapezoid rule)
         area = 0
         for(k in 2:nrow(c_results)) {

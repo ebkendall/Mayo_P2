@@ -188,35 +188,32 @@ n_cores = 1
     # }
 # }
 
-# compute_times = list()
-# for(i in 1:4) {
-#     compute_times[[i]] = list()
-#     for(s in 1:5) {
-#         file_name = paste0('Model_out/int_comp_', i, '_', s, '.rda')
-#         if(file.exists(file_name)) {
-#             load(file_name)
-#             compute_times[[i]][[s]] = interm_compute_time
-#         }
-#     }
-# }
-# 
-# compute_times_10 = c(1832.113, 2948.188, 3024.797, 2986.866, 3023.945, 3057.364,
-#                      2996.636, 2984.072, 2989.379, 3066.625, 3009.258, 3007.343, 
-#                      3044.969, 3107.056)
-# compute_times_14 = c(1724.982, 2850.964, 2891.257, 2853.593, 2845.207, 2803.919,
-#                      2788.594, 2795.35,  2791.955, 2798.976, 2790.874, 2787.029,
-#                      2858.222, 2926.53,  2755.723)
-# compute_times_15 = c(20454.7)
-# 
-# pdf("Plots/compute_times_update.pdf")
-# par(mfrow = c(3, 2))
-# plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
-# for(i in 1:4) {
-#     for(j in 1:length(compute_times[[i]])) {
-#         plot(compute_times[[i]][[j]][,2], main = paste0(plot_names[i], ", p = ", sps[j]),
-#              ylim = c(0,1), ylab = "Percent Correct",
-#              xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
-#                            ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
-#     }
-# }
-# dev.off()
+compute_times = list()
+for(i in 1:4) {
+    compute_times[[i]] = list()
+    for(s in 1:5) {
+        file_name = paste0('Model_out/int_comp_', i, '_', s, '.rda')
+        if(file.exists(file_name)) {
+            load(file_name)
+            compute_times[[i]][[s]] = interm_compute_time
+        }
+    }
+}
+
+compute_times_15 = c(2439.744, 2707.454, 2691.764, 2689.079, 2726.551, 2718.337,
+                     2708.41, 2662.819, 2573.873, 2623.157, 2665.674, 2648.07, 2586.861,
+                     2663.089)
+
+pdf("Plots/compute_times_update.pdf")
+par(mfrow = c(3, 2))
+plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
+for(i in 1:4) {
+    for(j in 1:length(compute_times[[i]])) {
+        plot(compute_times[[i]][[j]][,2], main = paste0(plot_names[i], ", p = ", sps[j]),
+             ylim = c(0,1), ylab = "Percent Correct",
+             xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
+                           ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
+    }
+    plot.new()
+}
+dev.off()
