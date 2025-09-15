@@ -1,9 +1,13 @@
+library(latex2exp)
+library(tidyverse)
+library(gridExtra)
+
 index_seeds = c(1:20)
 trialNum = 1
 simulation = F
 
-it_num = 6
-start_ind = 4
+it_num = 10
+start_ind = 10
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -54,27 +58,57 @@ if(simulation) {
 
 load('Data/Dn_omega_names.rda')
 
-labels = c("beta (hemo)", "beta (hr)", "beta (map)", "beta (lact)",
-           "slope S2 (hemo)", "slope S3 (hemo)", "slope S4 (hemo)", "slope S5 (hemo)",
-           "slope S2 (hr)", "slope S3 (hr)", "slope S4 (hr)", "slope S5 (hr)",
-           "slope S2 (map)", "slope S3 (map)", "slope S4 (map)", "slope S5 (map)",
-           "slope S2 (lact)", "slope S3 (lact)", "slope S4 (lact)", "slope S5 (lact)",
-           paste0("Upsilon (", 1:16, ", ", rep(1:16, each = 16), ")"), 
-           "AR (hemo, S1)", "AR (hr, S1)", "AR (map, S1)", "AR (lact, S1)",
-           "AR (hemo, S2)", "AR (hr, S2)", "AR (map, S2)", "AR (lact, S2)",
-           "AR (hemo, S3)", "AR (hr, S3)", "AR (map, S3)", "AR (lact, S3)",
-           "AR (hemo, S4)", "AR (hr, S4)", "AR (map, S4)", "AR (lact, S4)",
-           "AR (hemo, S5)", "AR (hr, S5)", "AR (map, S5)", "AR (lact, S5)",
-           "Var(hemo)", "Cov(hemo, hr)", "Cov(hemo, map)", "Cov(hemo, lact)", 
-           "Cov(hr, hemo)", "Var(hr)", "Cov(hr, map)", "Cov(hr, lact)",
-           "Cov(map, hemo)", "Cov(map, hr)", "Var(map)", "Cov(map, lact)",
-           "Cov(lact, hemo)", "Cov(lact, hr)", "Cov(lact, map)", "Var(lact)",
-           "intercept: S1 --> S2", "slope: S1 --> S2", "intercept: S1 --> S4", "slope: S1 --> S4",
-           "intercept: S2 --> S3", "slope: S2 --> S3", "intercept: S2 --> S4", "slope: S2 --> S4",
-           "intercept: S3 --> S1", "slope: S3 --> S1", "intercept: S3 --> S2", "slope: S3 --> S2", 
-           "intercept: S3 --> S4", "slope: S3 --> S4", "intercept: S4 --> S2", "slope: S4 --> S2", 
-           "intercept: S4 --> S5", "slope: S4 --> S5", "intercept: S5 --> S1", "slope: S5 --> S1", 
-           "intercept: S5 --> S2", "slope: S5 --> S2", "intercept: S5 --> S4", "slope: S5 --> S4", 
+labels = c(TeX(r'($\beta_{1}:$ RBC admin effect hemoglobin)'),
+           TeX(r'($\beta_{2}:$ RBC admin effect heart rate)'),
+           TeX(r'($\beta_{3}:$ RBC admin effect MAP)'),
+           TeX(r'($\beta_{4}:$ RBC admin effect lactate)'),
+           TeX(r'($\tilde{\alpha}_{1,1}:$ state 2 slope hemoglobin)'),
+           TeX(r'($\tilde{\alpha}_{2,1}:$ state 3 slope hemoglobin)'),
+           TeX(r'($\tilde{\alpha}_{3,1}:$ state 4 slope hemoglobin)'),
+           TeX(r'($\tilde{\alpha}_{4,1}:$ state 5 slope hemoglobin)'),
+           TeX(r'($\tilde{\alpha}_{1,2}:$ state 2 slope heart rate)'),
+           TeX(r'($\tilde{\alpha}_{2,2}:$ state 3 slope heart rate)'),
+           TeX(r'($\tilde{\alpha}_{3,2}:$ state 4 slope heart rate)'),
+           TeX(r'($\tilde{\alpha}_{4,2}:$ state 5 slope heart rate)'),
+           TeX(r'($\tilde{\alpha}_{1,3}:$ state 2 slope MAP)'),
+           TeX(r'($\tilde{\alpha}_{2,3}:$ state 3 slope MAP)'),
+           TeX(r'($\tilde{\alpha}_{3,3}:$ state 4 slope MAP)'),
+           TeX(r'($\tilde{\alpha}_{4,3}:$ state 5 slope MAP)'),
+           TeX(r'($\tilde{\alpha}_{1,4}:$ state 2 slope lactate)'),
+           TeX(r'($\tilde{\alpha}_{2,4}:$ state 3 slope lactate)'),
+           TeX(r'($\tilde{\alpha}_{3,4}:$ state 4 slope lactate)'),
+           TeX(r'($\tilde{\alpha}_{4,4}:$ state 5 slope lactate)'),
+           paste0(TeX(r'($\Upsilon_{\alpha}$( )'), 1:16, ", ", rep(1:16, each = 16), " )"), 
+           TeX(r'(logit $A_{1}(hemoglobin)$)'), TeX(r'(logit $A_{1}(heart rate)$)'),
+           TeX(r'(logit $A_{1}(MAP)$)'), TeX(r'(logit $A_{1}(lactate)$)'),
+           TeX(r'(logit $A_{2}(hemoglobin)$)'), TeX(r'(logit $A_{2}(heart rate)$)'),
+           TeX(r'(logit $A_{2}(MAP)$)'), TeX(r'(logit $A_{2}(lactate)$)'),
+           TeX(r'(logit $A_{3}(hemoglobin)$)'), TeX(r'(logit $A_{3}(heart rate)$)'),
+           TeX(r'(logit $A_{3}(MAP)$)'), TeX(r'(logit $A_{3}(lactate)$)'),
+           TeX(r'(logit $A_{4}(hemoglobin)$)'), TeX(r'(logit $A_{4}(heart rate)$)'),
+           TeX(r'(logit $A_{4}(MAP)$)'), TeX(r'(logit $A_{4}(lactate)$)'),
+           TeX(r'(logit $A_{5}(hemoglobin)$)'), TeX(r'(logit $A_{5}(heart rate)$)'),
+           TeX(r'(logit $A_{5}(MAP)$)'), TeX(r'(logit $A_{5}(lactate)$)'),
+           TeX(r'($R_{1,1}:$ Var(hemo) )'), TeX(r'($R_{2,1}:$ Cov(hemo, hr) )'),
+           TeX(r'($R_{3,1}:$ Cov(hemo, map) )'), TeX(r'($R_{4,1}:$ Cov(hemo, lact) )'),
+           TeX(r'($R_{1,2}:$ Cov(hr, hemo) )'), TeX(r'($R_{2,2}:$ Var(hr) )'),
+           TeX(r'($R_{3,2}:$ Cov(hr, map) )'), TeX(r'($R_{4,2}:$ Cov(hr, lact) )'),
+           TeX(r'($R_{1,3}:$ Cov(map, hemo) )'), TeX(r'($R_{2,3}:$ Cov(map, hr) )'),
+           TeX(r'($R_{3,3}:$ Var(map) )'), TeX(r'($R_{4,3}:$ Cov(map, lact) )'),
+           TeX(r'($R_{1,3}:$ Cov(lact, hemo) )'), TeX(r'($R_{2,3}:$ Cov(lact, hr) )'),
+           TeX(r'($R_{3,3}:$ Cov(lact, map) )'), TeX(r'($R_{4,3}:$ Var(lact) )'),
+           TeX(r'($\zeta_{1,1}:$ S1 --> S2)'), TeX(r'($\zeta_{2,1}:$ S1 --> S2)'),
+           TeX(r'($\zeta_{1,2}:$ S1 --> S4)'), TeX(r'($\zeta_{2,2}:$ S1 --> S4)'),
+           TeX(r'($\zeta_{1,3}:$ S2 --> S3)'), TeX(r'($\zeta_{2,3}:$ S2 --> S3)'),
+           TeX(r'($\zeta_{1,4}:$ S2 --> S4)'), TeX(r'($\zeta_{2,4}:$ S2 --> S4)'),
+           TeX(r'($\zeta_{1,5}:$ S3 --> S1)'), TeX(r'($\zeta_{2,5}:$ S3 --> S1)'),
+           TeX(r'($\zeta_{1,6}:$ S3 --> S2)'), TeX(r'($\zeta_{2,6}:$ S3 --> S2)'),
+           TeX(r'($\zeta_{1,7}:$ S3 --> S4)'), TeX(r'($\zeta_{2,7}:$ S3 --> S4)'),
+           TeX(r'($\zeta_{1,8}:$ S4 --> S2)'), TeX(r'($\zeta_{2,8}:$ S4 --> S2)'),
+           TeX(r'($\zeta_{1,9}:$ S4 --> S5)'), TeX(r'($\zeta_{2,9}:$ S4 --> S5)'),
+           TeX(r'($\zeta_{1,10}:$ S5 --> S1)'), TeX(r'($\zeta_{2,10}:$ S5 --> S1)'),
+           TeX(r'($\zeta_{1,11}:$ S5 --> S2)'), TeX(r'($\zeta_{2,11}:$ S5 --> S2)'),
+           TeX(r'($\zeta_{1,12}:$ S5 --> S4)'), TeX(r'($\zeta_{2,12}:$ S5 --> S4)'),
            "logit Pr(init S2)", "logit Pr(init S3)",
            "logit Pr(init S4)", "logit Pr(init S5)",
            paste0("mean (hr): ", Dn_omega_names[1:34]), 
@@ -83,6 +117,11 @@ labels = c("beta (hemo)", "beta (hr)", "beta (map)", "beta (lact)",
            "G(hr, hemo)", "G(hr)", "G(hr, map)", "G(hr, lact)",
            "G(map, hemo)", "G(map, hr)", "G(map)", "G(map, lact)",
            "G(lact, hemo)", "G(lact, hr)", "G(lact, map)", "G(lact)")
+
+direction_med = c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                  -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                  -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                  -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
 if(simulation) {
     # Estimate the initial state probabilities
@@ -198,6 +237,7 @@ if(simulation) {
 }
 
 lab_ind = 0
+med_print_save = NULL
 for(s in names(par_index)){
     temp_par = par_index[[s]]
     if(s == "upsilon") {
@@ -218,6 +258,19 @@ for(s in names(par_index)){
             upp_trans = exp(upper) / (1 + exp(upper))
             print(paste0(labels[lab_ind], ": ", round(med_trans, 3), " [", round(low_trans, 3), ", ", round(upp_trans, 3), "]"))
         } else {
+            if(s == "omega_tilde") {
+                if(0 < lower || 0 > upper) {
+                    if(parMedian * direction_med[r - 340] < 0) {
+                        omega_label = paste0("\\textcolor{red}{$", round(parMedian, 3), "^*$}")
+                    } else {
+                        omega_label = paste0("$", round(parMedian, 3), "^*$")   
+                    }
+                } else {
+                    omega_label = paste0("$", round(parMedian, 3), "$")
+                }
+                
+                med_print_save = c(med_print_save, omega_label)
+            }
             print(paste0(labels[lab_ind], ": ", round(parMedian, 3), " [", round(lower, 3), ", ", round(upper, 3), "]"))    
         }
         
@@ -244,34 +297,104 @@ for(s in names(par_index)){
         if(simulation) { abline( v=true_par[r], col='green', lwd=2, lty=2) }
     }   
 }
+dev.off()
 
 # Plot the sampled alpha_i
-alpha_i_names = c("slope S2 (hemo)", "slope S3 (hemo)", "slope S4 (hemo)", "slope S5 (hemo)",
-                  "slope S2 (hr)", "slope S3 (hr)", "slope S4 (hr)", "slope S5 (hr)",
-                  "slope S2 (map)", "slope S3 (map)", "slope S4 (map)", "slope S5 (map)",
-                  "slope S2 (lact)", "slope S3 (lact)", "slope S4 (lact)", "slope S5 (lact)")
-par(mfrow = c(2,2))
-for(a in 1:16) {
-    all_a = NULL
-    freq_counts = NULL
-    for(i in 1:length(A_list)) {
-        all_a = cbind(all_a, A_list[[i]][,a])
-        
-        temp_hist = hist(A_list[[i]][,a], breaks = sqrt(nrow(A_list[[i]])), plot = F)
-        freq_counts = c(freq_counts, max(temp_hist$counts))
-    }
+alpha_i_names = c(TeX(r'($[\alpha^{(i)}_{*}]_{.,1}:$ hemoglobin slopes)'),
+                  TeX(r'($[\alpha^{(i)}_{*}]_{.,2}:$ heart rate slopes)'),
+                  TeX(r'($[\alpha^{(i)}_{*}]_{.,3}:$ MAP slopes)'),
+                  TeX(r'($[\alpha^{(i)}_{*}]_{.,4}:$ lactate slopes)'))
+
+all_a = do.call(rbind, A_list)
+VP <- vector(mode="list", length = length(alpha_i_names))
+
+for(a in 1:4) {
+    state_per_a = (4*(a-1) + 1):(4*a)
     
-    x_margin = c(min(c(all_a)), max(c(all_a)))
-    y_margin = c(0, max(freq_counts))
+    yVar = disc_type = NULL
     
-    hist(all_a[,1], main = alpha_i_names[a], xlab = paste0('alpha_i(', a, ')'),
-         breaks = sqrt(nrow(all_a)), col = 1, xlim = x_margin, ylim = y_margin)
-    for(i in 2:length(A_list)) {
-        hist(all_a[,i], breaks = sqrt(nrow(all_a)), col = i, add = T)
-    }
+    yVar = c(all_a[,state_per_a])
+    
+    disc_type = c(rep("state 2", nrow(all_a)), rep("state 3", nrow(all_a)),
+                  rep("state 4", nrow(all_a)), rep("state 5", nrow(all_a)))
+    
+    plot_df = data.frame(yVar = yVar, disc_type = disc_type)
+    plot_df$disc_type <- factor(plot_df$disc_type, levels = unique(plot_df$disc_type))
+    VP[[a]] = ggplot(plot_df, aes(x=disc_type, y = yVar, fill = disc_type)) +
+        geom_violin(trim=FALSE) +
+        geom_boxplot(width=0.1) +
+        ggtitle(alpha_i_names[a]) +
+        ylab("") + #paste0("Parameter Value: ", round(true_par[r], 3))
+        xlab(TeX(r'(sampled $\alpha^{(i)}_{*}$)')) +
+        theme(legend.position = "none", 
+              panel.background = element_rect(fill = "white", colour = "grey", 
+                                              linetype = 'solid', linewidth = 1),
+              panel.grid.major = element_line(linetype = 'solid',
+                                              colour = "grey") )
+    
 }
 
+pdf(paste0('Plots/sampled_alpha_', as.numeric(simulation), '_it', it_num, '.pdf'))
+grid.arrange(VP[[1]], VP[[2]], nrow = 2)
+grid.arrange(VP[[3]], VP[[4]], nrow = 2)
 dev.off()
+
+
+# Print Medication information in a clear format
+direction_text = rep(" ", length(direction_med))
+direction_text[direction_med==1] = "$\\uparrow$"
+direction_text[direction_med==-1] = "$\\downarrow$"
+med_key = read.csv('Data/Med_chart.csv', na.strings = "")
+colnames(med_key) = c('id', 'hr', 'map', 'onset', 'offset', 'time_check', 'X1')
+med_key$id = paste0(" ", med_key$id)
+med_key$id[med_key$id == " Metoprolol IV"] = " METOPROLOL"
+library(stringr)
+
+all_med_names = med_key$id
+
+all_med_names <- str_trim(all_med_names, "right")
+
+count_med_effects = 0
+for(mn in 1:length(all_med_names)) {
+    check_med = grepl(all_med_names[mn], Dn_omega_names, fixed = TRUE)
+    if(sum(check_med) > 0) {
+    
+        dn_loc = which(check_med)    
+        dn_name = Dn_omega_names[dn_loc]
+        
+        # order: hr cont, hr disc, map cont, map disc
+        info_print = c("--", "--", "--", "--")
+        dir_print  = c("", "", "", "")
+        for(l in 1:length(dn_loc)) {
+            if(dn_loc[l] < 35) {
+                if(grepl('1', dn_name[l], fixed=TRUE)) {
+                    info_print[1] = med_print_save[dn_loc[l]]
+                    dir_print[1] = direction_text[dn_loc[l]]
+                } else if(grepl('0', dn_name[l], fixed=TRUE)) {
+                    info_print[2] = med_print_save[dn_loc[l]]
+                    dir_print[2] = direction_text[dn_loc[l]]
+                }
+            } else {
+                if(grepl('1', dn_name[l], fixed=TRUE)) {
+                    info_print[3] = med_print_save[dn_loc[l]]
+                    dir_print[3] = direction_text[dn_loc[l]]
+                } else if(grepl('0', dn_name[l], fixed=TRUE)) {
+                    info_print[4] = med_print_save[dn_loc[l]]
+                    dir_print[4] = direction_text[dn_loc[l]]
+                }
+            }
+        }
+        
+        count_med_effects = count_med_effects + sum(info_print != "--")
+        
+        cat(all_med_names[mn], " & ", dir_print[1], dir_print[2], " & ", info_print[1], " & ", info_print[2],
+                     " & ", dir_print[3], dir_print[4], " & ", info_print[3], " & ", info_print[4]," \\\\", '\n')
+        
+    } 
+}
+
+
+print(paste0("Total med effects: ", count_med_effects))
 
 if(simulation) {
     pdf(paste0('Plots/box_plots_it', it_num, '_sim.pdf'))

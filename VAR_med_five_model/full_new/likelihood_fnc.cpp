@@ -587,7 +587,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     arma::vec vec_A_content = par.elem(par_index(3) - 1);
     arma::vec vec_A_mean(vec_A_content.n_elem, arma::fill::zeros);
     arma::vec scalar_A(vec_A_content.n_elem, arma::fill::ones);
-    scalar_A = 25 * scalar_A;
+    // scalar_A = 25 * scalar_A;
     arma::mat A_var = arma::diagmat(scalar_A);
 
     arma::vec prior_A = dmvnorm(vec_A_content.t(), vec_A_mean, A_var, true);
@@ -596,8 +596,8 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     // Error-variance prior ----------------------------------------------------
     arma::mat R = arma::reshape(par.elem(par_index(4) - 1), 4, 4);
 
-    int nu_R = 8;
-    arma::vec scalar_vec_R = {4, 16, 16, 4};
+    int nu_R = 50;
+    arma::vec scalar_vec_R = {0.5, 1.5, 1.5, 0.5};
     scalar_vec_R = (nu_R - 4 - 1) * scalar_vec_R;
     arma::mat psi_R = arma::diagmat(scalar_vec_R);
 
@@ -985,7 +985,7 @@ arma::vec update_beta_upsilon(const arma::vec &EIDs, arma::vec &par,
     arma::vec scalar_beta = {1, 0.0625, 0.0625, 0.0625};
     arma::mat inv_sigma_beta = arma::diagmat(scalar_beta);
 
-    int nu_ups = 40;
+    int nu_ups = 80;
     arma::vec scalar_ups = {0.25, 0.25,  4,  4,
                             2.25, 2.25, 25, 25,
                             2.25, 2.25, 25, 25,

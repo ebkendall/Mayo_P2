@@ -67,7 +67,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
             print("max ind > 5")
             
-            chosen_seed = seed_num
+            chosen_seed = 2
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))
@@ -309,8 +309,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 curr_R = matrix(par[ind_j], nrow = 4)
                 
                 # Prior for R
-                nu_R = 8
-                psi_R = diag(c(4, 16, 16, 4))
+                nu_R = 50
+                psi_R = diag(c(0.5, 1.5, 1.5, 0.5))
                 psi_R = (nu_R - 4 - 1) * psi_R
                 
                 # Proposal
@@ -491,3 +491,20 @@ b_ind_fnc <- function(data_format) {
     }
     return(bleed_indicator)
 }
+
+# var_R_calc <- function(psi, nu, p) {
+#     var_mat = matrix(0, p, p)
+#     for(i in 1:p) {
+#         for(j in 1:p) {
+#             num_ij = (nu - p + 1) * (psi[i,j] * psi[i,j]) + (nu - p - 1) * psi[i,i] * psi[j,j]
+#             den_ij = (nu - p) * (nu - p - 1) * (nu - p - 1) * (nu - p - 3)
+#             var_mat[i,j] = num_ij / den_ij
+#         }
+#     }
+#     return(var_mat)
+# }
+# 
+# nu_up = 80
+# psi_up = diag(c(1, 1,  4,  4, 2.25, 2.25, 25, 25, 2.25, 2.25, 25, 25, 1, 1,  4,  4))
+# psi_up = (nu_up - 16 - 1) * psi_up
+# diag(var_R_calc(psi_up, nu_up, 16))
