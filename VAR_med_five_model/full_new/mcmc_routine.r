@@ -67,7 +67,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
             print("max ind > 5")
             
-            chosen_seed = 2
+            chosen_seed = 3
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))
@@ -168,7 +168,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # int_start_t = Sys.time()
         if(impute_step) {
             Y = impute_Y(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, 
-                         gamma_1, otype, n_cores, simulation)
+                         gamma_1, otype, n_cores)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
@@ -309,9 +309,9 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 curr_R = matrix(par[ind_j], nrow = 4)
                 
                 # Prior for R
-                nu_R = 50
+                nu_R = nrow(Y)
                 psi_R = diag(c(0.5, 1.5, 1.5, 0.5))
-                psi_R = (nu_R - 4 - 1) * psi_R
+                psi_R = nu_R * psi_R
                 
                 # Proposal
                 psi_nu_q_star = proposal_R(nu_R, psi_R, curr_R, EIDs, par, 

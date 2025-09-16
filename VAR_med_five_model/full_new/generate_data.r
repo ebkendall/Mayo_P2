@@ -51,33 +51,8 @@ rm(mcmc_out)
 
 n_state = 5
 
-# Parameter initialization -----------------------------------------------------
-beta = par[par_index$beta]
-alpha_tilde = matrix(par[par_index$alpha_tilde], ncol = 4)
-Upsilon = matrix(par[par_index$upsilon], ncol = 16)
-
-baseline_mean = c(50, 100, 100, 50)
-baseline_var = diag(c(25,25,25,25))
-
-vec_A = par[par_index$A]
-A_scaled = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
-A_total = matrix(A_scaled, ncol = 5)
-
-# columns: hemo, hr, map, lactate
-R = matrix(par[par_index$R], ncol = 4)
-
-zeta = matrix(par[par_index$zeta], nrow = 2)
-colnames(zeta) = c('(1) 1->2', '(2) 1->4','(3) 2->3', '(4) 2->4', '(5) 3->1', 
-                   '(6) 3->2', '(7) 3->4','(8) 4->2', '(9) 4->5', '(10) 5->1', 
-                   '(11) 5->2', '(12) 5->4')
-
-init_logit = par[par_index$init]
-init_logit = c(0, init_logit)
-
-omega_tilde = par[par_index$omega_tilde]
 # ------------------------------------------------------------------------------
 
-# for(df_num in 1:50) {
 args = commandArgs(TRUE)
 df_num = as.numeric(args[1])
 
@@ -155,7 +130,33 @@ for(i in 1:length(bleed_pat)) {
 }
 
 rm(data_format)
-# --------------------------------------------------------------------------
+
+# Parameter initialization -----------------------------------------------------
+beta = par[par_index$beta]
+alpha_tilde = matrix(par[par_index$alpha_tilde], ncol = 4)
+Upsilon = matrix(par[par_index$upsilon], ncol = 16)
+
+Y_first_ind = c(1, which(diff(Y[,"EID"]) != 0) + 1)
+baseline_mean = colMeans(Y[Y_first_ind,c("hemo", "hr", "map", "lactate")], na.rm = T)
+baseline_var = diag(c(9,25,25,9))
+
+vec_A = par[par_index$A]
+A_scaled = exp(vec_A) / (1 + exp(vec_A)) # Support (0,1)
+A_total = matrix(A_scaled, ncol = 5)
+
+# columns: hemo, hr, map, lactate
+R = matrix(par[par_index$R], ncol = 4)
+
+zeta = matrix(par[par_index$zeta], nrow = 2)
+colnames(zeta) = c('(1) 1->2', '(2) 1->4','(3) 2->3', '(4) 2->4', '(5) 3->1', 
+                   '(6) 3->2', '(7) 3->4','(8) 4->2', '(9) 4->5', '(10) 5->1', 
+                   '(11) 5->2', '(12) 5->4')
+
+init_logit = par[par_index$init]
+init_logit = c(0, init_logit)
+
+omega_tilde = par[par_index$omega_tilde]
+# ------------------------------------------------------------------------------
 
 alpha_i_mat = vector(mode = "list", length = N)
 Dn_omega_sim = vector(mode = 'list', length = N)
@@ -166,175 +167,184 @@ initial_state_vec = NULL
 
 for(i in 1:N) {
     
-    id_num = EIDs[i]
+    print(i)
+    not_poss_ID = T
     
-    Dn_omega_sim[[i]] = Dn_omega[[i]]
-    D_i_omega = Dn_omega_sim[[i]]
-    
-    rbc_rule = as.logical(head(Y[Y[,'EID']==as.numeric(id_num),"RBC_rule"], 1))
-    correct_bleed = T
-    if(rbc_rule) {correct_bleed = F}
-    
-    n_i = sum(Y[,'EID']==as.numeric(id_num))
-    
-    m_i = n_i + sample(0:50, size = 1, replace = F)
-    
-    x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
-    z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
-    
-    bleed_ind_i = bleed_indicator[Y[,'EID']==as.numeric(id_num)]
-    
-    if(length(D_i_omega) != n_i) {print(paste0("issue n_i: ", i))}
-    
-    # Sample a long string of states ---------------------------------------
-    big_b_i = rep(NA, m_i)
-    big_b_i[1] = 1
-    for(k in 2:m_i) {
-        if(k <= m_i - n_i) {
-            q1   = exp(zeta[1, 1]) 
-            q2   = exp(zeta[1, 2])
-            q3   = exp(zeta[1, 3])
-            q4   = exp(zeta[1, 4])
-            q5   = exp(zeta[1, 5]) 
-            q6   = exp(zeta[1, 6])
-            q7   = exp(zeta[1, 7])
-            q8   = exp(zeta[1, 8])
-            q9   = exp(zeta[1, 9]) 
-            q10  = exp(zeta[1, 10])
-            q11  = exp(zeta[1, 11])
-            q12  = exp(zeta[1, 12])
-            
-            Q = matrix(c(  1,   q1,  0,  q2,  0,
-                           0,    1, q3,  q4,  0,
-                           q5,   q6,  1,  q7,  0,
-                           0,   q8,  0,   1, q9,
-                           q10,  q11,  0, q12,  1), ncol=5, byrow=T)
-            
-            P_i = Q / rowSums(Q)
-            
-            big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
-        } else {
-            q1   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  1, drop=F]) 
-            q2   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  2, drop=F])
-            q3   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  3, drop=F])
-            q4   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  4, drop=F])
-            q5   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  5, drop=F]) 
-            q6   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  6, drop=F])
-            q7   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  7, drop=F])
-            q8   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  8, drop=F])
-            q9   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  9, drop=F]) 
-            q10  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  10, drop=F])
-            q11  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  11, drop=F])
-            q12  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  12, drop=F])
-            
-            Q = matrix(c(   1,   q1,  0,  q2,  0,
-                            0,    1, q3,  q4,  0,
-                            q5,   q6,  1,  q7,  0,
-                            0,   q8,  0,   1, q9,
-                            q10,  q11,  0, q12,  1), ncol=5, byrow=T)
-            
-            P_i = Q / rowSums(Q)
-            
-            big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
+    while(not_poss_ID) {
+        id_num = EIDs[i]
+        
+        Dn_omega_sim[[i]] = Dn_omega[[i]]
+        D_i_omega = Dn_omega_sim[[i]]
+        
+        rbc_rule = as.logical(head(Y[Y[,'EID']==as.numeric(id_num),"RBC_rule"], 1))
+        correct_bleed = T
+        if(rbc_rule) {correct_bleed = F}
+        
+        n_i = sum(Y[,'EID']==as.numeric(id_num))
+        
+        m_i = n_i + sample(0:50, size = 1, replace = F)
+        
+        x_i = x[ Y[,'EID']==as.numeric(id_num),, drop=F]
+        z_i = z[ Y[,'EID']==as.numeric(id_num),, drop=F]
+        
+        bleed_ind_i = bleed_indicator[Y[,'EID']==as.numeric(id_num)]
+        
+        if(length(D_i_omega) != n_i) {print(paste0("issue n_i: ", i))}
+        
+        # Sample a long string of states ---------------------------------------
+        big_b_i = rep(NA, m_i)
+        big_b_i[1] = 1
+        for(k in 2:m_i) {
+            if(k <= m_i - n_i) {
+                q1   = exp(zeta[1, 1]) 
+                q2   = exp(zeta[1, 2])
+                q3   = exp(zeta[1, 3])
+                q4   = exp(zeta[1, 4])
+                q5   = exp(zeta[1, 5]) 
+                q6   = exp(zeta[1, 6])
+                q7   = exp(zeta[1, 7])
+                q8   = exp(zeta[1, 8])
+                q9   = exp(zeta[1, 9]) 
+                q10  = exp(zeta[1, 10])
+                q11  = exp(zeta[1, 11])
+                q12  = exp(zeta[1, 12])
+                
+                Q = matrix(c(  1,   q1,  0,  q2,  0,
+                               0,    1, q3,  q4,  0,
+                               q5,   q6,  1,  q7,  0,
+                               0,   q8,  0,   1, q9,
+                               q10,  q11,  0, q12,  1), ncol=5, byrow=T)
+                
+                P_i = Q / rowSums(Q)
+                
+                big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
+            } else {
+                q1   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  1, drop=F]) 
+                q2   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  2, drop=F])
+                q3   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  3, drop=F])
+                q4   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  4, drop=F])
+                q5   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  5, drop=F]) 
+                q6   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  6, drop=F])
+                q7   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  7, drop=F])
+                q8   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  8, drop=F])
+                q9   = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  9, drop=F]) 
+                q10  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  10, drop=F])
+                q11  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  11, drop=F])
+                q12  = exp(z_i[k - (m_i - n_i),, drop=F] %*% zeta[,  12, drop=F])
+                
+                Q = matrix(c(   1,   q1,  0,  q2,  0,
+                                0,    1, q3,  q4,  0,
+                                q5,   q6,  1,  q7,  0,
+                                0,   q8,  0,   1, q9,
+                                q10,  q11,  0, q12,  1), ncol=5, byrow=T)
+                
+                P_i = Q / rowSums(Q)
+                
+                big_b_i[k] = sample(1:5, size=1, prob=P_i[big_b_i[k-1],])
+            }
         }
-    }
-    
-    # Select n_i of the states for the true latent state sequence ----------
-    b_i = tail(big_b_i, n_i)
-    before_b_i = big_b_i[1:(m_i - n_i + 1)]
-    
-    # Generate data --------------------------------------------------------
-    Y_i = matrix(nrow = n_i, ncol = 4)
-    D_i = vector(mode = 'list', length = n_i)
-    X_i = vector(mode = 'list', length = n_i)
-    
-    vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
-    vec_base = rmvnorm(n=1, mean = baseline_mean, sigma = baseline_var)
-    
-    alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
-    
-    A_init = A_total[,b_i[1]]
-    Gamma = matrix(c(R[1,1] / (1 - A_init[1] * A_init[1]), 
-                     R[1,2] / (1 - A_init[1] * A_init[2]),
-                     R[1,3] / (1 - A_init[1] * A_init[3]), 
-                     R[1,4] / (1 - A_init[1] * A_init[4]),
-                     R[2,1] / (1 - A_init[2] * A_init[1]), 
-                     R[2,2] / (1 - A_init[2] * A_init[2]),
-                     R[2,3] / (1 - A_init[2] * A_init[3]), 
-                     R[2,4] / (1 - A_init[2] * A_init[4]),
-                     R[3,1] / (1 - A_init[3] * A_init[1]), 
-                     R[3,2] / (1 - A_init[3] * A_init[2]),
-                     R[3,3] / (1 - A_init[3] * A_init[3]), 
-                     R[3,4] / (1 - A_init[3] * A_init[4]),
-                     R[4,1] / (1 - A_init[4] * A_init[1]), 
-                     R[4,2] / (1 - A_init[4] * A_init[2]),
-                     R[4,3] / (1 - A_init[4] * A_init[3]), 
-                     R[4,4] / (1 - A_init[4] * A_init[4])), 
-                   ncol = 4, byrow = T)
-    
-    for(k in 1:n_i) {
         
-        x_i_temp = matrix(c(x_i[k,]), ncol = 1)
-        X_i[[k]] = diag(4) %x% x_i[k,]
+        # Select n_i of the states for the true latent state sequence ----------
+        b_i = tail(big_b_i, n_i)
+        before_b_i = big_b_i[1:(m_i - n_i + 1)]
         
-        if(k == 1)  {
-            D_i_temp = matrix(c(sum(before_b_i==2), sum(before_b_i==3), 
-                                sum(before_b_i==4), sum(before_b_i==5)), 
-                              nrow = 1, ncol = 4)
-            D_i[[k]] = diag(4) %x% D_i_temp
+        # Generate data --------------------------------------------------------
+        Y_i = matrix(nrow = n_i, ncol = 4)
+        D_i = vector(mode = 'list', length = n_i)
+        X_i = vector(mode = 'list', length = n_i)
+        
+        vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
+        vec_base = rmvnorm(n=1, mean = baseline_mean, sigma = baseline_var)
+        
+        alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
+        
+        A_init = A_total[,b_i[1]]
+        Gamma = matrix(c(R[1,1] / (1 - A_init[1] * A_init[1]), 
+                         R[1,2] / (1 - A_init[1] * A_init[2]),
+                         R[1,3] / (1 - A_init[1] * A_init[3]), 
+                         R[1,4] / (1 - A_init[1] * A_init[4]),
+                         R[2,1] / (1 - A_init[2] * A_init[1]), 
+                         R[2,2] / (1 - A_init[2] * A_init[2]),
+                         R[2,3] / (1 - A_init[2] * A_init[3]), 
+                         R[2,4] / (1 - A_init[2] * A_init[4]),
+                         R[3,1] / (1 - A_init[3] * A_init[1]), 
+                         R[3,2] / (1 - A_init[3] * A_init[2]),
+                         R[3,3] / (1 - A_init[3] * A_init[3]), 
+                         R[3,4] / (1 - A_init[3] * A_init[4]),
+                         R[4,1] / (1 - A_init[4] * A_init[1]), 
+                         R[4,2] / (1 - A_init[4] * A_init[2]),
+                         R[4,3] / (1 - A_init[4] * A_init[3]), 
+                         R[4,4] / (1 - A_init[4] * A_init[4])), 
+                       ncol = 4, byrow = T)
+        
+        for(k in 1:n_i) {
             
-            mean_vecY_i_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
-                X_i[[k]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
+            x_i_temp = matrix(c(x_i[k,]), ncol = 1)
+            X_i[[k]] = diag(4) %x% x_i[k,]
             
-            Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
+            if(k == 1)  {
+                D_i_temp = matrix(c(sum(before_b_i==2), sum(before_b_i==3), 
+                                    sum(before_b_i==4), sum(before_b_i==5)), 
+                                  nrow = 1, ncol = 4)
+                D_i[[k]] = diag(4) %x% D_i_temp
+                
+                mean_vecY_i_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
+                    X_i[[k]] %*% matrix(beta,ncol=1) + 
+                    D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
+                
+                Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = Gamma)
+                
+            } else {
+                D_i_temp = matrix(c(sum(before_b_i==2) + sum(b_i[2:k]==2), 
+                                    sum(before_b_i==3) + sum(b_i[2:k]==3), 
+                                    sum(before_b_i==4) + sum(b_i[2:k]==4), 
+                                    sum(before_b_i==5) + sum(b_i[2:k]==5)), 
+                                  nrow = 1, ncol = 4)
+                D_i[[k]] = diag(4) %x% D_i_temp
+                
+                A_curr = A_total[,b_i[k]]
+                A_1 = diag(A_curr)
+                
+                nu_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
+                    X_i[[k]] %*% matrix(beta,ncol=1) + 
+                    D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
+                nu_k_1 = matrix(vec_base,ncol=1) + D_i[[k-1]] %*% matrix(vec_alpha_i,ncol=1) + 
+                    X_i[[k-1]] %*% matrix(beta,ncol=1) + 
+                    D_i_omega[[k-1]] %*% matrix(omega_tilde,ncol=1)
+                diff_vec = c(Y_i[k-1,] - nu_k_1)
+                
+                mean_vecY_i_k = nu_k + A_1 %*% matrix(diff_vec,ncol=1)
+                
+                Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = R)
+            }
             
-        } else {
-            D_i_temp = matrix(c(sum(before_b_i==2) + sum(b_i[2:k]==2), 
-                                sum(before_b_i==3) + sum(b_i[2:k]==3), 
-                                sum(before_b_i==4) + sum(b_i[2:k]==4), 
-                                sum(before_b_i==5) + sum(b_i[2:k]==5)), 
-                              nrow = 1, ncol = 4)
-            D_i[[k]] = diag(4) %x% D_i_temp
-            
-            A_curr = A_total[,b_i[k]]
-            A_1 = diag(A_curr)
-            
-            nu_k = matrix(vec_base,ncol=1) + D_i[[k]] %*% matrix(vec_alpha_i,ncol=1) + 
-                X_i[[k]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k]] %*% matrix(omega_tilde,ncol=1)
-            nu_k_1 = matrix(vec_base,ncol=1) + D_i[[k-1]] %*% matrix(vec_alpha_i,ncol=1) + 
-                X_i[[k-1]] %*% matrix(beta,ncol=1) + 
-                D_i_omega[[k-1]] %*% matrix(omega_tilde,ncol=1)
-            diff_vec = c(Y_i[k-1,] - nu_k_1)
-            
-            mean_vecY_i_k = nu_k + A_1 %*% matrix(diff_vec,ncol=1)
-            
-            Y_i[k,] = rmvnorm(n=1, mean = mean_vecY_i_k, sigma = R)
+            if(sum(Y_i[k,] < 0) > 0) {break}
         }
-    }
-    # ----------------------------------------------------------------------
-    
-    # Verifying the rules --------------------------------------------------
-    rules = Y[ Y[,'EID']==as.numeric(id_num), c('RBC_rule'), drop=F]
-    rules = cbind(rules, 0)
-    
-    if(rbc_rule) {
-        rbc_bleed_correct = c(rbc_bleed_correct, -1)
         
-        if(2 %in% b_i) {
-            first_bleed_ind = which(bleed_ind_i == 1)
-            sim_bleed_ind = which(b_i == 2)
-            # Check if bleed occurred before the RBC times (like we'd expect)
-            if(2 %in% b_i[1:first_bleed_ind]){
-                correct_bleed = T
-                rbc_bleed_correct[length(rbc_bleed_correct)] = 1
+        if(sum(c(Y_i) < 0, na.rm = T) == 0) {not_poss_ID = F}
+        # ----------------------------------------------------------------------
+        
+        # Verifying the rules --------------------------------------------------
+        rules = Y[ Y[,'EID']==as.numeric(id_num), c('RBC_rule'), drop=F]
+        rules = cbind(rules, 0)
+        
+        if(rbc_rule) {
+            rbc_bleed_correct = c(rbc_bleed_correct, -1)
+            
+            if(2 %in% b_i) {
+                first_bleed_ind = which(bleed_ind_i == 1)
+                sim_bleed_ind = which(b_i == 2)
+                # Check if bleed occurred before the RBC times (like we'd expect)
+                if(2 %in% b_i[1:first_bleed_ind]){
+                    correct_bleed = T
+                    rbc_bleed_correct[length(rbc_bleed_correct)] = 1
+                } 
             } 
-        } 
-    }
-    
-    if((1 %in% rules[,1]) & !(correct_bleed)) {
-        rules[,1] = 0
+        }
+        
+        if((1 %in% rules[,1]) & !(correct_bleed)) {
+            rules[,1] = 0
+        }
     }
     
     data_format = rbind( data_format, cbind( id_num, Y_i, b_i, 
@@ -428,7 +438,6 @@ save(bleed_indicator, file = paste0('Data/bleed_indicator_sim_', df_num, '.rda')
 if(df_num == 1) {
     save(Dn_omega_sim, file = paste0('Data/Dn_omega_sim.rda'))
 }
-# }
 
 # # Visualize the noise --------------------------------------------------------
 # EIDs = unique(data_format[,'EID'])

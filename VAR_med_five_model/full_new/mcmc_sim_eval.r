@@ -166,7 +166,8 @@ for(seed in seed_list) {
         c_results = data.frame("c" = c, "true_pos"  = rep(NA, length(c)),
                                "false_pos" = rep(NA, length(c)),
                                "true_neg"  = rep(NA, length(c)),
-                               "false_neg" = rep(NA, length(c)))
+                               "false_neg" = rep(NA, length(c)),
+                               "poss_pred" = rep(NA, length(c)))
 
         # Calculating the sensitivity and specificity information
         p = length(true_positives)  # Number of true "positives"
@@ -181,8 +182,13 @@ for(seed in seed_list) {
 
             fnr = 1 - tpr
             fpr = 1 - tnr
+            
+            tp = sum(test_positives %in% true_positives)
+            fp = sum(test_positives %in% true_negatives)
+            
+            ppv = tp / (tp + fp)
 
-            c_results[i,] = c(c[i], tpr, fpr, tnr, fnr)
+            c_results[i,] = c(c[i], tpr, fpr, tnr, ppv)
         }
 
         temp = c_results[order(c_results$false_pos), ]

@@ -6,8 +6,8 @@ index_seeds = c(1:20)
 trialNum = 1
 simulation = F
 
-it_num = 10
-start_ind = 10
+it_num = 12
+start_ind = 12
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()

@@ -13,8 +13,8 @@ trialNum = 1
 S = 5
 simulation = F
 
-it_num = 9
-start_ind = 7
+it_num = 11
+start_ind = 11
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {
@@ -530,3 +530,25 @@ for(i in EID_plot){
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
 }
 dev.off()
+
+
+# Med effect observations
+load('Data/Dn_omega_update.rda')
+load('Data/Dn_omega_names.rda')
+load('Data/hr_map_names.rda')
+med_effect_count = rep(0, length(par_index$omega_tilde))
+
+for(i in 1:length(EIDs)) {
+    Dn_i = Dn_omega[[i]]    
+    for(j in 1:length(Dn_i)) {
+        med_hr = as.numeric(Dn_i[[j]][2,] != 0)
+        med_map = as.numeric(Dn_i[[j]][3,] != 0)
+        med_both = med_hr + med_map
+        if(sum(med_both > 1) > 0) {print("issue")}
+        med_effect_count = med_effect_count + med_both
+    }
+}
+
+med_observations = cbind(Dn_omega_names, hr_map_names, med_effect_count)
+med_observations = med_observations[order(as.numeric(med_observations[,"med_effect_count"])), ]
+print(med_observations)
