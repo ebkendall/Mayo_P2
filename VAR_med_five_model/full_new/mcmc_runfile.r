@@ -17,7 +17,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 16
+    max_ind = 5
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -74,16 +74,13 @@ if(simulation) {
                                       2.25, 2.25, 25, 25,
                                       0.25, 0.25,  4,  4)))
     par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
-    par[par_index$R] = c(diag(c(4, 16, 16, 4)))
+    par[par_index$R] = c(diag(c(0.5, 1.5, 1.5, 0.5)))
     #    transitions:          1->2,         1->4,         2->3,         2->4, 
     #                          3->1,         3->2,         3->4,         4->2, 
     #                          4->5,         5->1,         5->2,         5->4
     par[par_index$zeta] = c(-7.2405, 2.5, -6.2152,   1, -2.6473,  -1, -6.1475,  -1, 
                             -9.4459,  -1, -7.2404, 2.5, -7.2151,   1, -7.1778, 2.5, 
                             -5.2151,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   0)
-    # par[par_index$zeta] = c(-7.2405, 2.5, -5.2152,   1, -2.6473,  -1, -5.1475,  -1, 
-    #                         -9.4459,  -1, -7.2404, 2.5, -5.2151,   1, -7.1778, 2.5, 
-    #                         -2.6523,   0, -9.4459,  -1, -7.2404, 2.5, -5.2151,   1)
     par[par_index$init] = c(0, 0, 0, 0)
     par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
                                       -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
@@ -124,12 +121,16 @@ if(simulation) {
                     max_ind - 5, '.rda'))
 
         par = mcmc_out$chain[nrow(mcmc_out$chain), ]
-        par[par_index$A] = rep(0, 20)
+        par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
         par[par_index$R] = c(diag(c(0.5, 1.5, 1.5, 0.5)))
         par[par_index$upsilon] = c(diag(c(0.25, 0.25,  4,  4,
                                           2.25, 2.25, 25, 25,
                                           2.25, 2.25, 25, 25,
                                           0.25, 0.25,  4,  4)))
+        par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1,-1,-1, 1,
+                                          -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
+                                          -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+                                          -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
         
         b_chain = mcmc_out$B_chain[nrow(mcmc_out$B_chain), ]
 

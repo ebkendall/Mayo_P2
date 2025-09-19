@@ -6,8 +6,8 @@ index_seeds = c(1:20)
 trialNum = 1
 simulation = F
 
-it_num = 12
-start_ind = 12
+it_num = 15
+start_ind = 15
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -314,6 +314,8 @@ for(a in 1:4) {
     yVar = disc_type = NULL
     
     yVar = c(all_a[,state_per_a])
+    
+    print(summary(all_a[,state_per_a[1]]))
     
     disc_type = c(rep("state 2", nrow(all_a)), rep("state 3", nrow(all_a)),
                   rep("state 4", nrow(all_a)), rep("state 5", nrow(all_a)))

@@ -859,8 +859,11 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
                              -1, 1,-1, 1,-1,-1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1, 1, 1, 1,-1, 1,
                              -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1};
-    vec_omega_0 = 2 * vec_omega_0;
-    arma::mat inv_sigma_omega(vec_omega_0.n_elem, vec_omega_0.n_elem, arma::fill::eye);
+    vec_omega_0 = 1.5 * vec_omega_0;
+    
+    arma::vec vec_inv_omega_sd(vec_omega_0.n_elem, arma::fill::ones);
+    vec_inv_omega_sd = 16 * vec_inv_omega_sd;
+    arma::mat inv_sigma_omega = arma::diagmat(vec_inv_omega_sd);
     
     // -------------------------------------------------------------------------
     
