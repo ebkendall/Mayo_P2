@@ -24,7 +24,7 @@ par[par_index$upsilon] = c(diag(c(4, 4, 1, 1,
                                   4, 4, 1, 1, 
                                   4, 4, 1, 1)))
 par[par_index$A] = c(rep(2, 4), rep(-2, 4), rep(0, 4), rep(-2, 4), rep(0, 4))
-par[par_index$R] = c(diag(c(9, 9, 9, 9)))
+par[par_index$R] = c(diag(c(0.5, 1.5, 1.5, 0.5)))
 #    transitions:          1->2,         1->4,         2->3,         2->4, 
 #                          3->1,         3->2,         3->4,         4->2, 
 #                          4->5,         5->1,         5->2,         5->4
@@ -38,7 +38,7 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
                                   -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
 # Using values from the real data analysis
-load('Model_out/mcmc_out_1_1it1.rda')
+load('Model_out/mcmc_out_1_1it2.rda')
 par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
 par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
 par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]

@@ -4,7 +4,7 @@ args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 set.seed(seed_num)
 
-simulation = F
+simulation = T
 
 # Load data --------------------------------------------------------------------
 data_format = NULL
@@ -44,23 +44,22 @@ par_index$G = 425:440
 par = rep(0, max(do.call('c', par_index)))
 
 if(simulation) {
-    load('Model_out/mcmc_out_1_1it1.rda')
+    load('Model_out/mcmc_out_1_1it2.rda')
     par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
     par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
     par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
     par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
     par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
     par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+    par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
+    par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
+    par[par_index$G] = c(diag(c(9, 9, 9, 9)))
     
-    init_par_est = c(378, 42, 41, 16, 23); init_par_est = init_par_est/sum(init_par_est)
+    init_par_est = c(312,  25,  27,  69,  67); init_par_est = init_par_est/sum(init_par_est)
     par[par_index$init][1] = log(init_par_est[2] / (1 - sum(init_par_est[2:5])))
     par[par_index$init][2] = log(init_par_est[3] / (1 - sum(init_par_est[2:5])))
     par[par_index$init][3] = log(init_par_est[4] / (1 - sum(init_par_est[2:5])))
     par[par_index$init][4] = log(init_par_est[5] / (1 - sum(init_par_est[2:5])))
-    
-    par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
-    
-    par[par_index$G] = c(diag(c(9, 9, 9, 9)))
     
     rm(mcmc_out)
 } else {
