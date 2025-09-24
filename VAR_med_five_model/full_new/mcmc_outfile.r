@@ -2,9 +2,9 @@ library(latex2exp)
 library(tidyverse)
 library(gridExtra)
 
-index_seeds = c(1:20)
+index_seeds = c(1:25)
 trialNum = 1
-simulation = F
+simulation = T
 
 it_num = 2
 start_ind = 1
@@ -23,7 +23,7 @@ par_index$G = 425:440
 
 true_par = rep(0, max(do.call('c', par_index)))
 if(simulation) {
-    load('Model_out/mcmc_out_1_1it1.rda')
+    load('Model_out/mcmc_out_1_1it2.rda')
     true_par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
     true_par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
     true_par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]

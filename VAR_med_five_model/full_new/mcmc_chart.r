@@ -11,10 +11,10 @@ if(plot_choice == 0) {
 
 trialNum = 1
 S = 5
-simulation = F
+simulation = T
 
-it_num = 11
-start_ind = 11
+it_num = 2
+start_ind = 1
 
 # Mode of the state sequences -------------------------------------------------
 Mode <- function(x) {

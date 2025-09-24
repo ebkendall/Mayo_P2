@@ -1,7 +1,7 @@
 library(foreach, quietly=T)
 library(doParallel, quietly=T)
 
-index_seeds = c(1:20)
+index_seeds = c(1:25)
 
 trialNum = 1
 S = 5
@@ -128,12 +128,15 @@ save(state_results, file = paste0("Model_out/state_results_sim_", it_num, ".rda"
 mode_correct = rep(NA, length(state_results))
 c = seq(0, 1, by = 0.001)
 chosen_c = list()
-seed_list = index_seeds
+chosen_c_ppv = list()
 computed_AUC = matrix(nrow = length(seed_list), ncol = length(window_length))
 
 pdf(paste0('Plots/ROC_it', it_num, '.pdf'))
 par(mfrow=c(3, 2))
-for(seed in seed_list) {
+for(ii in 1:length(seed_list)) {
+    
+    seed = seed_list[ii]
+    
     print(seed)
 
     load(paste0('Data/sim_data_', seed, '.rda'))
@@ -141,19 +144,20 @@ for(seed in seed_list) {
     true_state = data_format[,'b_true']
 
     # Quick summary
-    mode_correct[seed] = mean(state_results[[seed]][[1]][S+1, ] == true_state)
+    mode_correct[ii] = mean(state_results[[ii]][[1]][S+1, ] == true_state)
 
     # State 2 focus
     state_2_binary = as.numeric(true_state == 2)
     state_1345_binary = as.numeric(true_state != 2)
 
-    chosen_c[[seed]] = list()
+    chosen_c[[ii]] = list()
+    chosen_c_ppv[[ii]] = list()
 
-    for(www in 1:nrow(state_results[[seed]][[2]])) {
+    for(www in 1:nrow(state_results[[ii]][[2]])) {
 
         print(www)
 
-        cumulative_post_prob = state_results[[seed]][[2]][www, ]
+        cumulative_post_prob = state_results[[ii]][[2]][www, ]
 
         success_mat = matrix(nrow=length(c), ncol = length(state_2_binary))
         for(i in 1:length(c)) {
@@ -188,7 +192,7 @@ for(seed in seed_list) {
             
             ppv = tp / (tp + fp)
 
-            c_results[i,] = c(c[i], tpr, fpr, tnr, ppv)
+            c_results[i,] = c(c[i], tpr, fpr, tnr, fnr, ppv)
         }
 
         temp = c_results[order(c_results$false_pos), ]
@@ -196,8 +200,12 @@ for(seed in seed_list) {
 
         min_diff = c_results$false_pos - c_results$true_pos
         poss_c = c_results$c[which(min_diff == min(min_diff))]
+        
+        max_ppv = c_results$poss_pred
+        poss_c_ppv = c_results$c[which(max_ppv == max(max_ppv))]
 
-        chosen_c[[seed]][[www]] = poss_c
+        chosen_c[[ii]][[www]] = poss_c
+        chosen_c_ppv[[ii]][[www]] = poss_c_ppv
 
         # AUC (estimated using Trapezoid rule)
         area = 0
@@ -206,7 +214,7 @@ for(seed in seed_list) {
                 (c_results$false_pos[k] - c_results$false_pos[k-1])
         }
 
-        computed_AUC[seed, www] = area
+        computed_AUC[ii, www] = area
 
         grid = seq(0,1,length = nrow(c_results))
         s1 <- smooth.spline(grid, c_results$false_pos, all.knots = T, penalty = 0)
@@ -218,9 +226,12 @@ for(seed in seed_list) {
         plot(c_results$false_pos, c_results$true_pos, xlim = c(0,1), ylim = c(0,1),
              xlab = "FPR", ylab = "TPR",
              main = paste0("Seed = ", seed, ", AUC = ", round(area, digits = 4), ", w = ", window_length[www]))
-        points(c_results$false_pos[c_results$c %in% chosen_c[[seed]][[www]]],
-               c_results$true_pos[c_results$c %in% chosen_c[[seed]][[www]]],
+        points(c_results$false_pos[c_results$c %in% chosen_c[[ii]][[www]]],
+               c_results$true_pos[c_results$c %in% chosen_c[[ii]][[www]]],
                col = 'red', cex = 2)
+        points(c_results$false_pos[c_results$c %in% chosen_c_ppv[[ii]][[www]]],
+               c_results$true_pos[c_results$c %in% chosen_c_ppv[[ii]][[www]]],
+               col = 'purple', cex = 2)
         abline(a = 0, b = 1, col = 'red', lty = 2)
         lines(x2, y2, col= 'green')
     }
@@ -228,6 +239,7 @@ for(seed in seed_list) {
 dev.off()
 
 save(chosen_c, file = paste0("Model_out/chosen_c_sim_", it_num, ".rda"))
+save(chosen_c_ppv, file = paste0("Model_out/chosen_c_ppv_sim_", it_num, ".rda"))
 save(computed_AUC, file = paste0("Model_out/AUC_sim_", it_num, ".rda"))
 
 print("Summary of state identification based on posterior mode: ")
@@ -251,11 +263,14 @@ indiv_select_c = mean(all_c)
 
 sens_and_spec_S2 = matrix(nrow = length(seed_list), ncol = 2)
 colnames(sens_and_spec_S2) = c("sens", "spec")
-for(seed in seed_list) {
+for(ii in 1:length(seed_list)) {
+    
+    seed = seed_list[ii]
+    
     load(paste0('Data/sim_data_', seed, '.rda'))
     true_state = data_format[,'b_true']
 
-    post_prob_S2 = state_results[[seed]][[1]][2, ] / colSums(state_results[[seed]][[1]][1:S,])
+    post_prob_S2 = state_results[[ii]][[1]][2, ] / colSums(state_results[[ii]][[1]][1:S,])
     S2_identification = as.numeric(post_prob_S2 >= indiv_select_c)
 
     # Sensitivity of state 2: Pr(predict S2 | true S2)
@@ -266,7 +281,7 @@ for(seed in seed_list) {
     true_not_S2_ind = S2_identification[true_state != 2]
     spec_S2 =  mean(true_not_S2_ind == 0)
 
-    sens_and_spec_S2[seed, ] = c(sens_S2, spec_S2)
+    sens_and_spec_S2[ii, ] = c(sens_S2, spec_S2)
 }
 
 print(paste0("Sensitivity of S2 using c = ", indiv_select_c))
