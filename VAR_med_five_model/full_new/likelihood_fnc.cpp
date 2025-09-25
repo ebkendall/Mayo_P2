@@ -595,7 +595,7 @@ double log_post(const arma::vec &EIDs, const arma::vec &par,
     // Error-variance prior ----------------------------------------------------
     arma::mat R = arma::reshape(par.elem(par_index(4) - 1), 4, 4);
 
-    int nu_R = Y.n_rows;
+    int nu_R = 2 * Y.n_rows;
     arma::vec scalar_vec_R = {0.5, 1.5, 1.5, 0.5};
     scalar_vec_R = nu_R * scalar_vec_R;
     arma::mat psi_R = arma::diagmat(scalar_vec_R);

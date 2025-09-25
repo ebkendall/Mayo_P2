@@ -15,7 +15,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8
+    n_cores = 12
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -67,7 +67,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             
             print("max ind > 5")
             
-            chosen_seed = 3
+            chosen_seed = seed_num
             
             load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it', 
                         max_ind - 5, '.rda'))
@@ -309,7 +309,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                 curr_R = matrix(par[ind_j], nrow = 4)
                 
                 # Prior for R
-                nu_R = nrow(Y)
+                nu_R = 2*nrow(Y)
                 psi_R = diag(c(0.5, 1.5, 1.5, 0.5))
                 psi_R = nu_R * psi_R
                 
