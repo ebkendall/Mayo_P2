@@ -4,10 +4,10 @@ library(gridExtra)
 
 index_seeds = c(1:25)
 trialNum = 1
-simulation = F
+simulation = T
 
-it_num = 3
-start_ind = 3
+it_num = 2
+start_ind = 1
 
 # Parameter initialization -----------------------------------------------------
 par_index = list()
@@ -23,15 +23,16 @@ par_index$G = 425:440
 
 true_par = rep(0, max(do.call('c', par_index)))
 if(simulation) {
-    load('Model_out/mcmc_out_1_1it2.rda')
-    true_par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
-    true_par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
-    true_par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
-    true_par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
-    true_par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
-    true_par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
-    true_par[par_index$init] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$init]
-    true_par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
+    load('Model_out/mcmc_out_1_1it3.rda')
+    true_par[par_index$beta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$beta])
+    true_par[par_index$alpha_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde])
+    true_par[par_index$upsilon] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$upsilon])
+    true_par[par_index$A] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$A])
+    true_par[par_index$R] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$R])
+    true_par[par_index$zeta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$zeta])
+    true_par[par_index$init] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$init])
+    true_par[par_index$omega_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde])
+    
     rm(mcmc_out)    
 } else {
     true_par[par_index$beta] = c(0.25, -2, 2, -0.25) # one unit of RBC -> 1 unit increase in hemo in 1 hour
