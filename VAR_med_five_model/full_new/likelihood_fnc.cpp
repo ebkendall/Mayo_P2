@@ -737,11 +737,13 @@ arma::mat update_gamma_i(const arma::vec &EIDs, const arma::vec &par,
 // [[Rcpp::export]]
 arma::field <arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &par,
                                        const arma::field<arma::uvec> &par_index,
+                                       const arma::field <arma::vec> &A_og,
                                        const arma::field <arma::vec> &B, const arma::mat &Y,
                                        const arma::field<arma::field<arma::mat>> &Dn_alpha,
                                        const arma::field<arma::field<arma::mat>> &Dn_omega,
                                        const arma::field<arma::field<arma::mat>> &Xn,
-                                       const arma::mat &gamma_1, int n_cores){
+                                       const arma::mat &gamma_1, int n_cores,
+                                       bool is_burnin){
 
     // par_index: (0) beta, (1) alpha_tilde, (2) upsilon, (3) A, (4) R, (5) zeta,
     //            (6) init, (7) omega, (8) G
@@ -785,6 +787,7 @@ arma::field <arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &p
         Y_i = Y_i.t();
 
         arma::vec b_i = B(ii);
+        arma::vec curr_alpha_i = A_og(ii);
         arma::field<arma::mat> D_alpha_i = Dn_alpha(ii);
         arma::field<arma::mat> D_omega_i = Dn_omega(ii);
         arma::field<arma::mat> X_i = Xn(ii);
@@ -815,6 +818,33 @@ arma::field <arma::vec> update_alpha_i(const arma::vec &EIDs, const arma::vec &p
         arma::vec mu_alpha_i = W_i * V_i;
 
         arma::vec vec_alpha_i = arma::mvnrnd(mu_alpha_i, W_i, 1);
+        
+        // Rejection sampling to enforce certain signs
+        if(is_burnin) {
+            int count_while_loop = 0;
+            while(vec_alpha_i(0) > 0  || vec_alpha_i(1) < 0 || 
+                  vec_alpha_i(4) < 0  || vec_alpha_i(5) > 0 || 
+                  vec_alpha_i(8) > 0  || vec_alpha_i(9) < 0 ||
+                  vec_alpha_i(12) < 0 || vec_alpha_i(13) > 0) {
+                
+                vec_alpha_i = arma::mvnrnd(mu_alpha_i, W_i, 1);
+                
+                count_while_loop += 1;
+                if(count_while_loop > 100) {
+                    vec_alpha_i = curr_alpha_i;
+                    // Rcpp::Rcout << "stuck " << ii << std::endl;
+                    break;
+                }
+            }
+        } else {
+            if(vec_alpha_i(0) > 0  || vec_alpha_i(1) < 0 || 
+               vec_alpha_i(4) < 0  || vec_alpha_i(5) > 0 || 
+               vec_alpha_i(8) > 0  || vec_alpha_i(9) < 0 ||
+               vec_alpha_i(12) < 0 || vec_alpha_i(13) > 0) {
+                
+                vec_alpha_i = curr_alpha_i;
+            }
+        }
 
         A(ii) = vec_alpha_i;
     }
@@ -850,6 +880,8 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
 
     arma::mat G = arma::reshape(par.elem(par_index(8) - 1), 4, 4);
     arma::mat inv_G = arma::inv_sympd(G);
+    
+    arma::vec curr_omega = par.elem(par_index(7) - 1);
 
     arma::vec eids = Y.col(0);
     int N_id = EIDs.n_elem;
@@ -860,6 +892,8 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
                              -1,-1,-1, 1,-1, 1,-1, 1,-1,-1,-1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
                              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1};
     vec_omega_0 = 1.5 * vec_omega_0;
+    
+    arma::uvec t_pos = arma::find(vec_omega_0 > 0);
     
     arma::vec vec_inv_omega_sd(vec_omega_0.n_elem, arma::fill::ones);
     vec_inv_omega_sd = 16 * vec_inv_omega_sd;
@@ -943,8 +977,23 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
     arma::mat W_o = arma::inv_sympd(sum_omega_W);
     arma::vec V_o = sum_omega_V;
 
-    par.elem(par_index(7) - 1) = arma::mvnrnd(W_o*V_o, W_o, 1);
+    arma::vec vec_omega = arma::mvnrnd(W_o*V_o, W_o, 1);
+    
+    // Rejection sampling to enforce certain signs
+    arma::uvec t2_pos = arma::find(vec_omega > 0);
+    
+    if(t_pos.n_elem == t2_pos.n_elem) {
+        if(arma::all(t_pos == t2_pos)) {
+            vec_omega = vec_omega;
+        } else {
+            vec_omega = curr_omega;
+        }
+    } else {
+        vec_omega = curr_omega;
+    }
 
+    par.elem(par_index(7) - 1) = vec_omega;
+    
     return par;
 
 }
@@ -2756,7 +2805,7 @@ Rcpp::List proposal_R(const int nu_R, const arma::mat psi_R, arma::mat curr_R,
         
         arma::mat psi_q_i(4, 4, arma::fill::zeros);
 
-        for(int k = 0; k < Y_i.n_cols; k++) {
+        for(int k = 0; k < n_i; k++) {
 
             arma::vec curr_A = A_total.col(b_i(k) - 1);
             
@@ -2854,7 +2903,6 @@ arma::vec update_G(const arma::vec &EIDs, arma::vec &par,
 
         int i = EIDs(ii);
         arma::uvec sub_ind = arma::find(eids == i);
-        int n_i = sub_ind.n_elem;
 
         arma::mat Y_temp = Y.rows(sub_ind);
         arma::mat Y_i = Y_temp.cols(1, 4);
@@ -2880,20 +2928,92 @@ arma::vec update_G(const arma::vec &EIDs, arma::vec &par,
 // [[Rcpp::export]]
 void test_fnc() {
 
+    arma::vec alpha_tilde_test = {-1, 1, 0, 0, 7, -7, 0, 0, -7,
+                                  7, 0, 0, 1, -1, 0, 0};
+    
+    arma::vec temp = {-1, 1, -1, 1, 1};
+    arma::vec temp2 = {-9, -8, 2, 3, 4};
+    
+    arma::uvec t_pos = arma::find(temp > 0);
+    arma::uvec t_neg = arma::find(temp < 0);
+    
+    arma::uvec t2_pos = arma::find(temp2 > 0);
+    arma::uvec t2_neg = arma::find(temp2 < 0);
+    
+    if(t_pos.n_elem == t2_pos.n_elem) {
+        if(arma::all(t_pos == t2_pos)) {
+            Rcpp::Rcout << "this worked" << std::endl;
+        } else {
+            Rcpp::Rcout << "this failed" << std::endl;
+        }    
+    } else {
+        Rcpp::Rcout << "this failed to start" << std::endl;
+    }
+    
+    if(t_neg.n_elem == t2_neg.n_elem) {
+        if(arma::all(t_neg == t2_neg)) {
+            Rcpp::Rcout << "this worked2" << std::endl;
+        } else {
+            Rcpp::Rcout << "this failed2" << std::endl;
+        }
+    } else {
+        Rcpp::Rcout << "this failed to start2" << std::endl;
+    }
+    
+    // if(alpha_tilde_test(0) < 0 && alpha_tilde_test(1) > 0 && 
+    //    alpha_tilde_test(4) > 0 && alpha_tilde_test(5) < 0 && 
+    //    alpha_tilde_test(8) < 0 && alpha_tilde_test(9) > 0 && 
+    //    alpha_tilde_test(12) > 0 && alpha_tilde_test(13) < 0) {
+    //     
+    //     Rcpp::Rcout << "this works" << std::endl;
+    //     
+    // }
+    // 
+    // if(alpha_tilde_test(0) > 0 || alpha_tilde_test(1) < 0 || 
+    //    alpha_tilde_test(4) < 0 || alpha_tilde_test(5) > 0 || 
+    //    alpha_tilde_test(8) > 0 || alpha_tilde_test(9) < 0 ||
+    //    alpha_tilde_test(12) < 0 || alpha_tilde_test(13) > 0) {
+    //     
+    //     Rcpp::Rcout << "this should not print" << std::endl;
+    //     
+    // }
+    // 
+    // alpha_tilde_test(4) = -1;
+    // 
+    // if(alpha_tilde_test(0) > 0 || alpha_tilde_test(1) < 0 || 
+    //    alpha_tilde_test(4) < 0 || alpha_tilde_test(5) > 0 || 
+    //    alpha_tilde_test(8) > 0 || alpha_tilde_test(9) < 0 ||
+    //    alpha_tilde_test(12) < 0 || alpha_tilde_test(13) > 0) {
+    //     
+    //     Rcpp::Rcout << "this also works" << std::endl;
+    //     alpha_tilde_test.zeros();
+    //     Rcpp::Rcout << alpha_tilde_test << std::endl;
+    //     
+    // }
+    // 
+    // if(alpha_tilde_test(0) < 0 && alpha_tilde_test(1) > 0 && 
+    //    alpha_tilde_test(4) > 0 && alpha_tilde_test(5) < 0 && 
+    //    alpha_tilde_test(8) < 0 && alpha_tilde_test(9) > 0 && 
+    //    alpha_tilde_test(12) > 0 && alpha_tilde_test(13) < 0) {
+    //     
+    //     Rcpp::Rcout << "this should not print" << std::endl;
+    //     
+    // }
+    
     // arma::vec b_i      = {1, 1, 2, 2, 2, 3, 3, 3, 3};
-    arma::vec bleed_ind_i = {0, 0, 0, 0, 1, 0, 0, 0, 0};
-    arma::vec s_i         = {1, 1, 1, 1, 2, 2, 3, 3, 3};
-    int clinic_rule = 0;
-    int rbc_rule = 1;
-
-    //                       clinic_rule, rbc_rule, bleed_ind_i, s_i, states_per_step, k
-    bool rule_1 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, -1, 0);
-    bool rule_2 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 4, 0);
-    bool rule_3 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 4, 4);
-
-    Rcpp::Rcout << rule_1 << std::endl;
-    Rcpp::Rcout << rule_2 << std::endl;
-    Rcpp::Rcout << rule_3 << std::endl;
+    // arma::vec bleed_ind_i = {0, 0, 0, 0, 1, 0, 0, 0, 0};
+    // arma::vec s_i         = {1, 1, 1, 1, 2, 2, 3, 3, 3};
+    // int clinic_rule = 0;
+    // int rbc_rule = 1;
+    // 
+    // //                       clinic_rule, rbc_rule, bleed_ind_i, s_i, states_per_step, k
+    // bool rule_1 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, -1, 0);
+    // bool rule_2 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 4, 0);
+    // bool rule_3 = rule_check(clinic_rule, rbc_rule, bleed_ind_i, s_i, 4, 4);
+    // 
+    // Rcpp::Rcout << rule_1 << std::endl;
+    // Rcpp::Rcout << rule_2 << std::endl;
+    // Rcpp::Rcout << rule_3 << std::endl;
 
     // arma::vec s_i = {4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,2,2,2,2,2,2,2,2,2,
     //                  2,2,2,2,4,4,4,4,5,5,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,

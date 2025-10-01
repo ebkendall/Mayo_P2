@@ -109,11 +109,19 @@ for(ii in 1:length(seed_list)) {
                            "false_neg" = rep(NA, length(c)),
                            "poss_pred" = rep(NA, length(c)))
     
+    c_results_alt = data.frame("c" = c, "true_pos"  = rep(NA, length(c)),
+                               "false_pos" = rep(NA, length(c)),
+                               "true_neg"  = rep(NA, length(c)),
+                               "false_neg" = rep(NA, length(c)),
+                               "poss_pred" = rep(NA, length(c)))
+    
     # Calculating the sensitivity and specificity information
     p = length(true_positives)  # Number of true "positives"
     n = length(true_negatives)  # Number of true "negatives"
     
     for(i in 1:nrow(success_mat)) {
+        
+        # original AUC approach
         test_positives = which(success_mat[i,] == 1)
         test_negatives = which(success_mat[i,] == 0)
         
@@ -129,6 +137,11 @@ for(ii in 1:length(seed_list)) {
         ppv = tp / (tp + fp)
         
         c_results[i,] = c(c[i], tpr, fpr, tnr, fnr, ppv)
+        
+        # updated AUC approach
+        
+        
+        
     }
     
     temp = c_results[order(c_results$false_pos), ]

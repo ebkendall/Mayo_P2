@@ -11,9 +11,9 @@ if(plot_choice == 0) {
 
 trialNum = 1
 S = 5
-simulation = T
+simulation = F
 
-it_num = 2
+it_num = 1
 start_ind = 1
 
 # Mode of the state sequences -------------------------------------------------

@@ -17,7 +17,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 7
+    max_ind = 5
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))

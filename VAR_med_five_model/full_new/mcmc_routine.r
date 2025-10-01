@@ -15,7 +15,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     EIDs = as.numeric(unique(Y[,'EID']))
     
     # Number of cores over which to parallelize --------------------------------
-    n_cores = 8
+    n_cores = 12
     print(paste0("Number of cores: ", n_cores))
     
     # Transition information ---------------------------------------------------
@@ -187,7 +187,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         # Gibbs: alpha_i -------------------------------------------------------
         # int_start_t = Sys.time()
-        A = update_alpha_i(EIDs, par, par_index, B, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores)
+        is_burnin = (ttt < burnin)
+        A = update_alpha_i(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores, is_burnin)
         # int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
         # cat("alpha_i time:", elaps_ttt, "sec\n")
         
