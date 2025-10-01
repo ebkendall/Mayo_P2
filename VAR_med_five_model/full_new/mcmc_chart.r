@@ -465,9 +465,9 @@ for(i in EID_plot){
     total_map_up = rowSums(map_upp_i)
     total_map_dn = rowSums(map_down_i)
     
-    hr_map_ylim = c(min(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
-                        hr_mean_effect, map_mean_effect), 
-                    max(total_hr_up, total_hr_dn, total_map_up, total_map_dn,
+    hr_map_ylim = c(min(total_hr_up, -1*total_hr_dn, total_map_up, -1*total_map_dn,
+                        hr_mean_effect, map_mean_effect),
+                    max(total_hr_up, -1*total_hr_dn, total_map_up, -1*total_map_dn,
                         hr_mean_effect, map_mean_effect))
     if(hr_map_ylim[1] == hr_map_ylim[2]) hr_map_ylim = c(0,1)
     
@@ -484,6 +484,8 @@ for(i in EID_plot){
              border = NA)    
     }
     
+    abline(h = 0, col = 'white')
+    
     points(x = pb, y = hr_mean_effect, xlab='time', ylab=NA, 
            col.main='green', col.axis='green', 
            col = 'aquamarine', pch = 16) 
@@ -497,11 +499,11 @@ for(i in EID_plot){
     lines(x = pb, y = total_hr_up, xlab='time', ylab=NA, 
           lwd=1, lty = 2, col = 'aquamarine4') 
     lines(x = pb, y = total_map_up, xlab='time', ylab=NA,
-          lwd=1, lty = 3, col = 'darkolivegreen2') 
-    lines(x = pb, y = total_hr_dn, xlab='time', ylab=NA,
-          lwd=1, lty = 4, col = 'deeppink')
-    lines(x = pb, y = total_map_dn, xlab='time', ylab=NA,
-          lwd=1, lty = 5, col = 'palevioletred')
+          lwd=1, lty = 2, col = 'orange3') 
+    lines(x = pb, y = -1*total_hr_dn, xlab='time', ylab=NA,
+          lwd=1, lty = 3, col = 'aquamarine4')
+    lines(x = pb, y = -1*total_map_dn, xlab='time', ylab=NA,
+          lwd=1, lty = 3, col = 'orange3')
     legend( 'topright', inset=inset_dim, xpd=T, horiz=T, bty='n', x.intersp=.75,
             legend=c( 'HR effect', 'MAP effect'), pch=15, pt.cex=1.5, 
             col=c( 'aquamarine', 'orange'))
@@ -509,6 +511,7 @@ for(i in EID_plot){
     
     abline(v = rbc_times_bar-0.5, col = 'darkorchid1', lwd = 1)
     abline(v = rbc_admin_times_bar-0.5, col = 'aquamarine', lwd = 1)
+    
     
     # BAR PLOTS --------------------------------------------------------------
     barplot(state_proportions[,indices_i], 
