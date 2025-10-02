@@ -880,8 +880,6 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
 
     arma::mat G = arma::reshape(par.elem(par_index(8) - 1), 4, 4);
     arma::mat inv_G = arma::inv_sympd(G);
-    
-    arma::vec curr_omega = par.elem(par_index(7) - 1);
 
     arma::vec eids = Y.col(0);
     int N_id = EIDs.n_elem;
@@ -893,10 +891,13 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
                              -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1};
     vec_omega_0 = 1.5 * vec_omega_0;
     
-    arma::uvec t_pos = arma::find(vec_omega_0 > 0);
-    
     arma::vec vec_inv_omega_sd(vec_omega_0.n_elem, arma::fill::ones);
     vec_inv_omega_sd = 16 * vec_inv_omega_sd;
+    
+    vec_inv_omega_sd(5) = 1000000;
+    vec_inv_omega_sd(41) = 1000000;
+    vec_inv_omega_sd(48) = 1000000;
+    
     arma::mat inv_sigma_omega = arma::diagmat(vec_inv_omega_sd);
     
     // -------------------------------------------------------------------------
@@ -978,19 +979,6 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
     arma::vec V_o = sum_omega_V;
 
     arma::vec vec_omega = arma::mvnrnd(W_o*V_o, W_o, 1);
-    
-    // Rejection sampling to enforce certain signs
-    arma::uvec t2_pos = arma::find(vec_omega > 0);
-    
-    if(t_pos.n_elem == t2_pos.n_elem) {
-        if(arma::all(t_pos == t2_pos)) {
-            vec_omega = vec_omega;
-        } else {
-            vec_omega = curr_omega;
-        }
-    } else {
-        vec_omega = curr_omega;
-    }
 
     par.elem(par_index(7) - 1) = vec_omega;
     
