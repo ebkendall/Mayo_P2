@@ -128,9 +128,13 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     chain = matrix(NA, reset_step, length(par)) 
     B_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
     
+    focused_A = c(187, 266, 279, 369, 397, 410, 420, 449, 460, 461)
+    A_chain = matrix(NA, chain_length_MASTER, length(focused_A)*16) 
+    
     # Start Metropolis-within-Gibbs Algorithm ----------------------------------
     chain[1,] = par
     B_chain[1, ] = do.call( 'c', B)
+    A_chain[1, ] = do.call( 'c', A[focused_A])
     
     if(impute_step) {
         hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y))
@@ -145,6 +149,8 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
     mcmc_start_t = Sys.time()
     for(ttt in 2:steps){
         ttt_start_t = Sys.time()
+        
+        is_burnin = (ttt < burnin)
         
         # Every 10,000 steps, save existing MCMC results -----------------------
         chain_ind = NULL
@@ -168,7 +174,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # int_start_t = Sys.time()
         if(impute_step) {
             Y = impute_Y(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, 
-                         gamma_1, otype, n_cores)
+                         gamma_1, otype, n_cores, is_burnin)
             colnames(Y) = c('EID','hemo', 'hr', 'map', 'lactate',
                             'RBC_rule', 'clinic_rule')    
         }
@@ -187,7 +193,6 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         
         # Gibbs: alpha_i -------------------------------------------------------
         # int_start_t = Sys.time()
-        is_burnin = (ttt < burnin)
         A = update_alpha_i(EIDs, par, par_index, A, B, Y, Dn_alpha, Dn_omega, Xn, gamma_1, n_cores, is_burnin)
         # int_end_t = Sys.time(); elaps_ttt = as.numeric(difftime(int_end_t, int_start_t, units = "secs"))
         # cat("alpha_i time:", elaps_ttt, "sec\n")
@@ -361,13 +366,15 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
         # Restart the acceptance ratio at burnin
         if(ttt == burnin) accept = rep( 0, n_group)
         
-        B_chain[ chain_ind, ] = do.call( 'c', B)
+        B_chain[chain_ind, ] = do.call( 'c', B)
+        A_chain[chain_ind, ] = do.call( 'c', A[focused_A])
         if(impute_step) {
             hc_chain[chain_ind, ] = Y[,'hemo']
             hr_chain[chain_ind, ] = Y[,'hr']
             bp_chain[chain_ind, ] = Y[,'map']
             la_chain[chain_ind, ] = Y[,'lactate']
         }
+        
         # ----------------------------------------------------------------------
         
         cat('--> ', ttt, ', c_ttt = ', chain_ttt, ', c_ind = ', chain_ind, '\n')
@@ -393,6 +400,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     hr_chain = hr_chain[index_keep_2,], 
                                     bp_chain = bp_chain[index_keep_2,], 
                                     la_chain = la_chain[index_keep_2,], 
+                                    A_chain  = A_chain[index_keep_2,], 
                                     alpha_i = A,
                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                     pscale=pscale, pcov = pcov, par_index=par_index)    
@@ -403,6 +411,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                     hr_chain = matrix(Y[,'hr'], nrow = 1), 
                                     bp_chain = matrix(Y[,'map'], nrow = 1), 
                                     la_chain = matrix(Y[,'lactate'], nrow = 1), 
+                                    A_chain  = A_chain[index_keep_2,], 
                                     alpha_i = A,
                                     otype=otype, accept=accept/length((burnin+1):ttt), 
                                     pscale=pscale, pcov = pcov, par_index=par_index)
@@ -418,6 +427,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
                                 hr_chain = hr_chain[index_keep_2,],
                                 bp_chain = bp_chain[index_keep_2,], 
                                 la_chain = la_chain[index_keep_2,],
+                                A_chain  = A_chain[index_keep_2,], 
                                 alpha_i = A,
                                 otype=otype, accept=accept/length((burnin+1):ttt), 
                                 pscale=pscale, pcov = pcov, par_index=par_index)
@@ -430,6 +440,7 @@ mcmc_routine = function(steps, burnin, seed_num, trialNum, simulation, max_ind,
             # Reset the chains
             chain = matrix(NA, reset_step, length(par)) 
             B_chain = matrix(NA, chain_length_MASTER, nrow(Y)) 
+            A_chain = matrix(NA, chain_length_MASTER, length(focused_A)*16) 
             if(impute_step) {
                 hc_chain = hr_chain = matrix(NA, chain_length_MASTER, nrow(Y))
                 bp_chain = la_chain = matrix(NA, chain_length_MASTER, nrow(Y))    

@@ -894,9 +894,9 @@ arma::vec update_omega(const arma::vec &EIDs, arma::vec &par,
     arma::vec vec_inv_omega_sd(vec_omega_0.n_elem, arma::fill::ones);
     vec_inv_omega_sd = 16 * vec_inv_omega_sd;
     
-    vec_inv_omega_sd(5) = 1000000;
-    vec_inv_omega_sd(41) = 1000000;
-    vec_inv_omega_sd(48) = 1000000;
+    vec_inv_omega_sd(5) = 625;
+    vec_inv_omega_sd(41) = 625;
+    vec_inv_omega_sd(48) = 625;
     
     arma::mat inv_sigma_omega = arma::diagmat(vec_inv_omega_sd);
     
@@ -2407,7 +2407,8 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                    arma::mat &Y, const arma::field<arma::field<arma::mat>> &Dn_alpha,
                    const arma::field<arma::field<arma::mat>> &Dn_omega,
                    const arma::field<arma::field<arma::mat>> &Xn,
-                   const arma::mat &gamma_1, const arma::mat &otype, int n_cores) {
+                   const arma::mat &gamma_1, const arma::mat &otype, int n_cores,
+                   bool is_burnin) {
 
     // par_index: (0) beta, (1) alpha_tilde, (2) upsilon, (3) A, (4) R, (5) zeta,
     //            (6) init, (7) omega, (8) G
@@ -2467,6 +2468,7 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
 
             } else {
 
+                arma::vec current_Y_i  = Y_i.col(k);
                 arma::vec update_value = Y_i_new.col(k);
                 arma::uvec ind_replace = arma::find(otype_i.col(k) == 0);
                 
@@ -2514,20 +2516,31 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
 
                     // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                        new_value = arma::mvnrnd(y_i_mean, W_i, 1);
-                        update_value = Y_i_new.col(k);
-                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                        count_while_loop += 1;
-                        if(count_while_loop > 10000) {
-                            count_while_loop_big += 1;
-                            count_while_loop = 0;
+                    if(is_burnin) {
+                        int count_while_loop = 0;
+                        int count_while_loop_big = 0;
+                        
+                        while(arma::any(update_value < 0)) {
+                            new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                            update_value = Y_i_new.col(k);
+                            update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                            count_while_loop += 1;
+                            
+                            if(count_while_loop > 10000) {
+                                count_while_loop_big += 1;
+                                count_while_loop = 0;
+                            }
+                            
+                            if(count_while_loop_big > 10) {
+                                Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                                
+                                update_value = current_Y_i;
+                                break;
+                            }
                         }
-                        if(count_while_loop_big > 10) {
-                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                            break;
+                    } else {
+                        if(arma::any(update_value < 0)) {
+                            update_value = current_Y_i;
                         }
                     }
 
@@ -2546,20 +2559,28 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
 
                     // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                        new_value = arma::mvnrnd(y_i_mean, R, 1);
-                        update_value = Y_i_new.col(k);
-                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                        count_while_loop += 1;
-                        if(count_while_loop > 10000) {
-                            count_while_loop_big += 1;
-                            count_while_loop = 0;
-                        }
-                        if(count_while_loop_big > 10) {
-                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                            break;
+                    if(is_burnin) {
+                        int count_while_loop = 0;
+                        int count_while_loop_big = 0;
+                        while(arma::any(update_value < 0)) {
+                            new_value = arma::mvnrnd(y_i_mean, R, 1);
+                            update_value = Y_i_new.col(k);
+                            update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                            count_while_loop += 1;
+                            if(count_while_loop > 10000) {
+                                count_while_loop_big += 1;
+                                count_while_loop = 0;
+                            }
+                            if(count_while_loop_big > 10) {
+                                Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                                
+                                update_value = current_Y_i;
+                                break;
+                            }
+                        }    
+                    } else {
+                        if(arma::any(update_value < 0)) {
+                            update_value = current_Y_i;
                         }
                     }
 
@@ -2597,20 +2618,28 @@ arma::mat impute_Y(const arma::vec &EIDs, const arma::vec &par,
                     update_value.elem(ind_replace) = new_value.elem(ind_replace);
 
                     // Prevent negatives
-                    int count_while_loop = 0;
-                    int count_while_loop_big = 0;
-                    while(arma::any(update_value <= 0)) {
-                        new_value = arma::mvnrnd(y_i_mean, W_i, 1);
-                        update_value = Y_i_new.col(k);
-                        update_value.elem(ind_replace) = new_value.elem(ind_replace);
-                        count_while_loop += 1;
-                        if(count_while_loop > 10000) {
-                            count_while_loop_big += 1;
-                            count_while_loop = 0;
-                        }
-                        if(count_while_loop_big > 10) {
-                            Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
-                            break;
+                    if(is_burnin) {
+                        int count_while_loop = 0;
+                        int count_while_loop_big = 0;
+                        while(arma::any(update_value < 0)) {
+                            new_value = arma::mvnrnd(y_i_mean, W_i, 1);
+                            update_value = Y_i_new.col(k);
+                            update_value.elem(ind_replace) = new_value.elem(ind_replace);
+                            count_while_loop += 1;
+                            if(count_while_loop > 10000) {
+                                count_while_loop_big += 1;
+                                count_while_loop = 0;
+                            }
+                            if(count_while_loop_big > 10) {
+                                Rcpp::Rcout << "stuck in impute, i = " << ii << ", " << count_while_loop_big << std::endl;
+                                
+                                update_value = current_Y_i;
+                                break;
+                            }
+                        }    
+                    } else {
+                        if(arma::any(update_value < 0)) {
+                            update_value = current_Y_i;
                         }
                     }
                 }

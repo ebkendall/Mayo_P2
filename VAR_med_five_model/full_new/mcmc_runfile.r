@@ -4,7 +4,7 @@ args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 set.seed(seed_num)
 
-simulation = F
+simulation = T
 
 # Load data --------------------------------------------------------------------
 data_format = NULL
@@ -44,7 +44,7 @@ par_index$G = 425:440
 par = rep(0, max(do.call('c', par_index)))
 
 if(simulation) {
-    load('Model_out/mcmc_out_1_1it3.rda')
+    load('Model_out/mcmc_out_1_2it2.rda')
     par[par_index$beta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$beta])
     par[par_index$alpha_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde])
     par[par_index$upsilon] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$upsilon])

@@ -4,9 +4,9 @@ library(gridExtra)
 
 index_seeds = c(1:25)
 trialNum = 1
-simulation = F
+simulation = T
 
-it_num = 1
+it_num = 2
 start_ind = 1
 
 # Parameter initialization -----------------------------------------------------

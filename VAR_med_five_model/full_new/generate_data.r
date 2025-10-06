@@ -38,7 +38,7 @@ par[par_index$omega_tilde]= 2 * c(-1, 1, 1,-1,-1, 1, 1,-1, 1, 1,-1,-1, 1,-1, 1, 
                                   -1,-1, 1, 1, 1,-1,-1,-1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1)
 
 # Using values from the real data analysis
-load('Model_out/mcmc_out_1_1it3.rda')
+load('Model_out/mcmc_out_1_2it2.rda')
 par[par_index$beta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$beta])
 par[par_index$alpha_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde])
 par[par_index$upsilon] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$upsilon])
@@ -254,7 +254,17 @@ for(i in 1:N) {
         X_i = vector(mode = 'list', length = n_i)
         
         vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
+        while(vec_alpha_i[1] > 0  || vec_alpha_i[2] < 0 || 
+              vec_alpha_i[5] < 0  || vec_alpha_i[6] > 0 || 
+              vec_alpha_i[9] > 0  || vec_alpha_i[10] < 0 ||
+              vec_alpha_i[13] < 0 || vec_alpha_i[14] > 0) {
+            vec_alpha_i = rmvnorm( n=1, mean=c(alpha_tilde), sigma=Upsilon)
+        }
+        
         vec_base = rmvnorm(n=1, mean = baseline_mean, sigma = baseline_var)
+        while(sum(vec_base < 0) > 0) {
+            vec_base = rmvnorm(n=1, mean = baseline_mean, sigma = baseline_var)
+        }
         
         alpha_i_mat[[i]] = matrix(vec_alpha_i, ncol = 1)
         
