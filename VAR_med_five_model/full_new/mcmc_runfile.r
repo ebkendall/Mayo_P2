@@ -4,7 +4,7 @@ args = commandArgs(TRUE)
 seed_num = as.numeric(args[1])
 set.seed(seed_num)
 
-simulation = T
+simulation = F
 
 # Load data --------------------------------------------------------------------
 data_format = NULL
@@ -17,7 +17,7 @@ if(simulation) {
     print(paste0('SIM: seed ', seed_num, ' trial ', trialNum))
 } else {
     trialNum = 1
-    max_ind = 5
+    max_ind = 7
     
     load('Data/data_format_train_update.rda')
     print(paste0('REAL: seed ', seed_num, ' trial ', trialNum))
@@ -115,7 +115,7 @@ if(simulation) {
 
         # 9: from it 1-3
         # all seeds for rest
-        chosen_seed = seed_num
+        chosen_seed = 2
         load(paste0('Model_out/mcmc_out_', trialNum, '_', chosen_seed, 'it',
                     max_ind - 5, '.rda'))
 

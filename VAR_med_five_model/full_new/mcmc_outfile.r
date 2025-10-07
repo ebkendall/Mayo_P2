@@ -23,7 +23,7 @@ par_index$G = 425:440
 
 true_par = rep(0, max(do.call('c', par_index)))
 if(simulation) {
-    load('Model_out/mcmc_out_1_1it3.rda')
+    load('Model_out/mcmc_out_1_2it2.rda')
     true_par[par_index$beta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$beta])
     true_par[par_index$alpha_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde])
     true_par[par_index$upsilon] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$upsilon])

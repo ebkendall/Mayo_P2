@@ -51,23 +51,21 @@ par_index$G = 425:440
 
 par = rep(0, max(do.call('c', par_index)))
 
-load('Model_out/mcmc_out_1_1it1.rda')
-par[par_index$beta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$beta]
-par[par_index$alpha_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde]
-par[par_index$upsilon] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$upsilon]
-par[par_index$A] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$A]
-par[par_index$R] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$R]
-par[par_index$zeta] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$zeta]
+load('Model_out/mcmc_out_1_2it2.rda')
+par[par_index$beta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$beta])
+par[par_index$alpha_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$alpha_tilde])
+par[par_index$upsilon] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$upsilon])
+par[par_index$A] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$A])
+par[par_index$R] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$R])
+par[par_index$zeta] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$zeta])
+par[par_index$omega_tilde] = colMeans(mcmc_out$chain[500:nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde])
+par[par_index$G] = c(diag(c(9, 9, 9, 9)))
 
-init_par_est = c(378, 42, 41, 16, 23); init_par_est = init_par_est/sum(init_par_est)
+init_par_est = c(299, 30, 24, 87, 60); init_par_est = init_par_est/sum(init_par_est)
 par[par_index$init][1] = log(init_par_est[2] / (1 - sum(init_par_est[2:5])))
 par[par_index$init][2] = log(init_par_est[3] / (1 - sum(init_par_est[2:5])))
 par[par_index$init][3] = log(init_par_est[4] / (1 - sum(init_par_est[2:5])))
 par[par_index$init][4] = log(init_par_est[5] / (1 - sum(init_par_est[2:5])))
-
-par[par_index$omega_tilde] = mcmc_out$chain[nrow(mcmc_out$chain), mcmc_out$par_index$omega_tilde]
-
-par[par_index$G] = c(diag(c(9, 9, 9, 9)))
 
 adj_mat = matrix(c(1, 1, 0, 1, 0,
                    0, 1, 1, 1, 0,
@@ -187,33 +185,34 @@ n_cores = 1
         save(interm_compute_time, file = paste0('Model_out/int_comp_', samp_ind, '_', s, '.rda'))
     # }
 # }
-
-compute_times = list()
-for(i in 1:4) {
-    compute_times[[i]] = list()
-    for(s in 1:5) {
-        file_name = paste0('Model_out/int_comp_', i, '_', s, '.rda')
-        if(file.exists(file_name)) {
-            load(file_name)
-            compute_times[[i]][[s]] = interm_compute_time
-        }
-    }
-}
-
-compute_times_15 = c(2439.744, 2707.454, 2691.764, 2689.079, 2726.551, 2718.337,
-                     2708.41, 2662.819, 2573.873, 2623.157, 2665.674, 2648.07, 2586.861,
-                     2663.089)
-
-pdf("Plots/compute_times_update.pdf")
-par(mfrow = c(3, 2))
-plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
-for(i in 1:4) {
-    for(j in 1:length(compute_times[[i]])) {
-        plot(compute_times[[i]][[j]][,2], main = paste0(plot_names[i], ", p = ", sps[j]),
-             ylim = c(0,1), ylab = "Percent Correct",
-             xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
-                           ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
-    }
-    plot.new()
-}
-dev.off()
+        
+# 
+# compute_times = list()
+# for(i in 1:4) {
+#     compute_times[[i]] = list()
+#     for(s in 1:5) {
+#         file_name = paste0('Model_out/int_comp_', i, '_', s, '.rda')
+#         if(file.exists(file_name)) {
+#             load(file_name)
+#             compute_times[[i]][[s]] = interm_compute_time
+#         }
+#     }
+# }
+# 
+# compute_times_15 = c(2439.744, 2707.454, 2691.764, 2689.079, 2726.551, 2718.337,
+#                      2708.41, 2662.819, 2573.873, 2623.157, 2665.674, 2648.07, 2586.861,
+#                      2663.089)
+# 
+# pdf("Plots/compute_times_update.pdf")
+# par(mfrow = c(3, 2))
+# plot_names = c("Coin Flip", "Almost-Gibbs", "Gibbs", "Our Sampler")
+# for(i in 1:4) {
+#     for(j in 1:length(compute_times[[i]])) {
+#         plot(compute_times[[i]][[j]][,2], main = paste0(plot_names[i], ", p = ", sps[j]),
+#              ylim = c(0,1), ylab = "Percent Correct",
+#              xlab = paste0("Median Time = ", round(median(compute_times[[i]][[j]][,1]), 4),
+#                            ", Accuracy = ", round(compute_times[[i]][[j]][100,2], 4)))
+#     }
+#     plot.new()
+# }
+# dev.off()
